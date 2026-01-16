@@ -34,7 +34,7 @@ export class Instance {
 
 		// Extract specific refs from the store
 		const store = storeToRefs(useInstanceStore());
-		this.store = { map: store.map, mapReady: store.mapReady };
+		this.store = { map: store.map.value };
 
 		this.loadGeoJSON = useMap().loadGeoJSON;
 		this.toGeoJSON = useMap().toGeoJSON;
