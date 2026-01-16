@@ -283,7 +283,11 @@ export function useMap() {
 				// Update bounds to encompass new Overlays
 				map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
 			}
+
+			return overlays;
 		}
+
+		return [];
 	};
 
 	const clearGeoJSON = () => {
