@@ -43,18 +43,6 @@ export function useMap() {
 		map.value.on("load", () => {
 			mapReady.value = true;
 
-			// Dispatch an event
-			const container = document.getElementById(
-				config.value.getMapOption("div_id"),
-			);
-
-			container.dispatchEvent(
-				new CustomEvent("waymark-map-loaded", {
-					bubbles: true,
-					detail: { map: map.value },
-				}),
-			);
-
 			console.log("Map Loaded:", mapReady.value);
 
 			// Add Tile Layers

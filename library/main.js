@@ -34,9 +34,5 @@ export class Instance {
 		this.loadGeoJSON = useMap().loadGeoJSON;
 		this.toGeoJSON = useMap().toGeoJSON;
 		this.clearGeoJSON = useMap().clearGeoJSON;
-
-		// Extract specific refs from the store
-		const store = useInstanceStore();
-		this.store = { map: store.map.value };
 	}
 }
