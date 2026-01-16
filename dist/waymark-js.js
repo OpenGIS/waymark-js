@@ -26564,7 +26564,7 @@ function ch() {
       container: `${f.value.getMapOption("div_id")}-map`
     };
     M.value = new ib.Map(dt), M.value.on("load", () => {
-      k.value = !0, f.value.getTileLayers().forEach((ot) => {
+      k.value = !0, console.log("Map Loaded:", k.value), f.value.getTileLayers().forEach((ot) => {
         ot.addTo(M.value);
       }), Se.value.bounds = M.value.getBounds(), Se.value.bearing = M.value.getBearing(), Se.value.pitch = M.value.getPitch(), Se.value.zoom = M.value.getZoom(), Se.value.center = M.value.getCenter();
     }), M.value.on("rotateend", () => {
@@ -26618,7 +26618,7 @@ function ch() {
         O.value = [...O.value, Nt], Nt.addTo(M.value), Nt instanceof yh && Nt.marker.getElement().addEventListener("click", (li) => {
           li.stopPropagation(), st(Nt);
         });
-      }), f.value.getInitialView() || M.value.fitBounds(S.value, H0), O;
+      }), f.value.getInitialView() || M.value.fitBounds(S.value, H0), O.value;
     }
     return [];
   }, nt = () => {
@@ -26717,7 +26717,7 @@ const fb = ["id"], mb = {
     }, null, 8, fb));
   }
 }, gb = ["id"], _b = {
-  __name: "App",
+  __name: "Instance",
   props: {
     map_options: {
       type: Object,
@@ -26751,11 +26751,13 @@ class yb {
       div_id: "waymark-instance",
       ..._.map_options || {}
     }, !document.getElementById(_.map_options.div_id)) {
-      const k = document.createElement("div");
-      k.id = _.map_options.div_id, k.style.height = "100%", document.body.appendChild(k);
+      const O = document.createElement("div");
+      O.id = _.map_options.div_id, O.style.height = "100%", document.body.appendChild(O);
     }
     const w = B0(_b, _), M = N0();
-    w.use(M), w.mount("#" + _.map_options.div_id), this.store = Ah(zh()), this.loadGeoJSON = ch().loadGeoJSON, this.toGeoJSON = ch().toGeoJSON, this.clearGeoJSON = ch().clearGeoJSON;
+    w.use(M), w.mount("#" + _.map_options.div_id);
+    const k = Ah(zh());
+    this.store = { map: k.map, mapReady: k.mapReady }, this.loadGeoJSON = ch().loadGeoJSON, this.toGeoJSON = ch().toGeoJSON, this.clearGeoJSON = ch().clearGeoJSON;
   }
 }
 export {

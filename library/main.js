@@ -1,6 +1,6 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import App from "../library/components/App.vue";
+import InstanceComponent from "../library/components/Instance.vue";
 import { useMap } from "@/composables/useMap.js";
 import { storeToRefs } from "pinia";
 import { useInstanceStore } from "@/stores/instanceStore.js";
@@ -22,8 +22,8 @@ export class Instance {
 			document.body.appendChild(container);
 		}
 
-		// Create Vue App
-		const app = createApp(App, config);
+		// Create Vue App for this instance
+		const app = createApp(InstanceComponent, config);
 
 		// Add Pinia
 		const pinia = createPinia();
@@ -32,7 +32,10 @@ export class Instance {
 		// Mount to DOM
 		app.mount("#" + config.map_options.div_id);
 
-		this.store = storeToRefs(useInstanceStore());
+		// Extract specific refs from the store
+		const store = storeToRefs(useInstanceStore());
+		this.store = { map: store.map, mapReady: store.mapReady };
+
 		this.loadGeoJSON = useMap().loadGeoJSON;
 		this.toGeoJSON = useMap().toGeoJSON;
 		this.clearGeoJSON = useMap().clearGeoJSON;

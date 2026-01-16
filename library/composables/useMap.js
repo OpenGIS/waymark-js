@@ -284,7 +284,7 @@ export function useMap() {
 				map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
 			}
 
-			return overlays;
+			return overlays.value;
 		}
 
 		return [];
