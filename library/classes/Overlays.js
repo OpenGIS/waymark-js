@@ -3,7 +3,7 @@ import { Config } from "@/classes/Config.js";
 import { waymarkPrimaryColour } from "@/helpers/Common.js";
 import { getFeatureType, getFeatureImages } from "@/helpers/Overlay.js";
 import { flyToOptions, fitBoundsOptions } from "@/helpers/MapLibre.js";
-import { LngLatBounds, Marker } from "maplibre-gl";
+import { LngLatBounds, Marker, Popup } from "maplibre-gl";
 
 export class Overlay {
   constructor(feature, config, id = null) {
@@ -48,6 +48,7 @@ export class Overlay {
     }
 
     this.map = map;
+    this.popup = null;
 
     // Create Source
     this.map.addSource(this.id, {
@@ -188,15 +189,42 @@ export class MarkerOverlay extends Overlay {
     el.style.width = `${this.type.iconData.iconSize[0]}px`;
     el.style.height = `${this.type.iconData.iconSize[1]}px`;
 
+    this.popup = this.createPopup();
+
+    console.log("Adding marker overlay", this.popup);
+
+    // this.marker.setPopup(this.popup);
+
     // Create Marker
     const marker = new Marker({
       element: el,
       offset: this.type.iconData.iconAnchor,
-    });
-
-    marker.setLngLat(this.feature.geometry.coordinates);
+    })
+      .setLngLat(this.feature.geometry.coordinates)
+      .setPopup(this.popup);
 
     return marker;
+  }
+
+  createPopup() {
+    // Create popup content
+    const popupContent = document.createElement("div");
+    popupContent.className = "waymark-popup-content";
+
+    if (this.getTitle()) {
+      const titleEl = document.createElement("h3");
+      titleEl.textContent = this.getTitle();
+      popupContent.appendChild(titleEl);
+    }
+
+    if (this.getDescription()) {
+      const descEl = document.createElement("p");
+      descEl.textContent = this.getDescription();
+      popupContent.appendChild(descEl);
+    }
+
+    // Create popup
+    return new Popup({ offset: 25 }).setDOMContent(popupContent);
   }
 
   addEvents() {}

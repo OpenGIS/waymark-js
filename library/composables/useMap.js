@@ -114,9 +114,6 @@ export function useMap() {
 				if (activeOverlay.value) {
 					// Remove active overlay
 					setActiveOverlay();
-				} else {
-					// Close Panel
-					closePanel();
 				}
 			}
 		});
@@ -272,12 +269,12 @@ export function useMap() {
 				overlay.addTo(map.value);
 
 				// Handle Markers
-				if (overlay instanceof MarkerOverlay) {
-					overlay.marker.getElement().addEventListener("click", (e) => {
-						e.stopPropagation();
-						setActiveOverlay(overlay);
-					});
-				}
+				// if (overlay instanceof MarkerOverlay) {
+				// 	overlay.marker.getElement().addEventListener("click", (e) => {
+				// 		e.stopPropagation();
+				// 		setActiveOverlay(overlay);
+				// 	});
+				// }
 			});
 
 			// If there is not an initial view
