@@ -232,7 +232,7 @@ export function useMap() {
 				map.value.on("load", () => {
 					loadGeoJSON(geoJSON);
 				});
-				return;
+				return [];
 			}
 
 			// Overlays
@@ -245,7 +245,7 @@ export function useMap() {
 						"Feature Type not recognised or supported - skipping",
 						feature,
 					);
-					return;
+					return [];
 				}
 
 				// Create Overlay instance
