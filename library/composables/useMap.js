@@ -43,8 +43,6 @@ export function useMap() {
 		map.value.on("load", () => {
 			mapReady.value = true;
 
-			console.log("Map Loaded:", mapReady.value);
-
 			// Add Tile Layers
 			config.value.getTileLayers().forEach((tileLayer) => {
 				tileLayer.addTo(map.value);

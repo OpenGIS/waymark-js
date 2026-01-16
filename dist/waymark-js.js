@@ -25848,7 +25848,6 @@ const y_ = /* @__PURE__ */ q0("instance", () => {
   return zc(O, (Se) => {
     Se === !0 && w.value && _.value.dispatchEvent(
       new CustomEvent("waymark-map-ready", {
-        bubbles: !0,
         detail: { map: w.value }
       })
     );
@@ -26531,7 +26530,7 @@ function ch() {
       container: `${f.value.getMapOption("div_id")}-map`
     };
     _.value = new ws.Map(Ke), _.value.on("load", () => {
-      w.value = !0, console.log("Map Loaded:", w.value), f.value.getTileLayers().forEach((Ye) => {
+      w.value = !0, f.value.getTileLayers().forEach((Ye) => {
         Ye.addTo(_.value);
       }), S.value.bounds = _.value.getBounds(), S.value.bearing = _.value.getBearing(), S.value.pitch = _.value.getPitch(), S.value.zoom = _.value.getZoom(), S.value.center = _.value.getCenter();
     }), _.value.on("rotateend", () => {

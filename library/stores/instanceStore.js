@@ -96,7 +96,6 @@ export const useInstanceStore = defineStore("instance", () => {
 			// Dispatch an event
 			container.value.dispatchEvent(
 				new CustomEvent("waymark-map-ready", {
-					bubbles: true,
 					detail: { map: map.value },
 				}),
 			);
