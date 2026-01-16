@@ -8,17 +8,8 @@ export const useInstanceStore = defineStore("instance", () => {
 	const { config } = useConfig();
 	const container = shallowRef(null);
 	const map = shallowRef(null);
-
 	const overlays = shallowRef([]);
-
-	const panelOpen = shallowRef(false);
-
 	const activeOverlay = shallowRef(null);
-
-	const activePanelKey = shallowRef("overlays");
-	const activeNavKey = shallowRef();
-	const activeFeatureType = shallowRef("marker");
-
 	const mapReady = shallowRef(false);
 
 	const layerFilters = ref({
@@ -39,11 +30,6 @@ export const useInstanceStore = defineStore("instance", () => {
 	// Actions
 	const init = (initConfig = {}) => {
 		useConfig().init(initConfig);
-
-		// Debug?
-		if (config.value.getMapOption("debug_mode")) {
-			activePanelKey.value = "debug";
-		}
 	};
 
 	// Computed
@@ -110,15 +96,11 @@ export const useInstanceStore = defineStore("instance", () => {
 		config,
 		mapReady,
 		container,
-		panelOpen,
 		overlays,
 		overlaysByType,
 		map,
 		layerFilters,
 		activeOverlay,
-		activePanelKey,
-		activeNavKey,
-		activeFeatureType,
 		view,
 
 		// Actions

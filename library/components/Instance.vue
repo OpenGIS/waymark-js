@@ -8,8 +8,7 @@ import { useConfig } from "@/composables/useConfig.js";
 
 const instanceStore = useInstanceStore();
 const { config } = useConfig();
-const { mapReady, container, panelOpen, activeOverlay } =
-	storeToRefs(instanceStore);
+const { container, activeOverlay } = storeToRefs(instanceStore);
 
 import "@/assets/css/index.less";
 
@@ -37,13 +36,6 @@ container.value = document.getElementById(
 
 const classAppend = computed(() => {
 	let classes = [""];
-
-	// Panel Open
-	if (panelOpen.value) {
-		classes.push("panel-open");
-	} else {
-		classes.push("panel-closed");
-	}
 
 	// Orientation
 	if (container.value.clientWidth > container.value.clientHeight) {
@@ -90,8 +82,6 @@ const classAppend = computed(() => {
 		:id="`${config.map_options.div_id}-instance`"
 	>
 		<Map />
-
-		<!-- <UI v-if="mapReady" /> -->
 	</div>
 </template>
 
@@ -101,55 +91,5 @@ const classAppend = computed(() => {
 	width: 100%;
 	display: flex;
 	overflow: hidden;
-
-	/* Transitions */
-	.map,
-	.ui {
-		transition: width 0.25s ease-in-out;
-		transition: height 0.25s ease-in-out;
-	}
-
-	.map {
-		// width: calc(100% - 44px);
-		width: 100%;
-		height: 100%;
-	}
-
-	.ui {
-		width: 44px;
-		height: 100%;
-	}
-
-	&.panel-open {
-		.map {
-			width: calc(100% - 320px);
-		}
-
-		.ui {
-			width: 320px;
-		}
-	}
-
-	&.display-narrow {
-		flex-direction: column;
-
-		&.panel-open {
-			.map {
-				width: 100%;
-				height: calc(100% - 480px);
-			}
-
-			.ui {
-				width: 100%;
-				// height: 480px;
-			}
-
-			&.has-active-overlay {
-				.ui {
-					height: 400px;
-				}
-			}
-		}
-	}
 }
 </style>

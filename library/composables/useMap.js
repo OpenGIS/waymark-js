@@ -22,24 +22,12 @@ import {
 // Import instanceStore
 import { useInstanceStore } from "@/stores/instanceStore.js";
 import { useConfig } from "@/composables/useConfig.js";
-import { useUI } from "@/composables/useUI.js";
 
 export function useMap() {
 	// Get the state from the instance store
 	const { config } = useConfig();
-	const { setActivePanel, closePanel } = useUI();
-	const {
-		map,
-		mapReady,
-		overlays,
-		overlaysBounds,
-		activeOverlay,
-		activeFeatureType,
-		panelOpen,
-		activePanelKey,
-		activeNavKey,
-		view,
-	} = storeToRefs(useInstanceStore());
+	const { map, mapReady, overlays, overlaysBounds, activeOverlay, view } =
+		storeToRefs(useInstanceStore());
 
 	// Create & Store Map
 	const init = () => {
@@ -354,11 +342,6 @@ export function useMap() {
 			// Make inactive
 			activeOverlay.value = null;
 		}
-
-		// Go to Overlays Panel
-		activeNavKey.value = "";
-		activeFeatureType.value = overlay.featureType;
-		setActivePanel("overlays");
 
 		// Make active
 		activeOverlay.value = overlay;

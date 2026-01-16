@@ -1,9 +1,5 @@
 <script setup>
-import { storeToRefs } from "pinia";
 import { onMounted } from "vue";
-
-import { useInstanceStore } from "@/stores/instanceStore.js";
-// const { config } = storeToRefs(useInstanceStore());
 
 import { useConfig } from "@/composables/useConfig.js";
 const { config } = useConfig();
@@ -28,5 +24,7 @@ onMounted(() => {
 
 <style lang="less">
 .map {
+  width: 100%;
+  height: 100%;
 }
 </style>
