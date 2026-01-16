@@ -14,7 +14,7 @@ const { mapReady, container, panelOpen, activeOverlay } =
 import "@/assets/css/index.less";
 
 import Map from "@/components/Map.vue";
-import UI from "@/components/UI/UI.vue";
+// import UI from "@/components/UI/UI.vue";
 
 const props = defineProps({
 	map_options: {
@@ -91,7 +91,7 @@ const classAppend = computed(() => {
 	>
 		<Map />
 
-		<UI v-if="mapReady" />
+		<!-- <UI v-if="mapReady" /> -->
 	</div>
 </template>
 
@@ -110,7 +110,8 @@ const classAppend = computed(() => {
 	}
 
 	.map {
-		width: calc(100% - 44px);
+		// width: calc(100% - 44px);
+		width: 100%;
 		height: 100%;
 	}
 

@@ -11,7 +11,7 @@ export const useInstanceStore = defineStore("instance", () => {
 
 	const overlays = shallowRef([]);
 
-	const panelOpen = shallowRef(true);
+	const panelOpen = shallowRef(false);
 
 	const activeOverlay = shallowRef(null);
 
