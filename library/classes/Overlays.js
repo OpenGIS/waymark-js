@@ -31,6 +31,7 @@ export class Overlay {
     // Get Type
     this.typeKey = this.getTypeKey() || null;
     this.type = this.config.getType(this.featureType, this.typeKey);
+    this.popup = this.createPopup();
 
     if (!this.type) {
       console.error(
@@ -48,7 +49,6 @@ export class Overlay {
     }
 
     this.map = map;
-    this.popup = null;
 
     // Create Source
     this.map.addSource(this.id, {
@@ -174,37 +174,6 @@ export class Overlay {
       });
     }
   }
-}
-
-export class MarkerOverlay extends Overlay {
-  constructor(feature, config, id) {
-    super(feature, config, id);
-  }
-
-  toMarker() {
-    // Create a DOM element for the marker
-    const el = document.createElement("div");
-    el.className = this.type.iconData.className;
-    el.innerHTML = this.type.iconData.html;
-    el.style.width = `${this.type.iconData.iconSize[0]}px`;
-    el.style.height = `${this.type.iconData.iconSize[1]}px`;
-
-    this.popup = this.createPopup();
-
-    console.log("Adding marker overlay", this.popup);
-
-    // this.marker.setPopup(this.popup);
-
-    // Create Marker
-    const marker = new Marker({
-      element: el,
-      offset: this.type.iconData.iconAnchor,
-    })
-      .setLngLat(this.feature.geometry.coordinates)
-      .setPopup(this.popup);
-
-    return marker;
-  }
 
   createPopup() {
     // Create popup content
@@ -225,6 +194,43 @@ export class MarkerOverlay extends Overlay {
 
     // Create popup
     return new Popup({ offset: 25 }).setDOMContent(popupContent);
+  }
+
+  openPopup() {
+    if (!this.map) {
+      return;
+    }
+
+    //Add to center of bounds
+    const bounds = this.getBounds();
+    const center = bounds.getCenter();
+
+    this.popup.setLngLat([center.lng, center.lat]).addTo(this.map);
+  }
+}
+
+export class MarkerOverlay extends Overlay {
+  constructor(feature, config, id) {
+    super(feature, config, id);
+  }
+
+  toMarker() {
+    // Create a DOM element for the marker
+    const el = document.createElement("div");
+    el.className = this.type.iconData.className;
+    el.innerHTML = this.type.iconData.html;
+    el.style.width = `${this.type.iconData.iconSize[0]}px`;
+    el.style.height = `${this.type.iconData.iconSize[1]}px`;
+
+    // Create Marker
+    const marker = new Marker({
+      element: el,
+      offset: this.type.iconData.iconAnchor,
+    });
+
+    marker.setLngLat(this.feature.geometry.coordinates);
+
+    return marker;
   }
 
   addEvents() {}

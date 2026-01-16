@@ -1,7 +1,7 @@
 import { storeToRefs } from "pinia";
 // import { Map } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import maplibregl from "maplibre-gl";
+import { Map } from "maplibre-gl";
 // import mlcontour from "maplibre-contour";
 import { featureTypes, getFeatureType } from "@/helpers/Overlay.js";
 
@@ -37,7 +37,7 @@ export function useMap() {
 		};
 
 		// Create MapLibre instance
-		map.value = new maplibregl.Map(mapOptions);
+		map.value = new Map(mapOptions);
 
 		// Triggers the UI to populate
 		map.value.on("load", () => {
@@ -344,24 +344,7 @@ export function useMap() {
 		activeOverlay.value = overlay;
 		overlay.flyTo();
 		overlay.addHighlight();
-
-		setTimeout(() => {
-			// Scroll to in UI
-			if (overlay.rowElement) {
-				// Sticky panel at top of content
-				const panelTop = document.querySelector(".panel.overlay .panel-top");
-				const panelHeight = panelTop.clientHeight;
-
-				// Set scroll margin
-				overlay.rowElement.value.style.scrollMarginTop = `${panelHeight}px`;
-
-				// Scroll to view
-				overlay.rowElement.value.scrollIntoView({
-					behavior: "smooth",
-					block: "nearest",
-				});
-			}
-		}, 750);
+		overlay.openPopup();
 	};
 
 	const resetView = () => {
