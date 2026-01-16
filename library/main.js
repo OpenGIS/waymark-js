@@ -2,7 +2,6 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import InstanceComponent from "../library/components/Instance.vue";
 import { useMap } from "@/composables/useMap.js";
-import { storeToRefs } from "pinia";
 import { useInstanceStore } from "@/stores/instanceStore.js";
 
 export class Instance {
@@ -32,12 +31,12 @@ export class Instance {
 		// Mount to DOM
 		app.mount("#" + config.map_options.div_id);
 
-		// Extract specific refs from the store
-		const store = storeToRefs(useInstanceStore());
-		this.store = { map: store.map.value };
-
 		this.loadGeoJSON = useMap().loadGeoJSON;
 		this.toGeoJSON = useMap().toGeoJSON;
 		this.clearGeoJSON = useMap().clearGeoJSON;
+
+		// Extract specific refs from the store
+		const store = useInstanceStore();
+		this.store = { map: store.map.value };
 	}
 }
