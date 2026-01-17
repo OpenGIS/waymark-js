@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Map } from "maplibre-gl";
 // import mlcontour from "maplibre-contour";
 import { featureTypes, getFeatureType } from "@/helpers/Overlay.js";
+import { dispatchEvent } from "@/classes/Event.js";
 
 import {
 	fitBoundsOptions,
@@ -42,6 +43,7 @@ export function useMap() {
 		// Triggers the UI to populate
 		map.value.on("load", () => {
 			mapReady.value = true;
+			dispatchEvent("instance-ready");
 
 			// Add Tile Layers
 			config.value.getTileLayers().forEach((tileLayer) => {
@@ -283,7 +285,7 @@ export function useMap() {
 		overlays.value = [];
 
 		// Clear active overlay
-		activeOverlay.value = null;
+		setActiveOverlay();
 	};
 
 	const toGeoJSON = () => {
@@ -305,7 +307,8 @@ export function useMap() {
 			if (activeOverlay.value) {
 				activeOverlay.value.removeHighlight();
 			}
-			activeOverlay.value = null;
+
+			setActiveOverlay();
 			return;
 		}
 
@@ -323,7 +326,7 @@ export function useMap() {
 			activeOverlay.value.removeHighlight();
 
 			// Make inactive
-			activeOverlay.value = null;
+			setActiveOverlay();
 		}
 
 		// Make active
@@ -331,6 +334,8 @@ export function useMap() {
 		overlay.flyTo();
 		overlay.addHighlight();
 		overlay.openPopup();
+
+		dispatchEvent("active-overlay-updated");
 	};
 
 	const resetView = () => {

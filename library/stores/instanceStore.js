@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef, watch } from "vue";
+import { computed, ref, shallowRef } from "vue";
 import { defineStore } from "pinia";
 import { useConfig } from "@/composables/useConfig.js";
 import { LngLatBounds } from "maplibre-gl";
@@ -91,15 +91,15 @@ export const useInstanceStore = defineStore("instance", () => {
 		return bounds;
 	});
 
-	watch(mapReady, (newVal) => {
-		if (newVal === true && map.value) {
-			// Dispatch an event
-			container.value.dispatchEvent(
-				new CustomEvent("waymark-map-ready", {
-					detail: { map: map.value },
-				}),
-			);
-		}
+	const eventData = computed(() => {
+		return {
+			config: config.value,
+			map: map.value,
+			mapReady: mapReady.value,
+			overlays: overlays.value,
+			overlaysBounds: overlaysBounds.value,
+			activeOverlay: activeOverlay.value,
+		};
 	});
 
 	return {
@@ -121,5 +121,6 @@ export const useInstanceStore = defineStore("instance", () => {
 		overlaysByType,
 		filteredOverlays,
 		overlaysBounds,
+		eventData,
 	};
 });
