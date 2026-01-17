@@ -22,33 +22,26 @@ import {
 
 // Import instanceStore
 import { useInstanceStore } from "@/stores/instanceStore.js";
-import { useConfig } from "@/composables/useConfig.js";
 
 export function useMap() {
 	// Get the state from the instance store
-	const { config } = useConfig();
-	const { map, mapReady, overlays, overlaysBounds, activeOverlay, view } =
-		storeToRefs(useInstanceStore());
+	const {
+		container,
+		map,
+		mapReady,
+		overlays,
+		overlaysBounds,
+		activeOverlay,
+		view,
+	} = storeToRefs(useInstanceStore());
 
-	// Create & Store Map
-	const init = () => {
-		const mapOptions = {
-			...config.value.getMapLibreOptions(),
-			container: `${config.value.getMapOption("div_id")}-map`,
-		};
-
-		// Create MapLibre instance
-		map.value = new Map(mapOptions);
-
-		// Triggers the UI to populate
+	// Add Event Listeners
+	const addListeners = () => {
+		// When MapLibre has loaded
 		map.value.on("load", () => {
 			mapReady.value = true;
-			dispatchEvent("instance-ready");
 
-			// Add Tile Layers
-			config.value.getTileLayers().forEach((tileLayer) => {
-				tileLayer.addTo(map.value);
-			});
+			// Load GeoJSON if provided
 
 			// Set Initial View
 			view.value.bounds = map.value.getBounds();
@@ -56,6 +49,8 @@ export function useMap() {
 			view.value.pitch = map.value.getPitch();
 			view.value.zoom = map.value.getZoom();
 			view.value.center = map.value.getCenter();
+
+			dispatchEvent("instance-ready");
 		});
 
 		// Track Bearing
@@ -105,124 +100,11 @@ export function useMap() {
 				}
 			}
 		});
-
-		// Terrain and Contours
-		/*
-		map.value.on("style.load", () => {
-			map.value.addSource("terrainSource", {
-				type: "raster-dem",
-				tiles: [
-					"https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
-				],
-				encoding: "terrarium",
-				tileSize: 256,
-				maxzoom: 14,
-			});
-
-			map.value.setTerrain({
-				source: "terrainSource",
-				exaggeration: 1,
-			});
-
-			map.value.addSource("hillshadeSource", {
-				type: "raster-dem",
-				tiles: [
-					"https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
-				],
-				encoding: "terrarium",
-				tileSize: 256,
-				maxzoom: 14,
-			});
-
-			map.value.addLayer({
-				id: "hillshade-layer",
-				type: "hillshade",
-				source: "hillshadeSource",
-				paint: {
-					"hillshade-shadow-color": "#333333",
-				},
-			});
-
-			var demSource = new mlcontour.DemSource({
-				url: "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
-				encoding: "terrarium", // "mapbox" or "terrarium" default="terrarium"
-				maxzoom: 13,
-				worker: true, // offload isoline computation to a web worker to reduce jank
-				cacheSize: 100, // number of most-recent tiles to cache
-				timeoutMs: 10_000, // timeout on fetch requests
-			});
-			demSource.setupMaplibre(maplibregl);
-
-			map.value.addSource("contour-source", {
-				type: "vector",
-				minzoom: 12,
-				// maxzoom: 14,
-				tiles: [
-					demSource.contourProtocolUrl({
-						// convert meters to feet, default=1 for meters
-						// multiplier: 3.28084,
-						thresholds: {
-							// zoom: [minor, major]
-							// We want a very subtle contour effect
-							0: [100, 500],
-							5: [50, 250],
-							10: [25, 100],
-							15: [10, 50],
-						},
-						// optional, override vector tile parameters:
-						contourLayer: "contours",
-						elevationKey: "ele",
-						levelKey: "level",
-						extent: 4096,
-						buffer: 1,
-					}),
-				],
-				maxzoom: 15,
-			});
-
-			map.value.addLayer({
-				id: "contour-lines",
-				type: "line",
-				source: "contour-source",
-				"source-layer": "contours",
-				paint: {
-					"line-color": "rgba(0,0,0, 30%)",
-					// level = highest index in thresholds array the elevation is a multiple of
-					"line-width": ["match", ["get", "level"], 1, 1, 0.5],
-				},
-			});
-			map.value.addLayer({
-				id: "contour-labels",
-				type: "symbol",
-				source: "contour-source",
-				"source-layer": "contours",
-				filter: [">", ["get", "level"], 0],
-				layout: {
-					"symbol-placement": "line",
-					"text-size": 10,
-					"text-field": ["concat", ["number-format", ["get", "ele"], {}], "m"],
-					"text-font": ["Noto Sans Bold"],
-				},
-				paint: {
-					"text-halo-color": "white",
-					"text-halo-width": 1,
-				},
-			});
-		});
-*/
 	};
 
 	const loadGeoJSON = (geoJSON) => {
-		// Data Layer - GeoJSON Present?
+		// For each feature in the GeoJSON
 		if (geoJSON && Array.isArray(geoJSON.features)) {
-			// If ! mapReady then wait till it is
-			if (!mapReady.value) {
-				map.value.on("load", () => {
-					loadGeoJSON(geoJSON);
-				});
-				return [];
-			}
-
 			// Overlays
 			geoJSON.features.forEach((feature) => {
 				// Determine Feature Type
@@ -242,11 +124,11 @@ export function useMap() {
 				const overlay = (() => {
 					switch (featureType) {
 						case "marker":
-							return new MarkerOverlay(feature, config.value, overlayId);
+							return new MarkerOverlay(feature, overlayId);
 						case "line":
-							return new LineOverlay(feature, config.value, overlayId);
+							return new LineOverlay(feature, overlayId);
 						case "shape":
-							return new ShapeOverlay(feature, config.value, overlayId);
+							return new ShapeOverlay(feature, overlayId);
 					}
 				})();
 
@@ -265,40 +147,13 @@ export function useMap() {
 				// }
 			});
 
-			// If there is not an initial view
-			if (!config.value.getInitialView()) {
-				// Update bounds to encompass new Overlays
-				map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
-			}
+			// Fit to bounds
+			map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
 
 			return overlays.value;
 		}
 
 		return [];
-	};
-
-	const clearGeoJSON = () => {
-		// Remove all overlays from map & store
-		overlays.value.forEach((overlay) => {
-			overlay.remove();
-		});
-		overlays.value = [];
-
-		// Clear active overlay
-		setActiveOverlay();
-	};
-
-	const toGeoJSON = () => {
-		const featureCollection = {
-			type: "FeatureCollection",
-			features: [],
-		};
-
-		overlays.value.forEach((overlay) => {
-			featureCollection.features.push(overlay.toGeoJSON());
-		});
-
-		return featureCollection;
 	};
 
 	const setActiveOverlay = (overlay = null) => {
@@ -406,7 +261,6 @@ export function useMap() {
 		init,
 		loadGeoJSON,
 		clearGeoJSON,
-		toGeoJSON,
 		setActiveOverlay,
 		resetView,
 		rotateMap,

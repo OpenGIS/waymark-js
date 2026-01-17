@@ -1,38 +1,29 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import InstanceComponent from "../library/components/Instance.vue";
-import { useMap } from "@/composables/useMap.js";
-import { useInstanceStore } from "@/stores/instanceStore.js";
+import Entry from "../library/Entry.vue";
 
 export class Instance {
-	constructor(config = {}) {
-		// Normalise configuration object
-		config.map_options = {
-			div_id: "waymark-instance",
-			...(config.map_options || {}),
-		};
-
-		// Ensure we have a container
-		if (!document.getElementById(config.map_options.div_id)) {
-			const container = document.createElement("div");
-			container.id = config.map_options.div_id;
-			// Add dimensions
-			container.style.height = "100%";
-			document.body.appendChild(container);
+	constructor(divId = "waymark-instance", geoJSON = {}) {
+		// Get the container div
+		const container = document.getElementById(divId);
+		if (!container) {
+			console.error("[Waymark] Could not find container in DOM");
 		}
 
+		// Add dimensions
+		container.style.height = "100%";
+		container.style.width = "100%";
+
 		// Create Vue App for this instance
-		const app = createApp(InstanceComponent, config);
+		const app = createApp(Entry, {
+			geoJSON,
+		});
 
 		// Add Pinia
 		const pinia = createPinia();
 		app.use(pinia);
 
 		// Mount to DOM
-		app.mount("#" + config.map_options.div_id);
-
-		this.loadGeoJSON = useMap().loadGeoJSON;
-		this.toGeoJSON = useMap().toGeoJSON;
-		this.clearGeoJSON = useMap().clearGeoJSON;
+		app.mount("#" + divId);
 	}
 }

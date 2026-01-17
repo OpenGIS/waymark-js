@@ -1,12 +1,11 @@
 import { length } from "@turf/length";
-import { Config } from "@/classes/Config.js";
 import { waymarkPrimaryColour } from "@/helpers/Common.js";
 import { getFeatureType, getFeatureImages } from "@/helpers/Overlay.js";
 import { flyToOptions, fitBoundsOptions } from "@/helpers/MapLibre.js";
 import { LngLatBounds, Marker, Popup } from "maplibre-gl";
 
 export class Overlay {
-  constructor(feature, config, id = null) {
+  constructor(feature, id = null) {
     if (!feature || feature.type !== "Feature") {
       throw new Error("Valid GeoJSON Feature required");
     }
@@ -17,11 +16,6 @@ export class Overlay {
     }
     this.id = id;
 
-    if (!(config instanceof Config)) {
-      throw new Error("Valid Config required");
-    }
-    this.config = config;
-
     this.featureType = getFeatureType(this.feature) || null;
     this.feature.properties = this.feature.properties || {};
     this.title = this.feature.properties.title || "";
@@ -30,7 +24,6 @@ export class Overlay {
 
     // Get Type
     this.typeKey = this.getTypeKey() || null;
-    this.type = this.config.getType(this.featureType, this.typeKey);
     this.popup = this.createPopup();
 
     if (!this.type) {
@@ -210,8 +203,8 @@ export class Overlay {
 }
 
 export class MarkerOverlay extends Overlay {
-  constructor(feature, config, id) {
-    super(feature, config, id);
+  constructor(feature, id) {
+    super(feature, id);
   }
 
   toMarker() {
@@ -257,14 +250,11 @@ export class MarkerOverlay extends Overlay {
       return "";
     }
 
-    const unitAppend =
-      this.config.getMapOption("units") === "metric" ? "m" : "ft";
-
     // Return elevation value from coordinates, rounded to 1 decimal place
     return (
       "Elevation: " +
       Math.round(this.feature.geometry.coordinates[2] * 10) / 10 +
-      unitAppend
+      "m"
     );
   }
 
@@ -331,8 +321,8 @@ export class MarkerOverlay extends Overlay {
 }
 
 export class LineOverlay extends Overlay {
-  constructor(feature, config, id) {
-    super(feature, config, id);
+  constructor(feature, id) {
+    super(feature, id);
   }
 
   toStyle() {
@@ -380,11 +370,10 @@ export class LineOverlay extends Overlay {
 
     // Round to 2 DP
     const lengthValue = length(this.feature, {
-      units:
-        this.config.getMapOption("units") === "metric" ? "kilometers" : "miles",
+      units: "kilometers",
     });
     out += Math.round(lengthValue * 100) / 100;
-    out += this.config.getMapOption("units") === "metric" ? "km" : "mi";
+    out += "km";
 
     return out;
   }
@@ -397,9 +386,6 @@ export class LineOverlay extends Overlay {
     if (!this.hasElevationData()) {
       return "";
     }
-
-    const unitAppend =
-      this.config.getMapOption("units") === "metric" ? "m" : "ft";
 
     // For the linestring, calculate elevation gain, loss, max and min
     const coords = this.getLinePositions();
@@ -421,27 +407,19 @@ export class LineOverlay extends Overlay {
       minElevation = Math.min(minElevation, coords[i][2]);
     }
 
-    // Convert to the correct units
-    if (this.config.getMapOption("units") === "imperial") {
-      elevationGain *= 3.28084; // Convert meters to feet
-      elevationLoss *= 3.28084; // Convert meters to feet
-      maxElevation *= 3.28084; // Convert meters to feet
-      minElevation *= 3.28084; // Convert meters to feet
-    }
-
     return (
       "Elevation Gain: " +
       Math.round(elevationGain * 10) / 10 +
-      unitAppend +
+      "m" +
       ", Loss: " +
       Math.round(elevationLoss * 10) / 10 +
-      unitAppend +
+      "m" +
       ", Max: " +
       Math.round(maxElevation * 10) / 10 +
-      unitAppend +
+      "m" +
       ", Min: " +
       Math.round(minElevation * 10) / 10 +
-      unitAppend
+      "m"
     );
   }
 
@@ -532,8 +510,8 @@ export class LineOverlay extends Overlay {
 }
 
 export class ShapeOverlay extends Overlay {
-  constructor(feature, config, id) {
-    super(feature, config, id);
+  constructor(feature, id) {
+    super(feature, id);
   }
 
   toStyle() {
@@ -603,9 +581,6 @@ export class ShapeOverlay extends Overlay {
     if (!this.hasElevationData()) {
       return "";
     }
-
-    const unitAppend =
-      this.config.getMapOption("units") === "metric" ? "m" : "ft";
 
     return "Elevation data available";
   }

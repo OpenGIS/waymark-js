@@ -1,11 +1,9 @@
 import { computed, ref, shallowRef } from "vue";
 import { defineStore } from "pinia";
-import { useConfig } from "@/composables/useConfig.js";
 import { LngLatBounds } from "maplibre-gl";
 
 export const useInstanceStore = defineStore("instance", () => {
 	// State
-	const { config } = useConfig();
 	const container = shallowRef(null);
 	const map = shallowRef(null);
 	const overlays = shallowRef([]);
@@ -24,13 +22,6 @@ export const useInstanceStore = defineStore("instance", () => {
 		zoom: null,
 		center: null,
 	});
-
-	// Getters
-
-	// Actions
-	const init = (initConfig = {}) => {
-		useConfig().init(initConfig);
-	};
 
 	// Computed
 	const overlaysByType = computed(() => {
@@ -93,7 +84,6 @@ export const useInstanceStore = defineStore("instance", () => {
 
 	const eventData = computed(() => {
 		return {
-			config: config.value,
 			map: map.value,
 			mapReady: mapReady.value,
 			overlays: overlays.value,
@@ -104,7 +94,6 @@ export const useInstanceStore = defineStore("instance", () => {
 
 	return {
 		// State
-		config,
 		mapReady,
 		container,
 		overlays,
