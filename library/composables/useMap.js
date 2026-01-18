@@ -1,8 +1,4 @@
 import { storeToRefs } from "pinia";
-// import { Map } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-import { Map } from "maplibre-gl";
-// import mlcontour from "maplibre-contour";
 import { featureTypes, getFeatureType } from "@/helpers/Overlay.js";
 import { dispatchEvent } from "@/classes/Event.js";
 
@@ -25,15 +21,8 @@ import { useInstanceStore } from "@/stores/instanceStore.js";
 
 export function useMap() {
 	// Get the state from the instance store
-	const {
-		container,
-		map,
-		mapReady,
-		overlays,
-		overlaysBounds,
-		activeOverlay,
-		view,
-	} = storeToRefs(useInstanceStore());
+	const { map, mapReady, overlays, overlaysBounds, activeOverlay, view } =
+		storeToRefs(useInstanceStore());
 
 	// Add Event Listeners
 	const addListeners = () => {

@@ -3,7 +3,7 @@
 */
 export const mapOptions = {
   center: [0, 0],
-  zoom: 10,
+  zoom: 0,
   maxZoom: 18,
   style: "https://tiles.openfreemap.org/styles/bright",
   attributionControl: false,
