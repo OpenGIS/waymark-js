@@ -25,7 +25,7 @@ export class Instance {
 		const app = createApp(Entry);
 		app.use(pinia);
 
-		// Use Instance Store
+		// Init Instance Store
 		const { setGeoJSON, setContainer } = useInstanceStore();
 		setContainer(container);
 		setGeoJSON(geoJSON);

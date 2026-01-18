@@ -29,14 +29,15 @@
 
     <!-- Load Waymark JS -->
     <script type="module">
-      // Helper loads Waymark JS for both dev & production
-      import { loadWaymark } from "./assets/js/loadWaymark.js";
+      import { Instance } from "./library/entry.js";
 
       // Demo data
-      const instance = await loadWaymark(
-        "waymark-instance",
+      const geoJSON = await fetch(
         "./assets/data/waymark/devDataShape.json",
-      );
+      ).then((res) => res.json());
+
+      // Create Instance
+      const instance = new Instance("waymark-instance", geoJSON);
 
       console.log("Waymark instance loaded:", instance);
     </script>
