@@ -25820,7 +25820,7 @@ class kp {
       const w = document.createElement("p");
       w.textContent = this.getDescription(), _.appendChild(w);
     }
-    return new so.Popup({ offset: 25 }).setDOMContent(_);
+    return new so.Popup({}).setDOMContent(_);
   }
   openPopup() {
     if (!this.map)

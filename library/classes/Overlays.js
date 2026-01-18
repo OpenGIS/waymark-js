@@ -173,7 +173,7 @@ export class Overlay {
     }
 
     // Create popup
-    return new Popup({ offset: 25 }).setDOMContent(popupContent);
+    return new Popup({}).setDOMContent(popupContent);
   }
 
   openPopup() {
