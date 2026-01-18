@@ -22,7 +22,7 @@ onMounted(() => {
 	});
 
 	// Add event listeners
-	addListeners(map.value);
+	addListeners();
 });
 </script>
 

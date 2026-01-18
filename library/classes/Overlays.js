@@ -23,16 +23,7 @@ export class Overlay {
     this.images = getFeatureImages(this.feature);
 
     // Get Type
-    this.typeKey = this.getTypeKey() || null;
     this.popup = this.createPopup();
-
-    if (!this.type) {
-      console.error(
-        `Type not found for ${featureType} Type ${typeKey}`,
-        feature,
-      );
-      return;
-    }
   }
 
   addTo(map) {
@@ -51,13 +42,8 @@ export class Overlay {
     this.source = this.map.getSource(this.id);
 
     // Create Layer
-    if (this instanceof MarkerOverlay) {
-      this.marker = this.toMarker();
-      this.marker.addTo(this.map);
-    } else {
-      this.style = this.toStyle();
-      this.map.addLayer(this.style);
-    }
+    this.style = this.toStyle();
+    this.map.addLayer(this.style);
     this.layer = this.map.getLayer(this.id);
 
     if (this instanceof ShapeOverlay) {
@@ -96,17 +82,6 @@ export class Overlay {
 
   toGeoJSON() {
     return this.feature;
-  }
-
-  getTypeKey() {
-    if (
-      !this.feature.properties.type ||
-      typeof this.feature.properties.type !== "string"
-    ) {
-      return null;
-    }
-
-    return this.feature.properties.type;
   }
 
   hasImage() {
@@ -207,23 +182,13 @@ export class MarkerOverlay extends Overlay {
     super(feature, id);
   }
 
-  toMarker() {
-    // Create a DOM element for the marker
-    const el = document.createElement("div");
-    el.className = this.type.iconData.className;
-    el.innerHTML = this.type.iconData.html;
-    el.style.width = `${this.type.iconData.iconSize[0]}px`;
-    el.style.height = `${this.type.iconData.iconSize[1]}px`;
-
-    // Create Marker
-    const marker = new Marker({
-      element: el,
-      offset: this.type.iconData.iconAnchor,
-    });
-
-    marker.setLngLat(this.feature.geometry.coordinates);
-
-    return marker;
+  // GeoJson point
+  toStyle() {
+    return {
+      id: this.id,
+      type: "point",
+      source: this.id,
+    };
   }
 
   addEvents() {}
@@ -335,8 +300,9 @@ export class LineOverlay extends Overlay {
         "line-cap": "round",
       },
       paint: {
-        "line-color": this.type.getPrimaryColour(),
-        "line-width": parseFloat(this.type.data.line_weight),
+        "line-color": this.type.getPrimaryColour() || "#000000",
+        "line-width":
+          parseFloat(this.feature.properties.waymark?.line_weight) || 2,
       },
     };
   }
@@ -457,7 +423,8 @@ export class LineOverlay extends Overlay {
         layout: {},
         paint: {
           "line-color": waymarkPrimaryColour,
-          "line-width": parseFloat(this.type.data.line_weight) + 2,
+          "line-width":
+            parseFloat(this.feature.properties.waymark?.line_weight) + 2,
         },
       },
       this.id,
@@ -521,9 +488,12 @@ export class ShapeOverlay extends Overlay {
       source: this.id,
       layout: {},
       paint: {
-        "fill-color": this.type.data.shape_colour || "#000000",
-        "fill-opacity": parseFloat(this.type.data.fill_opacity) || 0.5,
-        "fill-outline-color": this.type.data.shape_colour || "#000000",
+        "fill-color":
+          this.feature.properties.waymark?.shape_colour || "#000000",
+        "fill-opacity":
+          parseFloat(this.feature.properties.waymark?.fill_opacity) || 0.5,
+        "fill-outline-color":
+          this.feature.properties.waymark?.shape_colour || "#000000",
       },
     };
   }
@@ -556,7 +526,8 @@ export class ShapeOverlay extends Overlay {
         "line-cap": "round",
       },
       paint: {
-        "line-color": this.type.data.shape_colour || "#000000",
+        "line-color":
+          this.feature.properties.waymark?.shape_colour || "#000000",
         "line-width": 1,
         "line-opacity": 1,
       },

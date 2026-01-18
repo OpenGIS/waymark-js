@@ -105,6 +105,7 @@ export const useInstanceStore = defineStore("instance", () => {
 
 	return {
 		// State
+		geoJSON,
 		mapReady,
 		container,
 		overlays,

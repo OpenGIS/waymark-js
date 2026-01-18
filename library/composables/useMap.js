@@ -21,8 +21,15 @@ import { useInstanceStore } from "@/stores/instanceStore.js";
 
 export function useMap() {
 	// Get the state from the instance store
-	const { map, mapReady, overlays, overlaysBounds, activeOverlay, view } =
-		storeToRefs(useInstanceStore());
+	const {
+		geoJSON,
+		map,
+		mapReady,
+		overlays,
+		overlaysBounds,
+		activeOverlay,
+		view,
+	} = storeToRefs(useInstanceStore());
 
 	// Add Event Listeners
 	const addListeners = () => {
@@ -31,6 +38,9 @@ export function useMap() {
 			mapReady.value = true;
 
 			// Load GeoJSON if provided
+			if (geoJSON.value) {
+				loadGeoJSON();
+			}
 
 			// Set Initial View
 			view.value.bounds = map.value.getBounds();
@@ -91,11 +101,11 @@ export function useMap() {
 		});
 	};
 
-	const loadGeoJSON = (geoJSON) => {
+	const loadGeoJSON = () => {
 		// For each feature in the GeoJSON
-		if (geoJSON && Array.isArray(geoJSON.features)) {
+		if (geoJSON.value && Array.isArray(geoJSON.value.features)) {
 			// Overlays
-			geoJSON.features.forEach((feature) => {
+			geoJSON.value.features.forEach((feature) => {
 				// Determine Feature Type
 				const featureType = getFeatureType(feature);
 
