@@ -2,8 +2,8 @@
   ======= Constants =======
 */
 export const mapOptions = {
-  center: [-1.8261632, 51.1788144], // Default to Stonehenge
-  zoom: 14,
+  center: [0, 0],
+  zoom: 10,
   maxZoom: 18,
   style: "https://tiles.openfreemap.org/styles/bright",
   attributionControl: false,

@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted } from "vue";
 import { storeToRefs } from "pinia";
+import { mapOptions } from "@/helpers/MapLibre.js";
 
 import { useInstanceStore } from "@/stores/instanceStore.js";
 const instanceStore = useInstanceStore();
@@ -15,6 +16,7 @@ onMounted(() => {
 	// Create MapLibre instance
 	map.value = new Map({
 		container: `${container.value.id}-map`,
+		...mapOptions,
 	});
 
 	// Add event listeners
@@ -23,6 +25,8 @@ onMounted(() => {
 </script>
 
 <template>
+	{{ container.id }}
+
 	<!-- Map Container -->
 	<div :id="`${container.id}-map`" style="height: 100%; width: 100%"></div>
 </template>
