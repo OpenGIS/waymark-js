@@ -59,7 +59,7 @@ export class Overlay {
       case this instanceof LineOverlay:
         break;
       case this instanceof ShapeOverlay:
-        this.addStroke();
+        this.map.addLayer(this.strokeStyle());
         break;
     }
 
@@ -71,23 +71,21 @@ export class Overlay {
     if (!this.map) {
       return;
     }
-    if (this instanceof MarkerOverlay) {
-      if (this.marker) {
-        this.marker.remove();
-        this.marker = null;
-      }
-    }
+
     if (this instanceof ShapeOverlay) {
       if (this.map.getLayer(`${this.id}-stroke`)) {
         this.map.removeLayer(`${this.id}-stroke`);
       }
     }
+
     if (this.map.getLayer(this.id)) {
       this.map.removeLayer(this.id);
     }
+
     if (this.map.getSource(this.id)) {
       this.map.removeSource(this.id);
     }
+
     this.map = null;
     this.source = null;
     this.layer = null;
@@ -189,6 +187,58 @@ export class Overlay {
 
     this.popup.setLngLat([center.lng, center.lat]).addTo(this.map);
   }
+
+  show() {
+    if (this.map.getLayer(this.id)) {
+      this.map.setLayoutProperty(this.id, "visibility", "visible");
+    }
+  }
+
+  hide() {
+    if (this.map.getLayer(this.id)) {
+      this.map.setLayoutProperty(this.id, "visibility", "none");
+    }
+  }
+
+  addHighlight() {
+    const layerStyle =
+      this instanceof ShapeOverlay ? this.strokeStyle() : this.toStyle();
+    const highlightLayer = {
+      id: `${this.id}-highlight`,
+      type: layerStyle.type,
+      source: this.id,
+      layout: layerStyle.layout || {},
+      paint: layerStyle.paint || {},
+    };
+
+    switch (true) {
+      case this instanceof MarkerOverlay:
+        highlightLayer.paint["circle-stroke-color"] = waymarkPrimaryColour;
+        highlightLayer.paint["circle-stroke-width"] += 2;
+        break;
+      case this instanceof LineOverlay:
+        highlightLayer.paint["line-color"] = waymarkPrimaryColour;
+        highlightLayer.paint["line-width"] += 2;
+        break;
+      case this instanceof ShapeOverlay:
+        highlightLayer.paint["line-color"] = waymarkPrimaryColour;
+        highlightLayer.paint["line-width"] += 2;
+        break;
+    }
+
+    // Add a new highlight layer below this layer that has the highlight style
+    this.map.addLayer(
+      highlightLayer,
+      this.id, // Before this layer
+    );
+  }
+
+  removeHighlight() {
+    // Remove highlight layer
+    if (this.map.getLayer(`${this.id}-highlight`)) {
+      this.map.removeLayer(`${this.id}-highlight`);
+    }
+  }
 }
 
 export class MarkerOverlay extends Overlay {
@@ -207,24 +257,12 @@ export class MarkerOverlay extends Overlay {
         "circle-color":
           this.feature.properties.waymark?.marker_colour || "#ffffff",
         "circle-stroke-color": "#000000",
-        "circle-stroke-width": 2,
+        "circle-stroke-width": 1,
       },
     };
   }
 
   addEvents() {}
-
-  show() {
-    if (this.marker) {
-      this.marker.getElement().style.visibility = "visible";
-    }
-  }
-
-  hide() {
-    if (this.marker) {
-      this.marker.getElement().style.visibility = "hidden";
-    }
-  }
 
   hasElevationData() {
     // Check if feature coordinates has third dimension (elevation)
@@ -267,27 +305,6 @@ export class MarkerOverlay extends Overlay {
     );
   }
 
-  addHighlight() {
-    // Get marker
-    const element = this.marker.getElement();
-    const background = element.querySelector(".waymark-marker-background");
-    if (background) {
-      // Change background border colour
-      background.style.borderColor = waymarkPrimaryColour;
-    }
-
-    // Add active class
-    element.classList.add("waymark-active");
-  }
-
-  removeHighlight() {
-    // Get marker
-    const element = this.marker.getElement();
-
-    // Remove active class
-    element.classList.remove("waymark-active");
-  }
-
   flyTo() {
     this.map.flyTo({
       center: [
@@ -321,8 +338,7 @@ export class LineOverlay extends Overlay {
         "line-cap": "round",
       },
       paint: {
-        "line-color":
-          this.feature.properties.waymark?.lline_colour || "#000000",
+        "line-color": this.feature.properties.waymark?.line_colour || "#000000",
         "line-width":
           parseFloat(this.feature.properties.waymark?.line_weight) || 2,
       },
@@ -337,18 +353,6 @@ export class LineOverlay extends Overlay {
     this.map.on("mouseleave", this.id, () => {
       this.map.getCanvas().style.cursor = "";
     });
-  }
-
-  show() {
-    if (this.map.getLayer(this.id)) {
-      this.map.setLayoutProperty(this.id, "visibility", "visible");
-    }
-  }
-
-  hide() {
-    if (this.map.getLayer(this.id)) {
-      this.map.setLayoutProperty(this.id, "visibility", "none");
-    }
   }
 
   getLengthString() {
@@ -435,31 +439,6 @@ export class LineOverlay extends Overlay {
     );
   }
 
-  addHighlight() {
-    // Add a new highlight layer below this layer that has the highlight style
-    this.map.addLayer(
-      {
-        id: `${this.id}-highlight`,
-        type: "line",
-        source: this.id,
-        layout: {},
-        paint: {
-          "line-color": waymarkPrimaryColour,
-          "line-width":
-            parseFloat(this.feature.properties.waymark?.line_weight) + 2,
-        },
-      },
-      this.id,
-    );
-  }
-
-  removeHighlight() {
-    // Remove highlight layer
-    if (this.map.getLayer(`${this.id}-highlight`)) {
-      this.map.removeLayer(`${this.id}-highlight`);
-    }
-  }
-
   flyTo() {
     const bounds = this.getBounds();
     this.map.fitBounds(bounds, flyToOptions);
@@ -538,8 +517,8 @@ export class ShapeOverlay extends Overlay {
     }
   }
 
-  addStroke() {
-    this.map.addLayer({
+  strokeStyle() {
+    return {
       id: `${this.id}-stroke`,
       type: "line",
       source: this.id,
@@ -553,7 +532,7 @@ export class ShapeOverlay extends Overlay {
         "line-width": 1,
         "line-opacity": 1,
       },
-    });
+    };
   }
 
   addEvents() {
@@ -600,27 +579,6 @@ export class ShapeOverlay extends Overlay {
     return (
       "Centre Lat,Lng: " + center.lat.toFixed(6) + ", " + center.lng.toFixed(6)
     );
-  }
-
-  addHighlight() {
-    // Add highlight layer above the stroke layer
-    this.map.addLayer({
-      id: `${this.id}-highlight`,
-      type: "line",
-      source: this.id,
-      layout: {},
-      paint: {
-        "line-color": waymarkPrimaryColour,
-        "line-width": 2,
-      },
-    });
-  }
-
-  removeHighlight() {
-    // Remove highlight layer
-    if (this.map.getLayer(`${this.id}-highlight`)) {
-      this.map.removeLayer(`${this.id}-highlight`);
-    }
   }
 
   zoomIn() {

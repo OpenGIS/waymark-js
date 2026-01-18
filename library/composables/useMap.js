@@ -77,36 +77,44 @@ export function useMap() {
 				[e.point.x - 10, e.point.y - 10],
 				[e.point.x + 10, e.point.y + 10],
 			];
+
+			// Get features around click
 			const features = map.value.queryRenderedFeatures(bbox, {
 				layers: overlays.value
-					.filter((o) => o.featureType !== "marker")
+					// .filter((o) => o.featureType !== "marker")
 					.map((o) => o.id),
 			});
 
+			// Features found
 			if (features.length) {
+				// Get the closest overlay
 				const overlay = overlays.value.find(
 					(o) => o.id === features[0].layer.id,
 				);
+
 				if (overlay) {
+					console.log("Feature clicked:", overlay);
+
 					setActiveOverlay(overlay);
 				}
 				// No features found
 			} else {
-				// If Active overlay
-				if (activeOverlay.value) {
-					// Remove active overlay
-					setActiveOverlay();
-				}
+				// Remove active overlay
+				setActiveOverlay();
 			}
 		});
 	};
 
 	const loadGeoJSON = () => {
-		// For each feature in the GeoJSON
 		if (geoJSON.value && Array.isArray(geoJSON.value.features)) {
-			// Overlays
+			// Group features by type
+			const groupedFeatures = {
+				shape: [],
+				line: [],
+				marker: [],
+			};
+
 			geoJSON.value.features.forEach((feature) => {
-				// Determine Feature Type
 				const featureType = getFeatureType(feature);
 
 				if (!featureType || !featureTypes.includes(featureType)) {
@@ -114,36 +122,33 @@ export function useMap() {
 						"Feature Type not recognised or supported - skipping",
 						feature,
 					);
-					return [];
+					return;
 				}
 
-				// Create Overlay instance
-				const overlayId = `overlay-${overlays.value.length}`;
+				groupedFeatures[featureType].push(feature);
+			});
 
-				const overlay = (() => {
-					switch (featureType) {
-						case "marker":
-							return new MarkerOverlay(feature, overlayId);
-						case "line":
-							return new LineOverlay(feature, overlayId);
-						case "shape":
-							return new ShapeOverlay(feature, overlayId);
-					}
-				})();
+			// Add features to the map in the desired order
+			["shape", "line", "marker"].forEach((type) => {
+				groupedFeatures[type].forEach((feature) => {
+					const overlayId = `overlay-${overlays.value.length}`;
+					const overlay = (() => {
+						switch (type) {
+							case "marker":
+								return new MarkerOverlay(feature, overlayId);
+							case "line":
+								return new LineOverlay(feature, overlayId);
+							case "shape":
+								return new ShapeOverlay(feature, overlayId);
+						}
+					})();
 
-				// Add to store (reassign to trigger shallowRef updates)
-				overlays.value = [...overlays.value, overlay];
+					// Add to store (reassign to trigger shallowRef updates)
+					overlays.value = [...overlays.value, overlay];
 
-				// Add to Map
-				overlay.addTo(map.value);
-
-				// Handle Markers
-				// if (overlay instanceof MarkerOverlay) {
-				// 	overlay.marker.getElement().addEventListener("click", (e) => {
-				// 		e.stopPropagation();
-				// 		setActiveOverlay(overlay);
-				// 	});
-				// }
+					// Add to Map
+					overlay.addTo(map.value);
+				});
 			});
 
 			// Fit to bounds
@@ -162,7 +167,10 @@ export function useMap() {
 				activeOverlay.value.removeHighlight();
 			}
 
-			setActiveOverlay();
+			activeOverlay.value = null;
+
+			dispatchEvent("active-overlay-unset");
+
 			return;
 		}
 
@@ -189,7 +197,7 @@ export function useMap() {
 		overlay.addHighlight();
 		overlay.openPopup();
 
-		dispatchEvent("active-overlay-updated");
+		dispatchEvent("active-overlay-set");
 	};
 
 	const resetView = () => {
