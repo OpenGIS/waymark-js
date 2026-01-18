@@ -25758,7 +25758,14 @@ class kp {
       throw new Error("Valid ID string required");
     this.id = w, this.featureType = r_(this.feature) || null, this.feature.properties = this.feature.properties || {}, this.title = this.feature.properties.title || "", this.description = this.feature.properties.description || "", this.images = N0(this.feature), this.popup = this.createPopup();
   }
-  async addTo(_) {
+  addEvents() {
+    this.map.on("mouseenter", this.id, () => {
+      this.map.getCanvas().style.cursor = "pointer";
+    }), this.map.on("mouseleave", this.id, () => {
+      this.map.getCanvas().style.cursor = "";
+    });
+  }
+  addTo(_) {
     if (!(!_ || !_.addLayer)) {
       switch (this.map = _, this.map.addSource(this.id, {
         type: "geojson",
@@ -25939,13 +25946,6 @@ class hp extends kp {
       }
     };
   }
-  addEvents() {
-    this.map.on("mouseenter", this.id, () => {
-      this.map.getCanvas().style.cursor = "pointer";
-    }), this.map.on("mouseleave", this.id, () => {
-      this.map.getCanvas().style.cursor = "";
-    });
-  }
   getLengthString() {
     let _ = "";
     _ += "Length: ";
@@ -26046,13 +26046,6 @@ class bc extends kp {
         "line-opacity": 1
       }
     };
-  }
-  addEvents() {
-    this.map.on("mouseenter", this.id, () => {
-      this.map.getCanvas().style.cursor = "pointer";
-    }), this.map.on("mouseleave", this.id, () => {
-      this.map.getCanvas().style.cursor = "";
-    });
   }
   hasElevationData() {
     return this.getPolygonPositions().some((_) => _.length === 3);

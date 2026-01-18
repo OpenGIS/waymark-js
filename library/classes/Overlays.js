@@ -26,7 +26,17 @@ export class Overlay {
     this.popup = this.createPopup();
   }
 
-  async addTo(map) {
+  addEvents() {
+    // Cursor pointer on hover
+    this.map.on("mouseenter", this.id, () => {
+      this.map.getCanvas().style.cursor = "pointer";
+    });
+    this.map.on("mouseleave", this.id, () => {
+      this.map.getCanvas().style.cursor = "";
+    });
+  }
+
+  addTo(map) {
     // Must be valid MapLibre map
     if (!map || !map.addLayer) {
       return;
@@ -345,16 +355,6 @@ export class LineOverlay extends Overlay {
     };
   }
 
-  addEvents() {
-    // Cursor pointer on hover
-    this.map.on("mouseenter", this.id, () => {
-      this.map.getCanvas().style.cursor = "pointer";
-    });
-    this.map.on("mouseleave", this.id, () => {
-      this.map.getCanvas().style.cursor = "";
-    });
-  }
-
   getLengthString() {
     let out = "";
 
@@ -533,16 +533,6 @@ export class ShapeOverlay extends Overlay {
         "line-opacity": 1,
       },
     };
-  }
-
-  addEvents() {
-    // Cursor pointer on hover
-    this.map.on("mouseenter", this.id, () => {
-      this.map.getCanvas().style.cursor = "pointer";
-    });
-    this.map.on("mouseleave", this.id, () => {
-      this.map.getCanvas().style.cursor = "";
-    });
   }
 
   hasElevationData() {
