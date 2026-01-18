@@ -279,7 +279,7 @@ console.log = noop;
 console.info = noop;
 console.debug = noop;
 
-import { Instance } from "../library/main.js";
+import { Instance } from "../library/entry.js";
 import { TileLayer } from "../library/classes/TileLayer.js";
 import {
   MarkerOverlay,

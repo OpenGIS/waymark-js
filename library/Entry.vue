@@ -1,35 +1,28 @@
 <script setup>
-import { computed } from "vue";
-
+import { onMounted } from "vue";
 import { storeToRefs } from "pinia";
 
 import { useInstanceStore } from "@/stores/instanceStore.js";
-
 const instanceStore = useInstanceStore();
-const { container, activeOverlay } = storeToRefs(instanceStore);
+const { container, map } = storeToRefs(instanceStore);
+
+import { useMap } from "@/composables/useMap.js";
+const { addListeners } = useMap();
 
 import "@/assets/css/index.less";
 
-import Map from "@/components/Map.vue";
+onMounted(() => {
+	// Create MapLibre instance
+	map.value = new Map({
+		container: `${container.value.id}-map`,
+	});
 
-const props = defineProps({
-	geoJSON: {
-		type: Object,
-		default: () => ({
-			type: "FeatureCollection",
-			features: [],
-		}),
-	},
+	// Add event listeners
+	addListeners(map.value);
 });
-
-// Initialise Instance Store
-instanceStore.init(props);
 </script>
 
 <template>
 	<!-- Map Container -->
-	<div
-		:id="`${container.value.id}-map`"
-		style="height: 100%; width: 100%"
-	></div>
+	<div :id="`${container.id}-map`" style="height: 100%; width: 100%"></div>
 </template>

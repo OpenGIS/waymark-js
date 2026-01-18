@@ -29,15 +29,12 @@ export default defineConfig({
     outDir: resolve(__dirname, "dist"),
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, "library/main.js"),
+      entry: resolve(__dirname, "library/entry.js"),
       name: "WaymarkJS",
       fileName: "waymark-js",
     },
     rollupOptions: {
       output: {
-        // globals: {
-        //   vue: "Vue",
-        // },
         assetFileNames: "waymark-js.[ext]",
       },
     },

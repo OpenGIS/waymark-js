@@ -1,26 +1,24 @@
 /**
- * Loads Waymark with the given configuration and GeoJSON data.
- * Parameters can be either a URL string or a direct object.
+ * Loads Waymark with the given GeoJSON data.
+ * The parameter can be either a URL string or a direct object.
  *
- * @param {string|object} configInput - Configuration object or URL to fetch it from
+ * @param {string} divId - ID of the div to load Waymark into
  * @param {string|object} geojsonInput - GeoJSON object or URL to fetch it from
  */
-export async function loadWaymark(configInput, geojsonInput) {
+export async function loadWaymark(divId, geojsonInput) {
   try {
     // Helper to resolve input to data
     const resolveInput = async (input) => {
       if (typeof input === "string") {
         const res = await fetch(input);
-        if (!res.ok) throw new Error(`Failed to fetch ${input}: ${res.statusText}`);
+        if (!res.ok)
+          throw new Error(`Failed to fetch ${input}: ${res.statusText}`);
         return await res.json();
       }
       return input;
     };
 
-    const [config, geojson] = await Promise.all([
-      resolveInput(configInput),
-      resolveInput(geojsonInput),
-    ]);
+    const geojson = await resolveInput(geojsonInput);
 
     // Mode detection
     const isDev =
@@ -30,10 +28,9 @@ export async function loadWaymark(configInput, geojsonInput) {
 
     if (isDev) {
       // Development mode - use ES modules
-      // Import relative to this file: ../../library/main.js
-      const { Instance } = await import("../../library/main.js");
-      const instance = new Instance(config);
-      instance.loadGeoJSON(geojson);
+      // Import relative to this file: ../../library/entry.js
+      const { Instance } = await import("../../library/entry.js");
+      const instance = new Instance(divId, geojson);
       return instance;
     } else {
       // Add production assets
@@ -49,14 +46,14 @@ export async function loadWaymark(configInput, geojsonInput) {
         script.onload = () => {
           try {
             // Use the global WaymarkJS variable
-            const instance = new WaymarkJS.Instance(config);
-            instance.loadGeoJSON(geojson);
+            const instance = new WaymarkJS.Instance(divId, geojson);
             resolve(instance);
           } catch (err) {
             reject(err);
           }
         };
-        script.onerror = () => reject(new Error("Failed to load Waymark script"));
+        script.onerror = () =>
+          reject(new Error("Failed to load Waymark script"));
         document.body.appendChild(script);
       });
     }

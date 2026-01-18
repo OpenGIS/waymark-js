@@ -258,9 +258,8 @@ export function useMap() {
 	};
 
 	return {
-		init,
+		addListeners,
 		loadGeoJSON,
-		clearGeoJSON,
 		setActiveOverlay,
 		resetView,
 		rotateMap,
