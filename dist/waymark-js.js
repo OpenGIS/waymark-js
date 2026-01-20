@@ -25467,9 +25467,9 @@ class Ip {
   }
   addEvents() {
     this.map.on("mouseenter", this.id, () => {
-      this.map.getCanvas().style.cursor = "pointer";
+      this.map.getCanvas().style.cursor = "pointer", this.showHighlight();
     }), this.map.on("mouseleave", this.id, () => {
-      this.map.getCanvas().style.cursor = "";
+      this.map.getCanvas().style.cursor = "", this.hideHighlight();
     });
   }
   addTo(_) {
@@ -25550,6 +25550,9 @@ class Ip {
       this.id
       // Before this layer
     ), this.map.setLayoutProperty(w.id, "visibility", "none"), w;
+  }
+  isHighlighted() {
+    return this.map.getLayer(`${this.id}-highlight`) ? this.map.getLayoutProperty(`${this.id}-highlight`, "visibility") === "visible" : !1;
   }
   showHighlight() {
     this.map.getLayer(`${this.id}-highlight`) && this.map.setLayoutProperty(

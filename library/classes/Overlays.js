@@ -25,12 +25,17 @@ export class Overlay {
   }
 
   addEvents() {
-    // Cursor pointer on hover
+    // Hover
     this.map.on("mouseenter", this.id, () => {
+      // Change cursor to pointer
       this.map.getCanvas().style.cursor = "pointer";
+
+      // Show highlight
+      this.showHighlight();
     });
     this.map.on("mouseleave", this.id, () => {
       this.map.getCanvas().style.cursor = "";
+      this.hideHighlight();
     });
   }
 
@@ -212,6 +217,17 @@ export class Overlay {
     this.map.setLayoutProperty(highlightLayer.id, "visibility", "none");
 
     return highlightLayer;
+  }
+
+  isHighlighted() {
+    if (this.map.getLayer(`${this.id}-highlight`)) {
+      return (
+        this.map.getLayoutProperty(`${this.id}-highlight`, "visibility") ===
+        "visible"
+      );
+    }
+
+    return false;
   }
 
   showHighlight() {
