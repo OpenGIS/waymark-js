@@ -11,7 +11,9 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	// State
 	const overlays = shallowRef([]);
 
-	// Computed
+	// Getters
+	const state = computed(() => toJSON());
+
 	const overlaysByType = computed(() => {
 		return {
 			markers: overlays.value.filter(
@@ -38,17 +40,13 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		return bounds;
 	});
 
-	// Persistence
-
-	const state = computed(() => toJSON());
-
 	const features = computed(() => {
 		if (
-			geoJSON.value &&
-			geoJSON.value.type === "FeatureCollection" &&
-			Array.isArray(geoJSON.value.features)
+			state.value &&
+			state.value.type === "FeatureCollection" &&
+			Array.isArray(state.value.features)
 		) {
-			return geoJSON.value.features;
+			return state.value.features;
 		}
 
 		return [];
@@ -58,15 +56,13 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		return features.value.length > 0;
 	});
 
+	// Persistence
+
 	const toJSON = () => {
 		const geoJSON = {
 			type: "FeatureCollection",
 			features: [],
 		};
-
-		// overlays.value.forEach((overlay) => {
-		// 	geoJSON.features.push(overlay.feature);
-		// });
 
 		["markers", "lines", "shapes"].forEach((type) => {
 			overlaysByType.value[type].forEach((overlay) => {

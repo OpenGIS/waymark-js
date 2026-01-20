@@ -26183,7 +26183,7 @@ class jb extends Fp {
   }
 }
 const fp = /* @__PURE__ */ Lp("geojson", () => {
-  const f = Bc([]), _ = ws(() => ({
+  const f = Bc([]), _ = ws(() => S()), w = ws(() => ({
     markers: f.value.filter(
       (q) => q.featureType === "marker"
     ),
@@ -26191,18 +26191,18 @@ const fp = /* @__PURE__ */ Lp("geojson", () => {
     shapes: f.value.filter(
       (q) => q.featureType === "shape"
     )
-  })), w = ws(() => {
+  })), C = ws(() => {
     const q = new oo.LngLatBounds();
     return f.value.length === 0 ? null : (f.value.forEach((ge) => {
       q.extend(ge.getBounds());
     }), q);
-  }), C = ws(() => S()), k = ws(() => geoJSON.value && geoJSON.value.type === "FeatureCollection" && Array.isArray(geoJSON.value.features) ? geoJSON.value.features : []), j = ws(() => k.value.length > 0), S = () => {
+  }), k = ws(() => _.value && _.value.type === "FeatureCollection" && Array.isArray(_.value.features) ? _.value.features : []), j = ws(() => k.value.length > 0), S = () => {
     const q = {
       type: "FeatureCollection",
       features: []
     };
     return ["markers", "lines", "shapes"].forEach((ge) => {
-      _.value[ge].forEach((pe) => {
+      w.value[ge].forEach((pe) => {
         q.features.push(pe.feature);
       });
     }), q;
@@ -26235,19 +26235,19 @@ const fp = /* @__PURE__ */ Lp("geojson", () => {
     });
   };
   return kc(
-    () => C.value,
+    () => _.value,
     wb((q) => {
       console.log("GeoJSON store changed:", q);
     }, 1e3),
     { deep: !0 }
   ), {
     // State
-    state: C,
+    state: _,
     features: k,
     hasFeatures: j,
     overlays: f,
-    overlaysByType: _,
-    overlaysBounds: w,
+    overlaysByType: w,
+    overlaysBounds: C,
     // Persistence
     toJSON: S,
     fromJSON: a
@@ -26267,10 +26267,9 @@ const fp = /* @__PURE__ */ Lp("geojson", () => {
     }), k();
   }
   function k() {
-    console.log("Adding Map Listeners");
     const j = fp(), { overlays: S } = ol(j);
     f.value.on("load", () => {
-      _.value = !0, console.log("Map Loaded"), w.value.bounds = f.value.getBounds(), w.value.bearing = f.value.getBearing(), w.value.pitch = f.value.getPitch(), w.value.zoom = f.value.getZoom(), w.value.center = f.value.getCenter(), dp("maplibre-ready");
+      _.value = !0, w.value.bounds = f.value.getBounds(), w.value.bearing = f.value.getBearing(), w.value.pitch = f.value.getPitch(), w.value.zoom = f.value.getZoom(), w.value.center = f.value.getCenter(), dp("maplibre-ready");
     }), f.value.on("rotateend", () => {
       w.value.bearing = f.value.getBearing();
     }), f.value.on("pitchend", () => {

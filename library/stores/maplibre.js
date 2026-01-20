@@ -30,16 +30,12 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 
 	// Add Event Listeners
 	function addListeners() {
-		console.log("Adding Map Listeners");
-
 		const geoJSONStore = useGeoJSONStore();
 		const { overlays } = storeToRefs(geoJSONStore);
 
 		// When MapLibre has loaded
 		map.value.on("load", () => {
 			mapReady.value = true;
-
-			console.log("Map Loaded");
 
 			// Set Initial View
 			view.value.bounds = map.value.getBounds();
