@@ -3,11 +3,8 @@ import { createPinia, storeToRefs } from "pinia";
 import { useStateStore } from "@/stores/state.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
 import InstanceComponent from "@/components/Instance.vue";
-import { featureTypes, getFeatureType } from "@/helpers/Overlay.js";
 import { dispatchEvent } from "@/classes/Event.js";
-import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
-import { LineOverlay } from "@/classes/Overlays/Line.js";
-import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
+
 import { fitBoundsOptions } from "@/helpers/MapLibre.js";
 
 export class Instance {
