@@ -30,11 +30,11 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	});
 
 	const overlaysBounds = computed(() => {
+		const bounds = new LngLatBounds();
+
 		if (overlays.value.length === 0) {
 			return null;
 		}
-
-		const bounds = new LngLatBounds();
 
 		overlays.value.forEach((overlay) => {
 			bounds.extend(overlay.getBounds());

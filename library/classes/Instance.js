@@ -55,65 +55,20 @@ export class Instance {
     this.addListeners();
   }
 
-  loadGeoJSON() {
-    const { features, overlays, overlaysBounds } = storeToRefs(
-      this.geoJSONStore,
-    );
+  addOverlays() {
+    const { overlays, overlaysBounds } = storeToRefs(this.geoJSONStore);
     const { map } = storeToRefs(this.stateStore);
 
-    console.log("Loading GeoJSON Features to Map", features);
+    console.log("Loading Overlays from store", overlays);
 
-    if (features.value.length > 0) {
-      // Group features by type
-      const groupedFeatures = {
-        shape: [],
-        line: [],
-        marker: [],
-      };
+    //Add overlays to map
+    overlays.value.forEach((overlay) => {
+      overlay.addTo(map.value);
+    });
 
-      useGeoJSONStore()
-        .toJSON()
-        .features.forEach((feature) => {
-          const featureType = getFeatureType(feature);
-
-          if (!featureType || !featureTypes.includes(featureType)) {
-            console.warn(
-              "Feature Type not recognised or supported - skipping",
-              feature,
-            );
-            return;
-          }
-
-          groupedFeatures[featureType].push(feature);
-        });
-
-      // Add features to the map in the desired order
-      ["shape", "line", "marker"].forEach((type) => {
-        groupedFeatures[type].forEach((feature) => {
-          const overlayId = `overlay-${overlays.value.length}`;
-          const overlay = (() => {
-            switch (type) {
-              case "marker":
-                return new MarkerOverlay(feature, overlayId);
-              case "line":
-                return new LineOverlay(feature, overlayId);
-              case "shape":
-                return new ShapeOverlay(feature, overlayId);
-            }
-          })();
-
-          // Add to store (reassign to trigger shallowRef updates)
-          overlays.value = [...overlays.value, overlay];
-
-          // Add to Map
-          overlay.addTo(map.value);
-        });
-      });
-
-      // Fit to bounds
+    // Set map view to fit overlays
+    if (overlaysBounds.value) {
       map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
-
-      return overlays.value;
     }
 
     return [];
@@ -134,7 +89,7 @@ export class Instance {
 
       // Load GeoJSON if provided
       if (this.geoJSONStore.toJSON()) {
-        this.loadGeoJSON();
+        this.addOverlays();
       }
 
       // Set Initial View
