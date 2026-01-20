@@ -49,7 +49,7 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 			view.value.zoom = map.value.getZoom();
 			view.value.center = map.value.getCenter();
 
-			dispatchEvent("instance-ready");
+			dispatchEvent("maplibre-ready");
 		});
 
 		// Track Bearing
@@ -106,8 +106,7 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 	}
 
 	function addOverlays() {
-		const { overlays, overlaysByType, overlaysBounds } =
-			storeToRefs(useGeoJSONStore());
+		const { overlaysByType, overlaysBounds } = storeToRefs(useGeoJSONStore());
 		const { map } = storeToRefs(useMapLibreStore());
 
 		//Add overlays to map
