@@ -56,8 +56,10 @@ export class Instance {
   }
 
   loadGeoJSON() {
-    const { features } = storeToRefs(this.geoJSONStore);
-    const { map, overlays, overlaysBounds } = storeToRefs(this.stateStore);
+    const { features, overlays, overlaysBounds } = storeToRefs(
+      this.geoJSONStore,
+    );
+    const { map } = storeToRefs(this.stateStore);
 
     console.log("Loading GeoJSON Features to Map", features);
 
@@ -121,7 +123,8 @@ export class Instance {
   addListeners() {
     console.log("Adding Map Listeners");
 
-    const { map, mapReady, overlays, view } = storeToRefs(this.stateStore);
+    const { map, mapReady, view } = storeToRefs(this.stateStore);
+    const { overlays } = storeToRefs(this.geoJSONStore);
 
     // When MapLibre has loaded
     map.value.on("load", () => {

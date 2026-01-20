@@ -1,10 +1,47 @@
 import { shallowRef, watch, computed } from "vue";
 import { throttle } from "lodash-es";
 import { defineStore } from "pinia";
+import { LngLatBounds } from "maplibre-gl";
 
 export const useGeoJSONStore = defineStore("geojson", () => {
 	// State
 	const geoJSON = shallowRef(null);
+	const overlays = shallowRef([]);
+
+	// Computed
+	const overlaysByType = computed(() => {
+		const byType = {
+			marker: {},
+			line: {},
+			shape: {},
+		};
+
+		overlays.value.forEach((overlay) => {
+			const typeKey = overlay.typeKey || "undefined";
+
+			if (!byType[overlay.featureType][typeKey]) {
+				byType[overlay.featureType][typeKey] = [];
+			}
+
+			byType[overlay.featureType][typeKey].push(overlay);
+		});
+
+		return byType;
+	});
+
+	const overlaysBounds = computed(() => {
+		if (overlays.value.length === 0) {
+			return null;
+		}
+
+		const bounds = new LngLatBounds();
+
+		overlays.value.forEach((overlay) => {
+			bounds.extend(overlay.getBounds());
+		});
+
+		return bounds;
+	});
 
 	// Persistence
 
@@ -48,6 +85,9 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		state,
 		features,
 		hasFeatures,
+		overlays,
+		overlaysByType,
+		overlaysBounds,
 
 		// Persistence
 		toJSON,
