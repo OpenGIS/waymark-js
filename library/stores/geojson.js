@@ -2,7 +2,7 @@ import { shallowRef, watch, computed } from "vue";
 import { throttle } from "lodash-es";
 import { defineStore } from "pinia";
 import { LngLatBounds } from "maplibre-gl";
-import { featureTypes, getFeatureType } from "@/helpers/Overlay.js";
+import { getFeatureType } from "@/helpers/Overlay.js";
 import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
 import { LineOverlay } from "@/classes/Overlays/Line.js";
 import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
@@ -70,54 +70,6 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	const toJSON = () => {
 		return geoJSON.value;
 	};
-
-	/*
-// Group features by type
-      const groupedFeatures = {
-        shape: [],
-        line: [],
-        marker: [],
-      };
-
-      useGeoJSONStore()
-        .toJSON()
-        .features.forEach((feature) => {
-          const featureType = getFeatureType(feature);
-
-          if (!featureType || !featureTypes.includes(featureType)) {
-            console.warn(
-              "Feature Type not recognised or supported - skipping",
-              feature,
-            );
-            return;
-          }
-
-          groupedFeatures[featureType].push(feature);
-        });
-
-      // Add features to the map in the desired order
-      ["shape", "line", "marker"].forEach((type) => {
-        groupedFeatures[type].forEach((feature) => {
-          const overlayId = `overlay-${overlays.value.length}`;
-          const overlay = (() => {
-            switch (type) {
-              case "marker":
-                return new MarkerOverlay(feature, overlayId);
-              case "line":
-                return new LineOverlay(feature, overlayId);
-              case "shape":
-                return new ShapeOverlay(feature, overlayId);
-            }
-          })();
-
-          // Add to store (reassign to trigger shallowRef updates)
-          overlays.value = [...overlays.value, overlay];
-
-          // Add to Map
-          overlay.addTo(map.value);
-        });
-      });
-*/
 
 	const fromJSON = (json) => {
 		// If valid GeoJSON
