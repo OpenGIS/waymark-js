@@ -1,6 +1,6 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import { useInstanceStore } from "@/stores/instanceStore.js";
+import { useInstanceStore } from "@/stores/instance.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
 import Entry from "../library/Entry.vue";
 

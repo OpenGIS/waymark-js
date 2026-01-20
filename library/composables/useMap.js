@@ -15,7 +15,7 @@ import { LineOverlay } from "@/classes/Overlays/Line.js";
 import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
 
 // Import stores
-import { useInstanceStore } from "@/stores/instanceStore.js";
+import { useInstanceStore } from "@/stores/instance.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
 
 export function useMap() {

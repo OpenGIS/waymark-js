@@ -1,5 +1,5 @@
 import { storeToRefs } from "pinia";
-import { useInstanceStore } from "@/stores/instanceStore.js";
+import { useInstanceStore } from "@/stores/instance.js";
 
 export class WaymarkEvent extends CustomEvent {
   constructor(eventName, params = {}) {
