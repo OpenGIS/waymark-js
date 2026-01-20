@@ -24,7 +24,6 @@ export function useMap() {
 		storeToRefs(useStateStore());
 
 	const { setActiveOverlay } = useStateStore();
-	const { geoJSON } = storeToRefs(useGeoJSONStore());
 
 	// Add Event Listeners
 	const addListeners = () => {
@@ -33,7 +32,7 @@ export function useMap() {
 			mapReady.value = true;
 
 			// Load GeoJSON if provided
-			if (geoJSON.value) {
+			if (useGeoJSONStore().toJSON()) {
 				loadGeoJSON();
 			}
 
@@ -101,7 +100,10 @@ export function useMap() {
 	};
 
 	const loadGeoJSON = () => {
-		if (geoJSON.value && Array.isArray(geoJSON.value.features)) {
+		if (
+			useGeoJSONStore().toJSON() &&
+			Array.isArray(useGeoJSONStore().toJSON().features)
+		) {
 			// Group features by type
 			const groupedFeatures = {
 				shape: [],
@@ -109,19 +111,21 @@ export function useMap() {
 				marker: [],
 			};
 
-			geoJSON.value.features.forEach((feature) => {
-				const featureType = getFeatureType(feature);
+			useGeoJSONStore()
+				.toJSON()
+				.features.forEach((feature) => {
+					const featureType = getFeatureType(feature);
 
-				if (!featureType || !featureTypes.includes(featureType)) {
-					console.warn(
-						"Feature Type not recognised or supported - skipping",
-						feature,
-					);
-					return;
-				}
+					if (!featureType || !featureTypes.includes(featureType)) {
+						console.warn(
+							"Feature Type not recognised or supported - skipping",
+							feature,
+						);
+						return;
+					}
 
-				groupedFeatures[featureType].push(feature);
-			});
+					groupedFeatures[featureType].push(feature);
+				});
 
 			// Add features to the map in the desired order
 			["shape", "line", "marker"].forEach((type) => {

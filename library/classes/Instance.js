@@ -39,8 +39,7 @@ export class Instance {
     const { setContainer } = useStateStore();
     setContainer(container);
 
-    const { setGeoJSON } = useGeoJSONStore();
-    setGeoJSON(this.config.geoJSON);
+    useGeoJSONStore().fromJSON(this.config.geoJSON);
 
     // Mount to DOM
     app.mount("#" + this.config.divID);
