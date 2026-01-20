@@ -54,6 +54,9 @@ export class Overlay {
     this.map.addLayer(this.style);
     this.layer = this.map.getLayer(this.id);
 
+    // Create Highlight Layer
+    this.highlightLayer = this.addHighlightLayer();
+
     // Add events
     this.addEvents();
   }
@@ -187,7 +190,7 @@ export class Overlay {
     }
   }
 
-  addHighlight() {
+  addHighlightLayer() {
     const layerStyle = this.getHighlightStyle();
     const highlightLayer = {
       id: `${this.id}-highlight`,
@@ -197,19 +200,33 @@ export class Overlay {
       paint: layerStyle.paint || {},
     };
 
+    // Different for each overlay type
     this.customizeHighlight(highlightLayer);
 
-    // Add a new highlight layer below this layer that has the highlight style
     this.map.addLayer(
       highlightLayer,
       this.id, // Before this layer
     );
+
+    // Set visibility to none initially
+    this.map.setLayoutProperty(highlightLayer.id, "visibility", "none");
+
+    return highlightLayer;
   }
 
-  removeHighlight() {
-    // Remove highlight layer
+  showHighlight() {
     if (this.map.getLayer(`${this.id}-highlight`)) {
-      this.map.removeLayer(`${this.id}-highlight`);
+      this.map.setLayoutProperty(
+        `${this.id}-highlight`,
+        "visibility",
+        "visible",
+      );
+    }
+  }
+
+  hideHighlight() {
+    if (this.map.getLayer(`${this.id}-highlight`)) {
+      this.map.setLayoutProperty(`${this.id}-highlight`, "visibility", "none");
     }
   }
 

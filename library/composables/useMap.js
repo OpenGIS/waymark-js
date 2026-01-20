@@ -162,7 +162,7 @@ export function useMap() {
 		if (!overlay) {
 			// Remove highlight
 			if (activeOverlay.value) {
-				activeOverlay.value.removeHighlight();
+				activeOverlay.value.hideHighlight();
 			}
 
 			activeOverlay.value = null;
@@ -183,7 +183,7 @@ export function useMap() {
 			}
 
 			// Remove highlight
-			activeOverlay.value.removeHighlight();
+			activeOverlay.value.hideHighlight();
 
 			// Make inactive
 			setActiveOverlay();
@@ -192,7 +192,7 @@ export function useMap() {
 		// Make active
 		activeOverlay.value = overlay;
 		overlay.flyTo();
-		overlay.addHighlight();
+		overlay.showHighlight();
 		overlay.openPopup();
 
 		dispatchEvent("active-overlay-set");

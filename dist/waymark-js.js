@@ -25476,7 +25476,7 @@ class Ip {
     !_ || !_.addLayer || (this.map = _, this.map.addSource(this.id, {
       type: "geojson",
       data: this.feature
-    }), this.source = this.map.getSource(this.id), this.style = this.toStyle(), this.map.addLayer(this.style), this.layer = this.map.getLayer(this.id), this.addEvents());
+    }), this.source = this.map.getSource(this.id), this.style = this.toStyle(), this.map.addLayer(this.style), this.layer = this.map.getLayer(this.id), this.highlightLayer = this.addHighlightLayer(), this.addEvents());
   }
   remove() {
     this.map && (this.map.getLayer(this.id) && this.map.removeLayer(this.id), this.map.getSource(this.id) && this.map.removeSource(this.id), this.map = null, this.source = null, this.layer = null, this.style = null);
@@ -25537,7 +25537,7 @@ class Ip {
   hide() {
     this.map.getLayer(this.id) && this.map.setLayoutProperty(this.id, "visibility", "none");
   }
-  addHighlight() {
+  addHighlightLayer() {
     const _ = this.getHighlightStyle(), w = {
       id: `${this.id}-highlight`,
       type: _.type,
@@ -25545,14 +25545,21 @@ class Ip {
       layout: _.layout || {},
       paint: _.paint || {}
     };
-    this.customizeHighlight(w), this.map.addLayer(
+    return this.customizeHighlight(w), this.map.addLayer(
       w,
       this.id
       // Before this layer
+    ), this.map.setLayoutProperty(w.id, "visibility", "none"), w;
+  }
+  showHighlight() {
+    this.map.getLayer(`${this.id}-highlight`) && this.map.setLayoutProperty(
+      `${this.id}-highlight`,
+      "visibility",
+      "visible"
     );
   }
-  removeHighlight() {
-    this.map.getLayer(`${this.id}-highlight`) && this.map.removeLayer(`${this.id}-highlight`);
+  hideHighlight() {
+    this.map.getLayer(`${this.id}-highlight`) && this.map.setLayoutProperty(`${this.id}-highlight`, "visibility", "none");
   }
   getHighlightStyle() {
     return this.toStyle();
@@ -25576,8 +25583,6 @@ class j0 extends Ip {
         "circle-stroke-width": 1
       }
     };
-  }
-  addEvents() {
   }
   hasElevationData() {
     return this.feature.geometry.coordinates.length === 3;
@@ -26156,7 +26161,7 @@ function Y0() {
     return [];
   }, ye = (je = null) => {
     if (!je) {
-      N.value && N.value.removeHighlight(), N.value = null, Hd("active-overlay-unset");
+      N.value && N.value.hideHighlight(), N.value = null, Hd("active-overlay-unset");
       return;
     }
     if (N.value) {
@@ -26164,9 +26169,9 @@ function Y0() {
         je.zoomIn();
         return;
       }
-      N.value.removeHighlight(), ye();
+      N.value.hideHighlight(), ye();
     }
-    N.value = je, je.flyTo(), je.addHighlight(), je.openPopup(), Hd("active-overlay-set");
+    N.value = je, je.flyTo(), je.showHighlight(), je.openPopup(), Hd("active-overlay-set");
   };
   return {
     addListeners: a,

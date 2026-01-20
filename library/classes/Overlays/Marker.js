@@ -24,8 +24,6 @@ export class MarkerOverlay extends Overlay {
     };
   }
 
-  addEvents() {}
-
   hasElevationData() {
     // Check if feature coordinates has third dimension (elevation)
     return this.feature.geometry.coordinates.length === 3;
