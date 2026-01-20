@@ -1,6 +1,7 @@
 import { computed, ref, shallowRef } from "vue";
 import { defineStore } from "pinia";
 import { LngLatBounds } from "maplibre-gl";
+import { dispatchEvent } from "@/classes/Event.js";
 
 export const useInstanceStore = defineStore("instance", () => {
 	// State
@@ -27,6 +28,47 @@ export const useInstanceStore = defineStore("instance", () => {
 		zoom: null,
 		center: null,
 	});
+
+	// Actions
+	const setActiveOverlay = (overlay = null) => {
+		if (!overlay) {
+			// Remove highlight
+			if (activeOverlay.value) {
+				activeOverlay.value.hideHighlight();
+			}
+
+			activeOverlay.value = null;
+
+			dispatchEvent("active-overlay-unset");
+
+			return;
+		}
+
+		// If active layer is set
+		if (activeOverlay.value) {
+			//If already active layer - focus on it
+			if (activeOverlay.value === overlay) {
+				overlay.zoomIn();
+
+				// Stop here
+				return;
+			}
+
+			// Remove highlight
+			activeOverlay.value.hideHighlight();
+
+			// Make inactive
+			setActiveOverlay();
+		}
+
+		// Make active
+		activeOverlay.value = overlay;
+		overlay.flyTo();
+		overlay.showHighlight();
+		overlay.openPopup();
+
+		dispatchEvent("active-overlay-set");
+	};
 
 	// Computed
 	const overlaysByType = computed(() => {
@@ -110,6 +152,7 @@ export const useInstanceStore = defineStore("instance", () => {
 
 		// Actions
 		setContainer,
+		setActiveOverlay,
 
 		// Computed
 		overlaysByType,

@@ -20,9 +20,10 @@ import { useGeoJSONStore } from "@/stores/geojson.js";
 
 export function useMap() {
 	// Get the state from the instance store
-	const { map, mapReady, overlays, overlaysBounds, activeOverlay, view } =
+	const { map, mapReady, overlays, overlaysBounds, view } =
 		storeToRefs(useInstanceStore());
 
+	const { setActiveOverlay } = useInstanceStore();
 	const { geoJSON } = storeToRefs(useGeoJSONStore());
 
 	// Add Event Listeners
@@ -154,46 +155,6 @@ export function useMap() {
 		return [];
 	};
 
-	const setActiveOverlay = (overlay = null) => {
-		if (!overlay) {
-			// Remove highlight
-			if (activeOverlay.value) {
-				activeOverlay.value.hideHighlight();
-			}
-
-			activeOverlay.value = null;
-
-			dispatchEvent("active-overlay-unset");
-
-			return;
-		}
-
-		// If active layer is set
-		if (activeOverlay.value) {
-			//If already active layer - focus on it
-			if (activeOverlay.value === overlay) {
-				overlay.zoomIn();
-
-				// Stop here
-				return;
-			}
-
-			// Remove highlight
-			activeOverlay.value.hideHighlight();
-
-			// Make inactive
-			setActiveOverlay();
-		}
-
-		// Make active
-		activeOverlay.value = overlay;
-		overlay.flyTo();
-		overlay.showHighlight();
-		overlay.openPopup();
-
-		dispatchEvent("active-overlay-set");
-	};
-
 	const resetView = () => {
 		map.value.fitBounds(overlaysBounds.value, flyToOptions);
 	};
@@ -261,7 +222,6 @@ export function useMap() {
 	return {
 		addListeners,
 		loadGeoJSON,
-		setActiveOverlay,
 		resetView,
 		rotateMap,
 		pointNorth,
