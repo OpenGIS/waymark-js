@@ -4,7 +4,7 @@ import { storeToRefs } from "pinia";
 import { Map } from "maplibre-gl";
 import { mapOptions } from "@/helpers/MapLibre.js";
 
-import { useStateStore } from "@/stores/instance.js";
+import { useStateStore } from "@/stores/state.js";
 const stateStore = useStateStore();
 const { container, map } = storeToRefs(stateStore);
 

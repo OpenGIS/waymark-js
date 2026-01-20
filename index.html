@@ -37,7 +37,10 @@
       ).then((res) => res.json());
 
       // Create Instance
-      const instance = new Instance("waymark-instance", geoJSON);
+      const instance = new Instance({
+        divID: "waymark-instance",
+        geoJSON,
+      });
 
       console.log("Waymark instance loaded:", instance);
     </script>
