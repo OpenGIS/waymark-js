@@ -1,11 +1,9 @@
 import { createApp } from "vue";
-import { createPinia, storeToRefs } from "pinia";
+import { createPinia } from "pinia";
 import { useStateStore } from "@/stores/state.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
+import { useMapLibreStore } from "@/stores/maplibre.js";
 import InstanceComponent from "@/components/Instance.vue";
-import { dispatchEvent } from "@/classes/Event.js";
-
-import { fitBoundsOptions } from "@/helpers/MapLibre.js";
 
 export class Instance {
   constructor(config = {}) {
@@ -45,110 +43,9 @@ export class Instance {
     this.geoJSONStore = useGeoJSONStore();
     this.geoJSONStore.fromJSON(this.config.geoJSON);
 
+    this.mapLibreStore = useMapLibreStore();
+
     // Mount to DOM
     app.mount("#" + this.config.divID);
-
-    // Add listeners on mount
-    this.addListeners();
-  }
-
-  addOverlays() {
-    const { overlaysByType, overlaysBounds } = storeToRefs(this.geoJSONStore);
-    const { map } = storeToRefs(this.stateStore);
-
-    //Add overlays to map
-    ["shapes", "lines", "markers"].forEach((type) => {
-      overlaysByType.value[type].forEach((overlay) => {
-        overlay.addTo(map.value);
-      });
-    });
-
-    // Set map view to fit overlays
-    if (overlaysBounds.value) {
-      map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
-    }
-
-    return [];
-  }
-
-  // Add Event Listeners
-  addListeners() {
-    console.log("Adding Map Listeners");
-
-    const { map, mapReady, view } = storeToRefs(this.stateStore);
-    const { overlays } = storeToRefs(this.geoJSONStore);
-
-    // When MapLibre has loaded
-    map.value.on("load", () => {
-      mapReady.value = true;
-
-      console.log("Map Loaded");
-
-      // Load GeoJSON if provided
-      if (this.geoJSONStore.toJSON()) {
-        this.addOverlays();
-      }
-
-      // Set Initial View
-      view.value.bounds = map.value.getBounds();
-      view.value.bearing = map.value.getBearing();
-      view.value.pitch = map.value.getPitch();
-      view.value.zoom = map.value.getZoom();
-      view.value.center = map.value.getCenter();
-
-      dispatchEvent("instance-ready");
-    });
-
-    // Track Bearing
-    map.value.on("rotateend", () => {
-      view.value.bearing = map.value.getBearing();
-    });
-
-    // Track Pitch
-    map.value.on("pitchend", () => {
-      view.value.pitch = map.value.getPitch();
-    });
-
-    //Track map bounds
-    map.value.on("moveend", () => {
-      //Set Max bounds
-      view.value.bounds = map.value.getBounds();
-      view.value.center = map.value.getCenter();
-      view.value.zoom = map.value.getZoom();
-    });
-
-    // Lines & Shape click handling
-    map.value.on("click", (e) => {
-      // Create a bounding box to find features within a certain distance of the click
-      const bbox = [
-        [e.point.x - 10, e.point.y - 10],
-        [e.point.x + 10, e.point.y + 10],
-      ];
-
-      // Get features around click
-      const features = map.value.queryRenderedFeatures(bbox, {
-        layers: overlays.value
-          // .filter((o) => o.featureType !== "marker")
-          .map((o) => o.id),
-      });
-
-      // Features found
-      if (features.length) {
-        // Get the closest overlay
-        const overlay = overlays.value.find(
-          (o) => o.id === features[0].layer.id,
-        );
-
-        if (overlay) {
-          console.log("Feature clicked:", overlay);
-
-          this.stateStore.setActiveOverlay(overlay);
-        }
-        // No features found
-      } else {
-        // Remove active overlay
-        this.stateStore.setActiveOverlay();
-      }
-    });
   }
 }

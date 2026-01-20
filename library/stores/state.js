@@ -5,24 +5,11 @@ import { dispatchEvent } from "@/classes/Event.js";
 export const useStateStore = defineStore("state", () => {
 	// State
 	const container = shallowRef(null);
-	const map = shallowRef(null);
 	const activeOverlay = shallowRef(null);
-	const mapReady = shallowRef(false);
-	const view = ref({
-		bearing: null,
-		pitch: null,
-		bounds: null,
-		zoom: null,
-		center: null,
-	});
 
 	// Actions
 	function setContainer(divElement) {
 		container.value = divElement;
-	}
-
-	function setMap(mapInstance) {
-		map.value = mapInstance;
 	}
 
 	// Actions
@@ -68,22 +55,16 @@ export const useStateStore = defineStore("state", () => {
 
 	const eventData = computed(() => {
 		return {
-			map: map.value,
-			mapReady: mapReady.value,
 			activeOverlay: activeOverlay.value,
 		};
 	});
 
 	return {
 		// State
-		mapReady,
 		container,
-		map,
 		activeOverlay,
-		view,
 
 		// Actions
-		setMap,
 		setContainer,
 		setActiveOverlay,
 

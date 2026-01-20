@@ -4,8 +4,8 @@ import { mapOptions } from "@/helpers/MapLibre.js";
 import { ulid } from "ulid";
 import { Map } from "maplibre-gl";
 
-import { useStateStore } from "@/stores/state.js";
-const { setMap } = useStateStore();
+import { useMapLibreStore } from "@/stores/maplibre.js";
+const { setMap } = useMapLibreStore();
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/assets/css/index.less";
