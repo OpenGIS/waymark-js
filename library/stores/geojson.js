@@ -9,28 +9,19 @@ import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
 
 export const useGeoJSONStore = defineStore("geojson", () => {
 	// State
-	const geoJSON = shallowRef(null);
 	const overlays = shallowRef([]);
 
 	// Computed
 	const overlaysByType = computed(() => {
-		const byType = {
-			marker: {},
-			line: {},
-			shape: {},
+		return {
+			markers: overlays.value.filter(
+				(overlay) => overlay.featureType === "marker",
+			),
+			lines: overlays.value.filter((overlay) => overlay.featureType === "line"),
+			shapes: overlays.value.filter(
+				(overlay) => overlay.featureType === "shape",
+			),
 		};
-
-		overlays.value.forEach((overlay) => {
-			const typeKey = overlay.typeKey || "undefined";
-
-			if (!byType[overlay.featureType][typeKey]) {
-				byType[overlay.featureType][typeKey] = [];
-			}
-
-			byType[overlay.featureType][typeKey].push(overlay);
-		});
-
-		return byType;
 	});
 
 	const overlaysBounds = computed(() => {
@@ -49,7 +40,7 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 
 	// Persistence
 
-	const state = computed(() => geoJSON.value);
+	const state = computed(() => toJSON());
 
 	const features = computed(() => {
 		if (
@@ -68,7 +59,22 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	});
 
 	const toJSON = () => {
-		return geoJSON.value;
+		const geoJSON = {
+			type: "FeatureCollection",
+			features: [],
+		};
+
+		// overlays.value.forEach((overlay) => {
+		// 	geoJSON.features.push(overlay.feature);
+		// });
+
+		["markers", "lines", "shapes"].forEach((type) => {
+			overlaysByType.value[type].forEach((overlay) => {
+				geoJSON.features.push(overlay.feature);
+			});
+		});
+
+		return geoJSON;
 	};
 
 	const fromJSON = (json) => {
@@ -81,8 +87,6 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 			console.error("Invalid GeoJSON provided to store fromJSON");
 			return;
 		}
-
-		geoJSON.value = json;
 
 		// Each feature
 		json.features.forEach((feature) => {

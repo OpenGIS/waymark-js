@@ -53,14 +53,14 @@ export class Instance {
   }
 
   addOverlays() {
-    const { overlays, overlaysBounds } = storeToRefs(this.geoJSONStore);
+    const { overlaysByType, overlaysBounds } = storeToRefs(this.geoJSONStore);
     const { map } = storeToRefs(this.stateStore);
 
-    console.log("Loading Overlays from store", overlays);
-
     //Add overlays to map
-    overlays.value.forEach((overlay) => {
-      overlay.addTo(map.value);
+    ["shapes", "lines", "markers"].forEach((type) => {
+      overlaysByType.value[type].forEach((overlay) => {
+        overlay.addTo(map.value);
+      });
     });
 
     // Set map view to fit overlays
