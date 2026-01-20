@@ -42,8 +42,8 @@ export class Instance {
     useStateStore().setContainer(container);
     useGeoJSONStore().fromJSON(this.config.geoJSON);
 
-    // Listen for maplibre-ready event
-    onEvent("maplibre-ready", () => {
+    // Listen for maplibre-map-ready event
+    onEvent("maplibre-map-ready", () => {
       // Add overlays
       this.addOverlays();
     });

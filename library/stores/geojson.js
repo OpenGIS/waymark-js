@@ -6,6 +6,7 @@ import { getFeatureType } from "@/helpers/Overlay.js";
 import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
 import { LineOverlay } from "@/classes/Overlays/Line.js";
 import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
+import { dispatchEvent } from "@/classes/Event.js";
 
 export const useGeoJSONStore = defineStore("geojson", () => {
 	// State
@@ -120,7 +121,7 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	watch(
 		() => state.value,
 		throttle((newVal) => {
-			console.log("GeoJSON store changed:", newVal);
+			dispatchEvent("geojson-state-change");
 		}, 1000),
 		{ deep: true },
 	);

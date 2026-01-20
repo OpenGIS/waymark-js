@@ -22,7 +22,7 @@ export const useStateStore = defineStore("state", () => {
 
 			activeOverlay.value = null;
 
-			dispatchEvent("active-overlay-unset");
+			dispatchEvent("state-active-overlay-unset");
 
 			return;
 		}
@@ -50,7 +50,7 @@ export const useStateStore = defineStore("state", () => {
 		overlay.showHighlight();
 		overlay.openPopup();
 
-		dispatchEvent("active-overlay-set");
+		dispatchEvent("state-active-overlay-set");
 	};
 
 	const eventData = computed(() => {

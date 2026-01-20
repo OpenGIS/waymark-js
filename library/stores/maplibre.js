@@ -44,7 +44,7 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 			view.value.zoom = map.value.getZoom();
 			view.value.center = map.value.getCenter();
 
-			dispatchEvent("maplibre-ready");
+			dispatchEvent("maplibre-map-ready");
 		});
 
 		// Track Bearing
@@ -88,8 +88,6 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 				);
 
 				if (overlay) {
-					console.log("Feature clicked:", overlay);
-
 					useStateStore().setActiveOverlay(overlay);
 				}
 				// No features found
