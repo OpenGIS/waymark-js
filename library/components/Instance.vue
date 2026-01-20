@@ -1,26 +1,29 @@
 <script setup>
 import { onMounted } from "vue";
-import { storeToRefs } from "pinia";
-import { Map } from "maplibre-gl";
 import { mapOptions } from "@/helpers/MapLibre.js";
+import { ulid } from "ulid";
+import { Map } from "maplibre-gl";
 
 import { useStateStore } from "@/stores/state.js";
-const stateStore = useStateStore();
-const { container, map } = storeToRefs(stateStore);
+const { setMap } = useStateStore();
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/assets/css/index.less";
 
+const divID = `maplibre-${ulid()}`;
+
 onMounted(() => {
 	// Create MapLibre instance
-	map.value = new Map({
-		container: `${container.value.id}-map`,
-		...mapOptions,
-	});
+	setMap(
+		new Map({
+			container: divID,
+			...mapOptions,
+		}),
+	);
 });
 </script>
 
 <template>
 	<!-- Map Container -->
-	<div :id="`${container.id}-map`" style="height: 100%; width: 100%"></div>
+	<div :id="`${divID}`" style="height: 100%; width: 100%"></div>
 </template>

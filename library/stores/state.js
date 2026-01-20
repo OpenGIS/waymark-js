@@ -8,12 +8,6 @@ export const useStateStore = defineStore("state", () => {
 	const map = shallowRef(null);
 	const activeOverlay = shallowRef(null);
 	const mapReady = shallowRef(false);
-
-	// Actions
-	function setContainer(divElement) {
-		container.value = divElement;
-	}
-
 	const view = ref({
 		bearing: null,
 		pitch: null,
@@ -21,6 +15,15 @@ export const useStateStore = defineStore("state", () => {
 		zoom: null,
 		center: null,
 	});
+
+	// Actions
+	function setContainer(divElement) {
+		container.value = divElement;
+	}
+
+	function setMap(mapInstance) {
+		map.value = mapInstance;
+	}
 
 	// Actions
 	const setActiveOverlay = (overlay = null) => {
@@ -80,6 +83,7 @@ export const useStateStore = defineStore("state", () => {
 		view,
 
 		// Actions
+		setMap,
 		setContainer,
 		setActiveOverlay,
 
