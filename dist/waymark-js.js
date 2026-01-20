@@ -25350,7 +25350,7 @@ function op(f, _ = {}) {
   const w = al(), { container: C } = Oc(w), k = new D0(f, _);
   C.value.dispatchEvent(k);
 }
-const al = /* @__PURE__ */ Qg("instance", () => {
+const al = /* @__PURE__ */ Qg("state", () => {
   const f = il(null), _ = il(null), w = il([]), C = il(null), k = il(!1);
   function N(ee) {
     f.value = ee;

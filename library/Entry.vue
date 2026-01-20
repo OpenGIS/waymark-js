@@ -4,9 +4,9 @@ import { storeToRefs } from "pinia";
 import { Map } from "maplibre-gl";
 import { mapOptions } from "@/helpers/MapLibre.js";
 
-import { useInstanceStore } from "@/stores/instance.js";
-const instanceStore = useInstanceStore();
-const { container, map } = storeToRefs(instanceStore);
+import { useStateStore } from "@/stores/instance.js";
+const stateStore = useStateStore();
+const { container, map } = storeToRefs(stateStore);
 
 import { useMap } from "@/composables/useMap.js";
 const { addListeners } = useMap();

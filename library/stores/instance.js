@@ -3,7 +3,7 @@ import { defineStore } from "pinia";
 import { LngLatBounds } from "maplibre-gl";
 import { dispatchEvent } from "@/classes/Event.js";
 
-export const useInstanceStore = defineStore("instance", () => {
+export const useStateStore = defineStore("state", () => {
 	// State
 	const container = shallowRef(null);
 	const map = shallowRef(null);

@@ -1,19 +1,25 @@
 import { storeToRefs } from "pinia";
-import { useInstanceStore } from "@/stores/instance.js";
+import { useStateStore } from "@/stores/instance.js";
 
 export class WaymarkEvent extends CustomEvent {
   constructor(eventName, params = {}) {
-    const store = useInstanceStore();
-    const { eventData } = storeToRefs(store);
+    // Get state
+    const stateStore = useStateStore();
+    const { eventData } = storeToRefs(stateStore);
 
+    // Add event data from store
     super(eventName, { detail: { ...params, ...eventData.value } });
   }
 }
 
 export function dispatchEvent(eventName, params = {}) {
-  const store = useInstanceStore();
-  const { container } = storeToRefs(store);
+  // Get state
+  const stateStore = useStateStore();
+  const { container } = storeToRefs(stateStore);
+
+  // Create event
   const event = new WaymarkEvent(eventName, params);
 
+  // Fire
   container.value.dispatchEvent(event);
 }
