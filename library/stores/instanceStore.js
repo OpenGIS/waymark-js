@@ -10,15 +10,9 @@ export const useInstanceStore = defineStore("instance", () => {
 	const activeOverlay = shallowRef(null);
 	const mapReady = shallowRef(false);
 
-	const geoJSON = shallowRef(null);
-
 	// Actions
 	function setContainer(divElement) {
 		container.value = divElement;
-	}
-
-	function setGeoJSON(data) {
-		geoJSON.value = data;
 	}
 
 	const layerFilters = ref({
@@ -105,7 +99,6 @@ export const useInstanceStore = defineStore("instance", () => {
 
 	return {
 		// State
-		geoJSON,
 		mapReady,
 		container,
 		overlays,
@@ -116,7 +109,6 @@ export const useInstanceStore = defineStore("instance", () => {
 		view,
 
 		// Actions
-		setGeoJSON,
 		setContainer,
 
 		// Computed

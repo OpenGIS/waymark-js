@@ -1,6 +1,7 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import { useInstanceStore } from "@/stores/instanceStore.js";
+import { useGeoJSONStore } from "@/stores/geojson.js";
 import Entry from "../library/Entry.vue";
 
 export class Instance {
@@ -25,9 +26,11 @@ export class Instance {
 		const app = createApp(Entry);
 		app.use(pinia);
 
-		// Init Instance Store
-		const { setGeoJSON, setContainer } = useInstanceStore();
+		// Init Stores
+		const { setContainer } = useInstanceStore();
 		setContainer(container);
+
+		const { setGeoJSON } = useGeoJSONStore();
 		setGeoJSON(geoJSON);
 
 		// Mount to DOM

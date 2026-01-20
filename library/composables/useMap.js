@@ -14,20 +14,16 @@ import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
 import { LineOverlay } from "@/classes/Overlays/Line.js";
 import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
 
-// Import instanceStore
+// Import stores
 import { useInstanceStore } from "@/stores/instanceStore.js";
+import { useGeoJSONStore } from "@/stores/geojson.js";
 
 export function useMap() {
 	// Get the state from the instance store
-	const {
-		geoJSON,
-		map,
-		mapReady,
-		overlays,
-		overlaysBounds,
-		activeOverlay,
-		view,
-	} = storeToRefs(useInstanceStore());
+	const { map, mapReady, overlays, overlaysBounds, activeOverlay, view } =
+		storeToRefs(useInstanceStore());
+
+	const { geoJSON } = storeToRefs(useGeoJSONStore());
 
 	// Add Event Listeners
 	const addListeners = () => {
