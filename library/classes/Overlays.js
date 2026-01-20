@@ -151,6 +151,10 @@ export class Overlay {
   }
 
   createPopup() {
+    if (!this.getTitle() && !this.getDescription()) {
+      return null;
+    }
+
     // Create popup content
     const popupContent = document.createElement("div");
     popupContent.className = "waymark-popup-content";
@@ -172,7 +176,7 @@ export class Overlay {
   }
 
   openPopup() {
-    if (!this.map) {
+    if (!this.map || !this.popup) {
       return;
     }
 
