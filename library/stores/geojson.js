@@ -134,25 +134,26 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 
 		// Each feature
 		json.features.forEach((feature) => {
+			const featureType = getFeatureType(feature);
+
 			// Create overlay ID
-			const overlayId = `overlay-${overlays.value.length}`;
+			const overlayId = `${featureType}-${overlays.value.length}`;
 
 			// Create overlay based on feature type
 			let overlay = null;
-			switch (feature.geometry.type) {
-				case "Point":
+			switch (featureType) {
+				case "marker":
 					overlay = new MarkerOverlay(feature, overlayId);
 					break;
-				case "LineString":
+				case "line":
 					overlay = new LineOverlay(feature, overlayId);
 					break;
-				case "Polygon":
-				case "MultiPolygon":
+				case "shape":
 					overlay = new ShapeOverlay(feature, overlayId);
 					break;
 				default:
 					console.warn(
-						"Feature geometry type not supported - skipping",
+						"Feature Type not recognised or supported - skipping",
 						feature,
 					);
 					return;
