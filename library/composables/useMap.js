@@ -10,11 +10,9 @@ import {
 } from "@/helpers/MapLibre.js";
 
 // Classes
-import {
-	MarkerOverlay,
-	LineOverlay,
-	ShapeOverlay,
-} from "@/classes/Overlays.js";
+import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
+import { LineOverlay } from "@/classes/Overlays/Line.js";
+import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
 
 // Import instanceStore
 import { useInstanceStore } from "@/stores/instanceStore.js";

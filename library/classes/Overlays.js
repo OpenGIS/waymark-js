@@ -216,12 +216,4 @@ export class Overlay {
   getHighlightStyle() {
     return this.toStyle();
   }
-
-  customizeHighlight(layer) {
-    // Override in subclasses
-  }
 }
-
-export { MarkerOverlay } from "./Overlays/Marker.js";
-export { LineOverlay } from "./Overlays/Line.js";
-export { ShapeOverlay } from "./Overlays/Shape.js";
