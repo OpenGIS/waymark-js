@@ -8,9 +8,6 @@ import { useStateStore } from "@/stores/state.js";
 const stateStore = useStateStore();
 const { container, map } = storeToRefs(stateStore);
 
-import { useMap } from "@/composables/useMap.js";
-const { addListeners } = useMap();
-
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/assets/css/index.less";
 
@@ -20,9 +17,6 @@ onMounted(() => {
 		container: `${container.value.id}-map`,
 		...mapOptions,
 	});
-
-	// Add event listeners
-	addListeners();
 });
 </script>
 

@@ -20,144 +20,9 @@ import { useGeoJSONStore } from "@/stores/geojson.js";
 
 export function useMap() {
 	// Get the state from the instance store
-	const { map, mapReady, overlays, overlaysBounds, view } =
-		storeToRefs(useStateStore());
+	const { map, overlaysBounds, view } = storeToRefs(useStateStore());
 
 	const { setActiveOverlay } = useStateStore();
-
-	// Add Event Listeners
-	const addListeners = () => {
-		// When MapLibre has loaded
-		map.value.on("load", () => {
-			mapReady.value = true;
-
-			// Load GeoJSON if provided
-			if (useGeoJSONStore().toJSON()) {
-				loadGeoJSON();
-			}
-
-			// Set Initial View
-			view.value.bounds = map.value.getBounds();
-			view.value.bearing = map.value.getBearing();
-			view.value.pitch = map.value.getPitch();
-			view.value.zoom = map.value.getZoom();
-			view.value.center = map.value.getCenter();
-
-			dispatchEvent("instance-ready");
-		});
-
-		// Track Bearing
-		map.value.on("rotateend", () => {
-			view.value.bearing = map.value.getBearing();
-		});
-
-		// Track Pitch
-		map.value.on("pitchend", () => {
-			view.value.pitch = map.value.getPitch();
-		});
-
-		//Track map bounds
-		map.value.on("moveend", () => {
-			//Set Max bounds
-			view.value.bounds = map.value.getBounds();
-			view.value.center = map.value.getCenter();
-			view.value.zoom = map.value.getZoom();
-		});
-
-		// Lines & Shape click handling
-		map.value.on("click", (e) => {
-			// Create a bounding box to find features within a certain distance of the click
-			const bbox = [
-				[e.point.x - 10, e.point.y - 10],
-				[e.point.x + 10, e.point.y + 10],
-			];
-
-			// Get features around click
-			const features = map.value.queryRenderedFeatures(bbox, {
-				layers: overlays.value
-					// .filter((o) => o.featureType !== "marker")
-					.map((o) => o.id),
-			});
-
-			// Features found
-			if (features.length) {
-				// Get the closest overlay
-				const overlay = overlays.value.find(
-					(o) => o.id === features[0].layer.id,
-				);
-
-				if (overlay) {
-					console.log("Feature clicked:", overlay);
-
-					setActiveOverlay(overlay);
-				}
-				// No features found
-			} else {
-				// Remove active overlay
-				setActiveOverlay();
-			}
-		});
-	};
-
-	const loadGeoJSON = () => {
-		if (
-			useGeoJSONStore().toJSON() &&
-			Array.isArray(useGeoJSONStore().toJSON().features)
-		) {
-			// Group features by type
-			const groupedFeatures = {
-				shape: [],
-				line: [],
-				marker: [],
-			};
-
-			useGeoJSONStore()
-				.toJSON()
-				.features.forEach((feature) => {
-					const featureType = getFeatureType(feature);
-
-					if (!featureType || !featureTypes.includes(featureType)) {
-						console.warn(
-							"Feature Type not recognised or supported - skipping",
-							feature,
-						);
-						return;
-					}
-
-					groupedFeatures[featureType].push(feature);
-				});
-
-			// Add features to the map in the desired order
-			["shape", "line", "marker"].forEach((type) => {
-				groupedFeatures[type].forEach((feature) => {
-					const overlayId = `overlay-${overlays.value.length}`;
-					const overlay = (() => {
-						switch (type) {
-							case "marker":
-								return new MarkerOverlay(feature, overlayId);
-							case "line":
-								return new LineOverlay(feature, overlayId);
-							case "shape":
-								return new ShapeOverlay(feature, overlayId);
-						}
-					})();
-
-					// Add to store (reassign to trigger shallowRef updates)
-					overlays.value = [...overlays.value, overlay];
-
-					// Add to Map
-					overlay.addTo(map.value);
-				});
-			});
-
-			// Fit to bounds
-			map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
-
-			return overlays.value;
-		}
-
-		return [];
-	};
 
 	const resetView = () => {
 		map.value.fitBounds(overlaysBounds.value, flyToOptions);
@@ -224,7 +89,6 @@ export function useMap() {
 	};
 
 	return {
-		addListeners,
 		loadGeoJSON,
 		resetView,
 		rotateMap,

@@ -1,4 +1,4 @@
-import { shallowRef, onMounted, watch, computed } from "vue";
+import { shallowRef, watch, computed } from "vue";
 import { throttle } from "lodash-es";
 import { defineStore } from "pinia";
 
@@ -9,6 +9,22 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	// Persistence
 
 	const state = computed(() => geoJSON.value);
+
+	const features = computed(() => {
+		if (
+			geoJSON.value &&
+			geoJSON.value.type === "FeatureCollection" &&
+			Array.isArray(geoJSON.value.features)
+		) {
+			return geoJSON.value.features;
+		}
+
+		return [];
+	});
+
+	const hasFeatures = computed(() => {
+		return features.value.length > 0;
+	});
 
 	const toJSON = () => {
 		return geoJSON.value;
@@ -30,6 +46,8 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	return {
 		// State
 		state,
+		features,
+		hasFeatures,
 
 		// Persistence
 		toJSON,
