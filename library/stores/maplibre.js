@@ -3,7 +3,8 @@ import { defineStore, storeToRefs } from "pinia";
 import { useStateStore } from "@/stores/state.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
 import { dispatchEvent } from "@/classes/Event.js";
-import { fitBoundsOptions } from "@/helpers/MapLibre.js";
+import { mapOptions } from "@/helpers/MapLibre.js";
+import { Map } from "maplibre-gl";
 
 export const useMapLibreStore = defineStore("maplibre", () => {
 	// State
@@ -18,8 +19,11 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 	});
 
 	// Actions
-	function setMap(mapInstance) {
-		map.value = mapInstance;
+	function createMap(divID = "") {
+		map.value = new Map({
+			container: divID,
+			...mapOptions,
+		});
 
 		addListeners();
 	}
@@ -36,11 +40,6 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 			mapReady.value = true;
 
 			console.log("Map Loaded");
-
-			// Load GeoJSON if provided
-			if (geoJSONStore.toJSON()) {
-				addOverlays();
-			}
 
 			// Set Initial View
 			view.value.bounds = map.value.getBounds();
@@ -105,25 +104,6 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 		});
 	}
 
-	function addOverlays() {
-		const { overlaysByType, overlaysBounds } = storeToRefs(useGeoJSONStore());
-		const { map } = storeToRefs(useMapLibreStore());
-
-		//Add overlays to map
-		["shapes", "lines", "markers"].forEach((type) => {
-			overlaysByType.value[type].forEach((overlay) => {
-				overlay.addTo(map.value);
-			});
-		});
-
-		// Set map view to fit overlays
-		if (overlaysBounds.value) {
-			map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
-		}
-
-		return [];
-	}
-
 	return {
 		// State
 		mapReady,
@@ -131,6 +111,6 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 		view,
 
 		// Actions
-		setMap,
+		createMap,
 	};
 });

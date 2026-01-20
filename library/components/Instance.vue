@@ -1,11 +1,9 @@
 <script setup>
 import { onMounted } from "vue";
-import { mapOptions } from "@/helpers/MapLibre.js";
 import { ulid } from "ulid";
-import { Map } from "maplibre-gl";
 
 import { useMapLibreStore } from "@/stores/maplibre.js";
-const { setMap } = useMapLibreStore();
+const { createMap } = useMapLibreStore();
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/assets/css/index.less";
@@ -14,12 +12,7 @@ const divID = `maplibre-${ulid()}`;
 
 onMounted(() => {
 	// Create MapLibre instance
-	setMap(
-		new Map({
-			container: divID,
-			...mapOptions,
-		}),
-	);
+	createMap(divID);
 });
 </script>
 

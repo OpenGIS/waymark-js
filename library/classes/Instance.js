@@ -1,9 +1,11 @@
 import { createApp } from "vue";
-import { createPinia } from "pinia";
+import { createPinia, storeToRefs } from "pinia";
 import { useStateStore } from "@/stores/state.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
 import { useMapLibreStore } from "@/stores/maplibre.js";
 import InstanceComponent from "@/components/Instance.vue";
+import { onEvent } from "@/classes/Event.js";
+import { fitBoundsOptions } from "@/helpers/MapLibre.js";
 
 export class Instance {
   constructor(config = {}) {
@@ -37,15 +39,35 @@ export class Instance {
     app.use(pinia);
 
     // Init Stores
-    this.stateStore = useStateStore();
-    this.stateStore.setContainer(container);
+    useStateStore().setContainer(container);
+    useGeoJSONStore().fromJSON(this.config.geoJSON);
 
-    this.geoJSONStore = useGeoJSONStore();
-    this.geoJSONStore.fromJSON(this.config.geoJSON);
-
-    this.mapLibreStore = useMapLibreStore();
+    // Listen for maplibre-ready event
+    onEvent("maplibre-ready", () => {
+      // Add overlays
+      this.addOverlays();
+    });
 
     // Mount to DOM
     app.mount("#" + this.config.divID);
+  }
+
+  addOverlays() {
+    const { overlaysByType, overlaysBounds } = storeToRefs(useGeoJSONStore());
+    const { map } = storeToRefs(useMapLibreStore());
+
+    //Add overlays to map
+    ["shapes", "lines", "markers"].forEach((type) => {
+      overlaysByType.value[type].forEach((overlay) => {
+        overlay.addTo(map.value);
+      });
+    });
+
+    // Set map view to fit overlays
+    if (overlaysBounds.value) {
+      map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
+    }
+
+    return [];
   }
 }
