@@ -28,26 +28,25 @@ export class WaymarkMap {
         };
 
         // Create overlays
-        this.overlays = geoJSON.features
-            .map((feature) => {
-                // Create
-                const overlay = new Overlay(feature);
+        this.overlays = new Array();
+        geoJSON.features.forEach((feature) => {
+            // Create
+            const overlay = new Overlay(feature);
 
-                // Extend bounds
-                this.bounds =
-                    typeof this.bounds === "object"
-                        ? this.bounds.extend(overlay.getBounds())
-                        : overlay.getBounds();
-                this.geojson.bbox = [
-                    this.bounds.getWest(),
-                    this.bounds.getSouth(),
-                    this.bounds.getEast(),
-                    this.bounds.getNorth(),
-                ];
+            // Extend bounds
+            this.bounds =
+                typeof this.bounds === "object"
+                    ? this.bounds.extend(overlay.getBounds())
+                    : overlay.getBounds();
+            this.geojson.bbox = [
+                this.bounds.getWest(),
+                this.bounds.getSouth(),
+                this.bounds.getEast(),
+                this.bounds.getNorth(),
+            ];
 
-                return overlay;
-            })
-            .filter((overlay) => overlay !== null);
+            this.overlays.push(overlay);
+        });
 
         return this;
     }

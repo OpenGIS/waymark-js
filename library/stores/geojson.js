@@ -11,8 +11,18 @@ import { WaymarkMap } from "@/classes/Map.js";
 
 export const useGeoJSONStore = defineStore("geojson", () => {
 	// State
-	const overlays = shallowRef([]);
 	const maps = shallowRef([]);
+	const overlays = shallowRef([]);
+
+	// Actions
+	const addMap = (map) => {
+		maps.value.push(map);
+
+		// Add overlays too
+		overlays.value = [...overlays.value, ...map.overlays];
+
+		dispatchEvent("geojson-map-added", { overlayCount: map.overlays.length });
+	};
 
 	// Getters
 	const state = computed(() => toJSON());
@@ -87,8 +97,7 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 			return;
 		}
 
-		const map = new WaymarkMap(json);
-		maps.value.push(map);
+		addMap(new WaymarkMap(json));
 	};
 
 	watch(
