@@ -55,9 +55,6 @@ export class WaymarkMap {
     addTo(map) {
         this.overlays.forEach((overlay) => {
             overlay.addTo(map);
-            dispatchEvent("adding-waymark-map-to-maplibre-map", {
-                waymarkMap: this,
-            });
         });
 
         // Zoom to bounds
