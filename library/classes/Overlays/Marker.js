@@ -4,8 +4,8 @@ import { flyToOptions } from "@/helpers/MapLibre.js";
 import { waymarkPrimaryColour } from "@/helpers/Common.js";
 
 export class MarkerOverlay extends Overlay {
-  constructor(feature, id) {
-    super(feature, id);
+  constructor(feature) {
+    super(feature);
   }
 
   // GeoJson point
@@ -89,3 +89,5 @@ export class MarkerOverlay extends Overlay {
     highlightLayer.paint["circle-stroke-width"] += 2;
   }
 }
+
+Overlay.register("marker", MarkerOverlay);

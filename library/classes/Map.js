@@ -1,8 +1,5 @@
 import { ulid } from "ulid";
-import { getFeatureType } from "@/helpers/Overlay.js";
-import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
-import { LineOverlay } from "@/classes/Overlays/Line.js";
-import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
+import { Overlay } from "@/classes/Overlays";
 import { dispatchEvent } from "@/classes/Event.js";
 
 export class WaymarkMap {
@@ -32,32 +29,7 @@ export class WaymarkMap {
         // Create overlays
         this.overlays = geoJSON.features
             .map((feature) => {
-                const featureType = getFeatureType(feature);
-
-                // Create overlay ID
-                const overlayId = `overlay-${ulid()}`;
-
-                // Create overlay based on feature type
-                let overlay = null;
-                switch (featureType) {
-                    case "marker":
-                        overlay = new MarkerOverlay(feature, overlayId);
-                        break;
-                    case "line":
-                        overlay = new LineOverlay(feature, overlayId);
-                        break;
-                    case "shape":
-                        overlay = new ShapeOverlay(feature, overlayId);
-                        break;
-                    default:
-                        console.warn(
-                            "Feature Type not recognised or supported - skipping",
-                            feature,
-                        );
-                        return;
-                }
-
-                return overlay;
+                return new Overlay(feature);
             })
             .filter((overlay) => overlay !== null);
 

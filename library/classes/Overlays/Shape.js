@@ -4,8 +4,8 @@ import { flyToOptions } from "@/helpers/MapLibre.js";
 import { waymarkPrimaryColour } from "@/helpers/Common.js";
 
 export class ShapeOverlay extends Overlay {
-  constructor(feature, id) {
-    super(feature, id);
+  constructor(feature) {
+    super(feature);
   }
 
   addTo(map) {
@@ -162,3 +162,5 @@ export class ShapeOverlay extends Overlay {
     highlightLayer.paint["line-width"] += 2;
   }
 }
+
+Overlay.register("shape", ShapeOverlay);

@@ -1,19 +1,30 @@
+import { ulid } from "ulid";
 import { getFeatureType, getFeatureImages } from "@/helpers/Overlay.js";
 import { flyToOptions } from "@/helpers/MapLibre.js";
 import { Popup } from "maplibre-gl";
 
 export class Overlay {
-  constructor(feature, id = null) {
+  static subclassMap = {};
+
+  static register(type, cls) {
+    this.subclassMap[type] = cls;
+  }
+
+  constructor(feature) {
+    if (new.target === Overlay) {
+      const type = getFeatureType(feature);
+      const Subclass = Overlay.subclassMap[type];
+      if (Subclass) {
+        return new Subclass(feature);
+      }
+    }
+
     if (!feature || feature.type !== "Feature") {
       throw new Error("Valid GeoJSON Feature required");
     }
     this.feature = feature;
 
-    if (id == null || typeof id !== "string") {
-      throw new Error("Valid ID string required");
-    }
-    this.id = id;
-
+    this.id = ulid();
     this.featureType = getFeatureType(this.feature) || null;
     this.feature.properties = this.feature.properties || {};
     this.title = this.feature.properties.title || "";

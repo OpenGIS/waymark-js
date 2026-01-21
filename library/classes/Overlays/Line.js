@@ -5,8 +5,8 @@ import { flyToOptions } from "@/helpers/MapLibre.js";
 import { waymarkPrimaryColour } from "@/helpers/Common.js";
 
 export class LineOverlay extends Overlay {
-  constructor(feature, id) {
-    super(feature, id);
+  constructor(feature) {
+    super(feature);
   }
 
   toStyle() {
@@ -154,3 +154,5 @@ export class LineOverlay extends Overlay {
     highlightLayer.paint["line-width"] += 2;
   }
 }
+
+Overlay.register("line", LineOverlay);
