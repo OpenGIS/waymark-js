@@ -1,6 +1,5 @@
 import { ulid } from "ulid";
 import { Overlay } from "@/classes/Overlays";
-import { dispatchEvent } from "@/classes/Event.js";
 import { fitBoundsOptions } from "@/helpers/MapLibre.js";
 
 export class WaymarkMap {
@@ -52,9 +51,24 @@ export class WaymarkMap {
     }
 
     addTo(map) {
-        this.overlays.forEach((overlay) => {
-            overlay.addTo(map);
-        });
+        // Rendering order - Shapes, Lines & then Markers
+        this.overlays
+            .filter((overlay) => overlay.featureType === "shape")
+            .forEach((overlay) => {
+                overlay.addTo(map);
+            });
+
+        this.overlays
+            .filter((overlay) => overlay.featureType === "line")
+            .forEach((overlay) => {
+                overlay.addTo(map);
+            });
+
+        this.overlays
+            .filter((overlay) => overlay.featureType === "marker")
+            .forEach((overlay) => {
+                overlay.addTo(map);
+            });
 
         // Zoom to bounds
         map.fitBounds(this.bounds, fitBoundsOptions);
