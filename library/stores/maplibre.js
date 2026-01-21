@@ -76,9 +76,7 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 
 			// Get features around click
 			const features = map.value.queryRenderedFeatures(bbox, {
-				layers: overlays.value
-					// .filter((o) => o.featureType !== "marker")
-					.map((o) => o.id),
+				layers: overlays.value.map((o) => o.id),
 			});
 
 			// Features found
@@ -102,6 +100,8 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 	watch(
 		() => view.value,
 		throttle((newVal) => {
+			if (!mapReady.value) return;
+
 			dispatchEvent("maplibre-view-change");
 		}, 1000),
 		{ deep: true },
