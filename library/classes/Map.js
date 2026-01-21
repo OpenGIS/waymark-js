@@ -1,7 +1,6 @@
 import { ulid } from "ulid";
 import { Overlay } from "@/classes/Overlays";
 import { dispatchEvent } from "@/classes/Event.js";
-import { LngLatBounds } from "maplibre-gl";
 import { fitBoundsOptions } from "@/helpers/MapLibre.js";
 
 export class WaymarkMap {
