@@ -1,6 +1,8 @@
 import { ulid } from "ulid";
 import { Overlay } from "@/classes/Overlays";
 import { dispatchEvent } from "@/classes/Event.js";
+import { LngLatBounds } from "maplibre-gl";
+import { fitBoundsOptions } from "@/helpers/MapLibre.js";
 
 export class WaymarkMap {
     constructor(geoJSON = {}) {
@@ -29,7 +31,22 @@ export class WaymarkMap {
         // Create overlays
         this.overlays = geoJSON.features
             .map((feature) => {
-                return new Overlay(feature);
+                // Create
+                const overlay = new Overlay(feature);
+
+                // Extend bounds
+                this.bounds =
+                    typeof this.bounds === "object"
+                        ? this.bounds.extend(overlay.getBounds())
+                        : overlay.getBounds();
+                this.geojson.bbox = [
+                    this.bounds.getWest(),
+                    this.bounds.getSouth(),
+                    this.bounds.getEast(),
+                    this.bounds.getNorth(),
+                ];
+
+                return overlay;
             })
             .filter((overlay) => overlay !== null);
 
@@ -37,16 +54,18 @@ export class WaymarkMap {
     }
 
     addTo(map) {
-        dispatchEvent("adding-overlays-to-map", { overlays: this.overlays });
-
         this.overlays.forEach((overlay) => {
             overlay.addTo(map);
+            dispatchEvent("adding-waymark-map-to-maplibre-map", {
+                waymarkMap: this,
+            });
         });
+
+        // Zoom to bounds
+        map.fitBounds(this.bounds, fitBoundsOptions);
     }
 
     toJSON() {
-        return {
-            geojson: this.geojson,
-        };
+        this.geojson;
     }
 }

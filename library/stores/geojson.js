@@ -89,10 +89,6 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 
 		const map = new WaymarkMap(json);
 		maps.value.push(map);
-
-		dispatchEvent("geojson-map-created", {
-			map,
-		});
 	};
 
 	watch(
