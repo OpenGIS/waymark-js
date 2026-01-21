@@ -4,7 +4,7 @@ import { useStateStore } from "@/stores/state.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
 import { useMapLibreStore } from "@/stores/maplibre.js";
 import InstanceComponent from "@/components/Instance.vue";
-import { onEvent } from "@/classes/Event.js";
+import { onEvent, dispatchEvent } from "@/classes/Event.js";
 import {
   fitBoundsOptions,
   flyToOptions,
@@ -50,11 +50,34 @@ export class Instance {
     // Listen for maplibre-map-ready event
     onEvent("maplibre-map-ready", () => {
       // Add overlays
-      this.addOverlays();
+      this.addMaps();
     });
 
     // Mount to DOM
     app.mount("#" + this.config.divID);
+  }
+
+  addMaps() {
+    const { maps } = storeToRefs(useGeoJSONStore());
+    const { map } = storeToRefs(useMapLibreStore());
+
+    maps.value.forEach((waymarkMap) => {
+      waymarkMap.addTo(map.value);
+    });
+
+    //Add overlays to map
+    // ["shapes", "lines", "markers"].forEach((type) => {
+    //   overlaysByType.value[type].forEach((overlay) => {
+    //     overlay.addTo(map.value);
+    //   });
+    // });
+
+    // Set map view to fit overlays
+    // if (overlaysBounds.value) {
+    //   map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
+    // }
+
+    return maps;
   }
 
   addOverlays() {

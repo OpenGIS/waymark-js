@@ -7,10 +7,12 @@ import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
 import { LineOverlay } from "@/classes/Overlays/Line.js";
 import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
 import { dispatchEvent } from "@/classes/Event.js";
+import { WaymarkMap } from "@/classes/Map.js";
 
 export const useGeoJSONStore = defineStore("geojson", () => {
 	// State
 	const overlays = shallowRef([]);
+	const maps = shallowRef([]);
 
 	// Getters
 	const state = computed(() => toJSON());
@@ -85,35 +87,11 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 			return;
 		}
 
-		// Each feature
-		json.features.forEach((feature) => {
-			const featureType = getFeatureType(feature);
+		const map = new WaymarkMap(json);
+		maps.value.push(map);
 
-			// Create overlay ID
-			const overlayId = `${featureType}-${overlays.value.length}`;
-
-			// Create overlay based on feature type
-			let overlay = null;
-			switch (featureType) {
-				case "marker":
-					overlay = new MarkerOverlay(feature, overlayId);
-					break;
-				case "line":
-					overlay = new LineOverlay(feature, overlayId);
-					break;
-				case "shape":
-					overlay = new ShapeOverlay(feature, overlayId);
-					break;
-				default:
-					console.warn(
-						"Feature Type not recognised or supported - skipping",
-						feature,
-					);
-					return;
-			}
-
-			// Add to store (reassign to trigger shallowRef updates)
-			overlays.value = [...overlays.value, overlay];
+		dispatchEvent("geojson-map-created", {
+			map,
 		});
 	};
 
@@ -130,6 +108,7 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		state,
 		features,
 		hasFeatures,
+		maps,
 		overlays,
 		overlaysByType,
 		overlaysBounds,
