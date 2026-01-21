@@ -40,6 +40,12 @@
         ]
       },
       "properties": {
+        "waymark": {
+          "paint": {
+            "fill-color": "red",
+            "fill-opacity": 1
+          }
+        },
         "title": "Nahwitti Lake",
         "type": "water",
         "description": "The North North Island route takes you from Port Hardy to Cape Scott and back, covering some of the most remote and scenic areas of Vancouver Island. Be prepared for rough terrain and changing weather conditions."
@@ -51,7 +57,13 @@
         "coordinates": [-127.497046, 50.720265]
       },
       "type": "Feature",
-      "properties": { "title": "Pub Name", "type": "beer" }
+      "properties": {
+        "title": "Pub Name",
+        "type": "beer",
+        "waymark": {
+          "paint": { "circle-color": "red" }
+        }
+      }
     },
     {
       "geometry": {
@@ -482,6 +494,9 @@
     {
       "type": "Feature",
       "properties": {
+        "waymark": {
+          "paint": { "line-color": "red", "line-width": 4 }
+        },
         "type": "route",
         "title": "Section 2 - Alberni to Port Renfrew",
         "image_large_url": "https:\/\/www.waymark.dev\/wp-content\/uploads\/2019\/07\/UNADJUSTEDNONRAW_thumb_15b3-1024x683.jpg",

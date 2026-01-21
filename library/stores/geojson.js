@@ -117,7 +117,6 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		});
 	};
 
-	// Storage write
 	watch(
 		() => state.value,
 		throttle((newVal) => {

@@ -10,6 +10,8 @@ export class LineOverlay extends Overlay {
   }
 
   toStyle() {
+    const waymarkPaint = this.feature.properties.waymark?.paint || {};
+
     return {
       id: this.id,
       type: "line",
@@ -19,9 +21,9 @@ export class LineOverlay extends Overlay {
         "line-cap": "round",
       },
       paint: {
-        "line-color": this.feature.properties.waymark?.line_colour || "#000000",
-        "line-width":
-          parseFloat(this.feature.properties.waymark?.line_weight) || 2,
+        "line-color": "#000000",
+        "line-width": 2,
+        ...waymarkPaint,
       },
     };
   }

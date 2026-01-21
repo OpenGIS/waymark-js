@@ -1,4 +1,5 @@
-import { ref, shallowRef } from "vue";
+import { ref, shallowRef, watch } from "vue";
+import { throttle } from "lodash-es";
 import { defineStore, storeToRefs } from "pinia";
 import { useStateStore } from "@/stores/state.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
@@ -97,6 +98,14 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 			}
 		});
 	}
+
+	watch(
+		() => view.value,
+		throttle((newVal) => {
+			dispatchEvent("maplibre-view-change");
+		}, 1000),
+		{ deep: true },
+	);
 
 	return {
 		// State

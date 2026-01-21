@@ -10,16 +10,18 @@ export class MarkerOverlay extends Overlay {
 
   // GeoJson point
   toStyle() {
+    const waymarkPaint = this.feature.properties.waymark?.paint || {};
+
     return {
       id: this.id,
       type: "circle",
       source: this.id,
       paint: {
         "circle-radius": 8,
-        "circle-color":
-          this.feature.properties.waymark?.marker_colour || "#ffffff",
+        "circle-color": "#ffffff",
         "circle-stroke-color": "#000000",
         "circle-stroke-width": 1,
+        ...waymarkPaint,
       },
     };
   }

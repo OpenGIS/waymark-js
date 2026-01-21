@@ -21,11 +21,45 @@
         margin: 0;
         padding: 0;
       }
+      #dev-ui {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 999;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+      }
     </style>
   </head>
   <body>
     <!-- Container -->
     <div id="waymark-instance" style="height: 100%"></div>
+
+    <!-- Dev UI -->
+    <div id="dev-ui">
+      <button onclick="window.waymarkInstance.resetView()">
+        Reset<br />View
+      </button>
+      <button onclick="window.waymarkInstance.rotateMap('cw', 90)">
+        Rotate<br />CW 90°
+      </button>
+      <button onclick="window.waymarkInstance.rotateMap('ccw', 90)">
+        Rotate<br />CCW 90°
+      </button>
+      <button onclick="window.waymarkInstance.pitchMap('down', 15)">
+        Pitch<br />Down 15°
+      </button>
+      <button onclick="window.waymarkInstance.pitchMap('up', 15)">
+        Pitch<br />Up 15°
+      </button>
+      <button onclick="window.waymarkInstance.pointNorth()">
+        Point<br />North
+      </button>
+      <button onclick="window.waymarkInstance.toggle3D()">
+        Toggle<br />3D
+      </button>
+    </div>
 
     <!-- Load Waymark JS -->
     <script type="module">
@@ -45,7 +79,7 @@
       });
 
       // Create Instance
-      const instance = new Instance({
+      window.waymarkInstance = new Instance({
         divID: "waymark-instance",
         geoJSON,
       });

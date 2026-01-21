@@ -23,18 +23,18 @@ export class ShapeOverlay extends Overlay {
   }
 
   toStyle() {
+    const waymarkPaint = this.feature.properties.waymark?.paint || {};
+
     return {
       id: this.id,
       type: "fill",
       source: this.id,
       layout: {},
       paint: {
-        "fill-color":
-          this.feature.properties.waymark?.shape_colour || "#000000",
-        "fill-opacity":
-          parseFloat(this.feature.properties.waymark?.fill_opacity) || 0.5,
-        "fill-outline-color":
-          this.feature.properties.waymark?.shape_colour || "#000000",
+        "fill-color": "#000000",
+        "fill-opacity": 0.2,
+        "fill-outline-color": "#000000",
+        ...waymarkPaint,
       },
     };
   }
