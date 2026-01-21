@@ -28,7 +28,7 @@ export class WaymarkMap {
         };
 
         // Create overlays
-        this.overlays = new Array();
+        this.overlays = [];
         geoJSON.features.forEach((feature) => {
             // Create
             const overlay = new Overlay(feature);

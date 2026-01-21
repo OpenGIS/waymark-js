@@ -49,54 +49,16 @@ export class Instance {
 
     // Listen for maplibre-map-ready event
     onEvent("maplibre-map-ready", () => {
-      // Add overlays
-      this.addMaps();
+      const { maps } = storeToRefs(useGeoJSONStore());
+      const { map: mapLibreMap } = storeToRefs(useMapLibreStore());
+
+      maps.value.forEach((waymarkMap) => {
+        waymarkMap.addTo(mapLibreMap.value);
+      });
     });
 
     // Mount to DOM
     app.mount("#" + this.config.divID);
-  }
-
-  addMaps() {
-    const { maps } = storeToRefs(useGeoJSONStore());
-    const { map } = storeToRefs(useMapLibreStore());
-
-    maps.value.forEach((waymarkMap) => {
-      waymarkMap.addTo(map.value);
-    });
-
-    //Add overlays to map
-    // ["shapes", "lines", "markers"].forEach((type) => {
-    //   overlaysByType.value[type].forEach((overlay) => {
-    //     overlay.addTo(map.value);
-    //   });
-    // });
-
-    // Set map view to fit overlays
-    // if (overlaysBounds.value) {
-    //   map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
-    // }
-
-    return maps;
-  }
-
-  addOverlays() {
-    const { overlaysByType, overlaysBounds } = storeToRefs(useGeoJSONStore());
-    const { map } = storeToRefs(useMapLibreStore());
-
-    //Add overlays to map
-    ["shapes", "lines", "markers"].forEach((type) => {
-      overlaysByType.value[type].forEach((overlay) => {
-        overlay.addTo(map.value);
-      });
-    });
-
-    // Set map view to fit overlays
-    if (overlaysBounds.value) {
-      map.value.fitBounds(overlaysBounds.value, fitBoundsOptions);
-    }
-
-    return [];
   }
 
   rotateMap(direction = "cw", degrees = 90) {
