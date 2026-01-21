@@ -19,9 +19,21 @@ export class Overlay {
     this.title = this.feature.properties.title || "";
     this.description = this.feature.properties.description || "";
     this.images = getFeatureImages(this.feature);
+    this.map = null;
+    this.active = false;
 
     // Get Type
     this.popup = this.createPopup();
+  }
+
+  setActive(active = true) {
+    this.active = active;
+
+    if (this.active) {
+      this.showHighlight();
+    } else {
+      this.hideHighlight();
+    }
   }
 
   addEvents() {
@@ -30,11 +42,21 @@ export class Overlay {
       // Change cursor to pointer
       this.map.getCanvas().style.cursor = "pointer";
 
+      // Don't modify highlight if active
+      if (this.active) {
+        return;
+      }
+
       // Show highlight
       this.showHighlight();
     });
     this.map.on("mouseleave", this.id, () => {
       this.map.getCanvas().style.cursor = "";
+
+      if (this.active) {
+        return;
+      }
+
       this.hideHighlight();
     });
   }
@@ -111,15 +133,6 @@ export class Overlay {
 
   containsText(text = "") {
     let matches = 0;
-
-    // Text included in type title
-    if (this.type && this.type.getTitle) {
-      matches += this.type
-        .getTitle()
-        .toString()
-        .toLowerCase()
-        .includes(text.toLowerCase());
-    }
 
     // Check all GeoJSON properties VALUES (not keys) for existence of filter text
     matches += Object.values(this.feature.properties).some((p) => {

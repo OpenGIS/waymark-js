@@ -17,7 +17,7 @@ export const useStateStore = defineStore("state", () => {
 		if (!overlay) {
 			// Remove highlight
 			if (activeOverlay.value) {
-				activeOverlay.value.hideHighlight();
+				activeOverlay.value.setActive(false);
 			}
 
 			activeOverlay.value = null;
@@ -38,16 +38,16 @@ export const useStateStore = defineStore("state", () => {
 			}
 
 			// Remove highlight
-			activeOverlay.value.hideHighlight();
+			activeOverlay.value.setActive(false);
 
 			// Make inactive
-			setActiveOverlay();
+			activeOverlay.value = null;
 		}
 
 		// Make active
 		activeOverlay.value = overlay;
+		overlay.setActive(true);
 		overlay.flyTo();
-		overlay.showHighlight();
 		overlay.openPopup();
 
 		dispatchEvent("state-active-overlay-set");
