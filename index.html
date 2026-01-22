@@ -63,7 +63,7 @@
 
     <!-- Load Waymark JS -->
     <script type="module">
-      import { Instance } from "./library/entry.js";
+      import { createInstance } from "./library/entry.js";
 
       // Demo data
       const urls = [
@@ -93,7 +93,7 @@
       });
 
       // Create Instance
-      window.waymarkInstance = new Instance({
+      window.waymarkInstance = createInstance({
         divID: "waymark-instance",
         // geoJSON,
       });

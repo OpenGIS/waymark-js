@@ -1,1 +1,1 @@
-export { Instance } from "@/classes/Instance.js";
+export { createInstance } from "@/helpers/Factory";

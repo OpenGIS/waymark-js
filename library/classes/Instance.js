@@ -4,15 +4,14 @@ import { useStateStore } from "@/stores/state.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
 import { useMapLibreStore } from "@/stores/maplibre.js";
 import InstanceComponent from "@/components/Instance.vue";
-import { onEvent, dispatchEvent } from "@/classes/Event.js";
+import { onEvent } from "@/classes/Event.js";
 import {
-  fitBoundsOptions,
   flyToOptions,
   rotateOptions,
   easeToOptions,
 } from "@/helpers/MapLibre.js";
 
-export class Instance {
+export default class WaymarkInstance {
   constructor(config = {}) {
     const defaultConfig = {
       divID: "waymark-instance",
@@ -20,7 +19,6 @@ export class Instance {
         type: "FeatureCollection",
         features: [],
       },
-      state: {},
     };
 
     // Merge config with defaults

@@ -2,7 +2,7 @@ import { ulid } from "ulid";
 import { createOverlay } from "@/helpers/Factory";
 import { fitBoundsOptions } from "@/helpers/MapLibre";
 
-export class WaymarkMap {
+export default class WaymarkMap {
     constructor(geoJSON = {}) {
         // Must be a valid GeoJSON Feature
         if (
