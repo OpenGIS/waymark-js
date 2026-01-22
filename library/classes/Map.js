@@ -32,23 +32,19 @@ export class WaymarkMap {
         geoJSON.features.forEach((feature) => {
             // Create
             const overlay = new Overlay(feature);
-            // overlay.setMap(this);
-
-            console.log("Overlay created:", overlay.getBounds());
-
-            debugger;
+            overlay.setMap(this);
 
             // Extend bounds
-            // this.bounds =
-            //     typeof this.bounds === "object"
-            //         ? this.bounds.extend(overlay.getBounds())
-            //         : overlay.getBounds();
-            // this.geojson.bbox = [
-            //     this.bounds.getWest(),
-            //     this.bounds.getSouth(),
-            //     this.bounds.getEast(),
-            //     this.bounds.getNorth(),
-            // ];
+            this.bounds =
+                typeof this.bounds === "object"
+                    ? this.bounds.extend(overlay.getBounds())
+                    : overlay.getBounds();
+            this.geojson.bbox = [
+                this.bounds.getWest(),
+                this.bounds.getSouth(),
+                this.bounds.getEast(),
+                this.bounds.getNorth(),
+            ];
 
             this.overlays.push(overlay);
         });

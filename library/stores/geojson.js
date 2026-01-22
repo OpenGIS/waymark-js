@@ -2,9 +2,13 @@ import { shallowRef, watch, computed } from "vue";
 import { throttle } from "lodash-es";
 import { defineStore } from "pinia";
 import { LngLatBounds } from "maplibre-gl";
+import { getFeatureType } from "@/helpers/Overlay.js";
 import { dispatchEvent } from "@/classes/Event.js";
 import { WaymarkMap } from "@/classes/Map.js";
-import { Overlay } from "@/classes/Overlays";
+import { Overlay } from "@/classes/Overlays.js";
+import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
+import { LineOverlay } from "@/classes/Overlays/Line.js";
+import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
 
 export const useGeoJSONStore = defineStore("geojson", () => {
 	// State
@@ -102,7 +106,7 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 				break;
 			case "Feature":
 				//Create & Add Overlay
-				// addOverlay(new Overlay(json));
+				addOverlay(new Overlay(json));
 
 				break;
 			default:
