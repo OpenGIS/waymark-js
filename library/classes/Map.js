@@ -53,6 +53,10 @@ export class WaymarkMap {
     }
 
     addTo(map) {
+        if (!map || !this.overlays.length) {
+            return;
+        }
+
         // Rendering order - Shapes, Lines & then Markers
         this.overlays
             .filter((overlay) => overlay.featureType === "shape")

@@ -43,22 +43,38 @@ export class Instance {
     const app = createApp(InstanceComponent);
     app.use(pinia);
 
-    // Init Stores
+    // Setup
     useStateStore().setContainer(container);
-    useGeoJSONStore().fromJSON(this.config.geoJSON);
 
     // Listen for maplibre-map-ready event
     onEvent("maplibre-map-ready", () => {
-      const { maps } = storeToRefs(useGeoJSONStore());
-      const { map: mapLibreMap } = storeToRefs(useMapLibreStore());
-
-      maps.value.forEach((waymarkMap) => {
-        waymarkMap.addTo(mapLibreMap.value);
+      // When GeoJSON data changes
+      onEvent("geojson-state-change", () => {
+        // Draw
+        this.drawGeoJSON();
       });
+
+      // Initial
+      if (this.config.geoJSON) {
+        this.addGeoJSON(this.config.geoJSON);
+      }
     });
 
     // Mount to DOM
     app.mount("#" + this.config.divID);
+  }
+
+  drawGeoJSON() {
+    const { maps } = storeToRefs(useGeoJSONStore());
+    const { map: mapLibreMap } = storeToRefs(useMapLibreStore());
+
+    maps.value.forEach((waymarkMap) => {
+      waymarkMap.addTo(mapLibreMap.value);
+    });
+  }
+
+  addGeoJSON(geoJSON) {
+    useGeoJSONStore().addJSON(geoJSON);
   }
 
   rotateMap(direction = "cw", degrees = 90) {

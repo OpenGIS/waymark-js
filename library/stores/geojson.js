@@ -16,6 +16,28 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	const overlays = shallowRef([]);
 
 	// Actions
+
+	const addJSON = (json) => {
+		if (!json || !json.type) {
+			throw new Error("Valid GeoJSON required");
+		}
+
+		switch (json.type) {
+			case "FeatureCollection":
+				//Create & Add Map
+				addMap(new WaymarkMap(json));
+
+				break;
+			case "Feature":
+				//Create & Add Overlay
+				addOverlay(new Overlay(json));
+
+				break;
+			default:
+				throw new Error("Valid GeoJSON Feature or FeatureCollection required");
+		}
+	};
+
 	const addMap = (map) => {
 		maps.value.push(map);
 
@@ -93,27 +115,6 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		return geoJSON;
 	};
 
-	const fromJSON = (json) => {
-		if (!json || !json.type) {
-			throw new Error("Valid GeoJSON required");
-		}
-
-		switch (json.type) {
-			case "FeatureCollection":
-				//Create & Add Map
-				addMap(new WaymarkMap(json));
-
-				break;
-			case "Feature":
-				//Create & Add Overlay
-				addOverlay(new Overlay(json));
-
-				break;
-			default:
-				throw new Error("Valid GeoJSON Feature or FeatureCollection required");
-		}
-	};
-
 	watch(
 		() => state.value,
 		throttle((newVal) => {
@@ -132,8 +133,10 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		overlaysByType,
 		overlaysBounds,
 
+		// Actions
+		addJSON,
+
 		// Persistence
 		toJSON,
-		fromJSON,
 	};
 });

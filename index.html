@@ -66,9 +66,10 @@
       import { Instance } from "./library/entry.js";
 
       // Demo data
-      const geoJSON = await fetch(
-        "./assets/data/waymark/devDataShape.json",
-      ).then((res) => res.json());
+      const urls = [
+        "./assets/data/waymark/featureCollection.json",
+        "./assets/data/waymark/feature.json",
+      ];
 
       // Container
       const container = document.getElementById("waymark-instance");
@@ -76,12 +77,25 @@
       // Wildcard Listen for all events on container
       container.addEventListener("waymark-event", (event) => {
         console.log("Waymark Event:", event.detail);
+
+        switch (event.detail.eventName) {
+          case "maplibre-map-ready":
+            // Each URL
+            urls.forEach(async (url) => {
+              fetch(url).then(async (res) => {
+                const geoJSON = await res.json();
+                window.waymarkInstance.addGeoJSON(geoJSON);
+              });
+            });
+
+            break;
+        }
       });
 
       // Create Instance
       window.waymarkInstance = new Instance({
         divID: "waymark-instance",
-        geoJSON,
+        // geoJSON,
       });
     </script>
   </body>
