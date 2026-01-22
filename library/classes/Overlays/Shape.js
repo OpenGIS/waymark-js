@@ -170,5 +170,3 @@ export class ShapeOverlay extends Overlay {
     highlightLayer.paint["line-width"] += 2;
   }
 }
-
-Overlay.register("shape", ShapeOverlay);

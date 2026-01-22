@@ -4,21 +4,7 @@ import { flyToOptions } from "@/helpers/MapLibre.js";
 import { Popup } from "maplibre-gl";
 
 export class Overlay {
-  static subclassMap = {};
-
-  static register(type, cls) {
-    this.subclassMap[type] = cls;
-  }
-
   constructor(feature) {
-    if (new.target === Overlay) {
-      const type = getFeatureType(feature);
-      const Subclass = Overlay.subclassMap[type];
-      if (Subclass) {
-        return new Subclass(feature);
-      }
-    }
-
     if (!feature || feature.type !== "Feature") {
       throw new Error("Valid GeoJSON Feature required");
     }

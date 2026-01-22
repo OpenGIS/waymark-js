@@ -154,5 +154,3 @@ export class LineOverlay extends Overlay {
     highlightLayer.paint["line-width"] += 2;
   }
 }
-
-Overlay.register("line", LineOverlay);

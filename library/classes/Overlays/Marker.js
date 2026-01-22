@@ -89,5 +89,3 @@ export class MarkerOverlay extends Overlay {
     highlightLayer.paint["circle-stroke-width"] += 2;
   }
 }
-
-Overlay.register("marker", MarkerOverlay);

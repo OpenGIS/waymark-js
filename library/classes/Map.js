@@ -32,6 +32,10 @@ export class WaymarkMap {
         geoJSON.features.forEach((feature) => {
             // Create
             const overlay = new Overlay(feature);
+
+            console.log(overlay);
+            debugger;
+
             overlay.setMap(this);
 
             // Extend bounds
