@@ -2,12 +2,9 @@ import { shallowRef, watch, computed } from "vue";
 import { throttle } from "lodash-es";
 import { defineStore } from "pinia";
 import { LngLatBounds } from "maplibre-gl";
-import { getFeatureType } from "@/helpers/Overlay.js";
-import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
-import { LineOverlay } from "@/classes/Overlays/Line.js";
-import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
 import { dispatchEvent } from "@/classes/Event.js";
 import { WaymarkMap } from "@/classes/Map.js";
+import { Overlay } from "@/classes/Overlays";
 
 export const useGeoJSONStore = defineStore("geojson", () => {
 	// State
@@ -21,7 +18,13 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		// Add overlays too
 		overlays.value = [...overlays.value, ...map.overlays];
 
-		dispatchEvent("geojson-map-added", { overlayCount: map.overlays.length });
+		dispatchEvent("geojson-map-added", { map });
+	};
+
+	const addOverlay = (overlay) => {
+		overlays.value.push(overlay);
+
+		dispatchEvent("geojson-overlay-added", { overlay });
 	};
 
 	// Getters
@@ -87,17 +90,24 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	};
 
 	const fromJSON = (json) => {
-		// If valid GeoJSON
-		if (
-			!json ||
-			json.type !== "FeatureCollection" ||
-			!Array.isArray(json.features)
-		) {
-			console.error("Invalid GeoJSON provided to store fromJSON");
-			return;
+		if (!json || !json.type) {
+			throw new Error("Valid GeoJSON required");
 		}
 
-		addMap(new WaymarkMap(json));
+		switch (json.type) {
+			case "FeatureCollection":
+				//Create & Add Map
+				addMap(new WaymarkMap(json));
+
+				break;
+			case "Feature":
+				//Create & Add Overlay
+				// addOverlay(new Overlay(json));
+
+				break;
+			default:
+				throw new Error("Valid GeoJSON Feature or FeatureCollection required");
+		}
 	};
 
 	watch(

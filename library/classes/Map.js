@@ -25,25 +25,30 @@ export class WaymarkMap {
             zoom: null,
             ...this.properties.waymark,
         };
+        this.id = this.waymark.id;
 
         // Create overlays
         this.overlays = [];
         geoJSON.features.forEach((feature) => {
             // Create
             const overlay = new Overlay(feature);
-            overlay.setMap(this);
+            // overlay.setMap(this);
+
+            console.log("Overlay created:", overlay.getBounds());
+
+            debugger;
 
             // Extend bounds
-            this.bounds =
-                typeof this.bounds === "object"
-                    ? this.bounds.extend(overlay.getBounds())
-                    : overlay.getBounds();
-            this.geojson.bbox = [
-                this.bounds.getWest(),
-                this.bounds.getSouth(),
-                this.bounds.getEast(),
-                this.bounds.getNorth(),
-            ];
+            // this.bounds =
+            //     typeof this.bounds === "object"
+            //         ? this.bounds.extend(overlay.getBounds())
+            //         : overlay.getBounds();
+            // this.geojson.bbox = [
+            //     this.bounds.getWest(),
+            //     this.bounds.getSouth(),
+            //     this.bounds.getEast(),
+            //     this.bounds.getNorth(),
+            // ];
 
             this.overlays.push(overlay);
         });

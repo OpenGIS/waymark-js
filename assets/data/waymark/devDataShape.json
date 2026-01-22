@@ -1,5 +1,10 @@
 {
   "type": "FeatureCollection",
+  "properties": {
+    "waymark": {
+      "id": "joetest1"
+    }
+  },
   "features": [
     {
       "type": "Feature",
