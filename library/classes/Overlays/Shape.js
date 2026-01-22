@@ -10,13 +10,13 @@ export class ShapeOverlay extends Overlay {
 
   addTo(map) {
     super.addTo(map);
-    this.map.addLayer(this.strokeStyle());
+    this.mapLibreMap.addLayer(this.strokeStyle());
   }
 
   remove() {
-    if (this.map) {
-      if (this.map.getLayer(`${this.id}-stroke`)) {
-        this.map.removeLayer(`${this.id}-stroke`);
+    if (this.mapLibreMap) {
+      if (this.mapLibreMap.getLayer(`${this.id}-stroke`)) {
+        this.mapLibreMap.removeLayer(`${this.id}-stroke`);
       }
     }
     super.remove();
@@ -40,20 +40,28 @@ export class ShapeOverlay extends Overlay {
   }
 
   show() {
-    if (this.map.getLayer(this.id)) {
-      this.map.setLayoutProperty(this.id, "visibility", "visible");
+    if (this.mapLibreMap.getLayer(this.id)) {
+      this.mapLibreMap.setLayoutProperty(this.id, "visibility", "visible");
     }
-    if (this.map.getLayer(`${this.id}-stroke`)) {
-      this.map.setLayoutProperty(`${this.id}-stroke`, "visibility", "visible");
+    if (this.mapLibreMap.getLayer(`${this.id}-stroke`)) {
+      this.mapLibreMap.setLayoutProperty(
+        `${this.id}-stroke`,
+        "visibility",
+        "visible",
+      );
     }
   }
 
   hide() {
-    if (this.map.getLayer(this.id)) {
-      this.map.setLayoutProperty(this.id, "visibility", "none");
+    if (this.mapLibreMap.getLayer(this.id)) {
+      this.mapLibreMap.setLayoutProperty(this.id, "visibility", "none");
     }
-    if (this.map.getLayer(`${this.id}-stroke`)) {
-      this.map.setLayoutProperty(`${this.id}-stroke`, "visibility", "none");
+    if (this.mapLibreMap.getLayer(`${this.id}-stroke`)) {
+      this.mapLibreMap.setLayoutProperty(
+        `${this.id}-stroke`,
+        "visibility",
+        "none",
+      );
     }
   }
 
@@ -114,9 +122,9 @@ export class ShapeOverlay extends Overlay {
   zoomIn() {
     const bounds = this.getBounds();
     const center = bounds.getCenter();
-    this.map.flyTo({
+    this.mapLibreMap.flyTo({
       center: [center.lng, center.lat],
-      zoom: Math.max(this.map.getZoom(), 16),
+      zoom: Math.max(this.mapLibreMap.getZoom(), 16),
       ...flyToOptions,
     });
   }
@@ -137,7 +145,7 @@ export class ShapeOverlay extends Overlay {
 
   flyTo() {
     const bounds = this.getBounds();
-    this.map.fitBounds(bounds, flyToOptions);
+    this.mapLibreMap.fitBounds(bounds, flyToOptions);
   }
 
   inBounds(bounds) {

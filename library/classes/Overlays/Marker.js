@@ -68,7 +68,7 @@ export class MarkerOverlay extends Overlay {
   }
 
   flyTo() {
-    this.map.flyTo({
+    this.mapLibreMap.flyTo({
       center: [
         this.feature.geometry.coordinates[0],
         this.feature.geometry.coordinates[1],

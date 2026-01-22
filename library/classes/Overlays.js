@@ -30,11 +30,16 @@ export class Overlay {
     this.title = this.feature.properties.title || "";
     this.description = this.feature.properties.description || "";
     this.images = getFeatureImages(this.feature);
-    this.map = null;
+    this.waymarkMap = null;
+    this.mapLibreMap = null;
     this.active = false;
 
     // Get Type
     this.popup = this.createPopup();
+  }
+
+  setMap(waymarkMap) {
+    this.waymarkMap = waymarkMap;
   }
 
   setActive(active = true) {
@@ -49,9 +54,9 @@ export class Overlay {
 
   addEvents() {
     // Hover
-    this.map.on("mouseenter", this.id, () => {
+    this.mapLibreMap.on("mouseenter", this.id, () => {
       // Change cursor to pointer
-      this.map.getCanvas().style.cursor = "pointer";
+      this.mapLibreMap.getCanvas().style.cursor = "pointer";
 
       // Don't modify highlight if active
       if (this.active) {
@@ -61,8 +66,8 @@ export class Overlay {
       // Show highlight
       this.showHighlight();
     });
-    this.map.on("mouseleave", this.id, () => {
-      this.map.getCanvas().style.cursor = "";
+    this.mapLibreMap.on("mouseleave", this.id, () => {
+      this.mapLibreMap.getCanvas().style.cursor = "";
 
       if (this.active) {
         return;
@@ -78,19 +83,19 @@ export class Overlay {
       return;
     }
 
-    this.map = map;
+    this.mapLibreMap = map;
 
     // Create Source
-    this.map.addSource(this.id, {
+    this.mapLibreMap.addSource(this.id, {
       type: "geojson",
       data: this.feature,
     });
-    this.source = this.map.getSource(this.id);
+    this.source = this.mapLibreMap.getSource(this.id);
 
     // Create Layer
     this.style = this.toStyle();
-    this.map.addLayer(this.style);
-    this.layer = this.map.getLayer(this.id);
+    this.mapLibreMap.addLayer(this.style);
+    this.layer = this.mapLibreMap.getLayer(this.id);
 
     // Create Highlight Layer
     this.highlightLayer = this.addHighlightLayer();
@@ -100,19 +105,19 @@ export class Overlay {
   }
 
   remove() {
-    if (!this.map) {
+    if (!this.mapLibreMap) {
       return;
     }
 
-    if (this.map.getLayer(this.id)) {
-      this.map.removeLayer(this.id);
+    if (this.mapLibreMap.getLayer(this.id)) {
+      this.mapLibreMap.removeLayer(this.id);
     }
 
-    if (this.map.getSource(this.id)) {
-      this.map.removeSource(this.id);
+    if (this.mapLibreMap.getSource(this.id)) {
+      this.mapLibreMap.removeSource(this.id);
     }
 
-    this.map = null;
+    this.mapLibreMap = null;
     this.source = null;
     this.layer = null;
     this.style = null;
@@ -154,16 +159,16 @@ export class Overlay {
   }
 
   zoomIn() {
-    if (!this.map) {
+    if (!this.mapLibreMap) {
       return;
     }
 
     // Zoom to 18
     const targetZoom = 16;
-    const currentZoom = this.map.getZoom();
+    const currentZoom = this.mapLibreMap.getZoom();
 
     if (currentZoom < targetZoom) {
-      this.map.flyTo({
+      this.mapLibreMap.flyTo({
         center: [
           this.feature.geometry.coordinates[0],
           this.feature.geometry.coordinates[1],
@@ -200,7 +205,7 @@ export class Overlay {
   }
 
   openPopup() {
-    if (!this.map || !this.popup) {
+    if (!this.mapLibreMap || !this.popup) {
       return;
     }
 
@@ -208,18 +213,18 @@ export class Overlay {
     const bounds = this.getBounds();
     const center = bounds.getCenter();
 
-    this.popup.setLngLat([center.lng, center.lat]).addTo(this.map);
+    this.popup.setLngLat([center.lng, center.lat]).addTo(this.mapLibreMap);
   }
 
   show() {
-    if (this.map.getLayer(this.id)) {
-      this.map.setLayoutProperty(this.id, "visibility", "visible");
+    if (this.mapLibreMap.getLayer(this.id)) {
+      this.mapLibreMap.setLayoutProperty(this.id, "visibility", "visible");
     }
   }
 
   hide() {
-    if (this.map.getLayer(this.id)) {
-      this.map.setLayoutProperty(this.id, "visibility", "none");
+    if (this.mapLibreMap.getLayer(this.id)) {
+      this.mapLibreMap.setLayoutProperty(this.id, "visibility", "none");
     }
   }
 
@@ -236,22 +241,24 @@ export class Overlay {
     // Different for each overlay type
     this.customizeHighlight(highlightLayer);
 
-    this.map.addLayer(
+    this.mapLibreMap.addLayer(
       highlightLayer,
       this.id, // Before this layer
     );
 
     // Set visibility to none initially
-    this.map.setLayoutProperty(highlightLayer.id, "visibility", "none");
+    this.mapLibreMap.setLayoutProperty(highlightLayer.id, "visibility", "none");
 
     return highlightLayer;
   }
 
   isHighlighted() {
-    if (this.map.getLayer(`${this.id}-highlight`)) {
+    if (this.mapLibreMap.getLayer(`${this.id}-highlight`)) {
       return (
-        this.map.getLayoutProperty(`${this.id}-highlight`, "visibility") ===
-        "visible"
+        this.mapLibreMap.getLayoutProperty(
+          `${this.id}-highlight`,
+          "visibility",
+        ) === "visible"
       );
     }
 
@@ -259,8 +266,8 @@ export class Overlay {
   }
 
   showHighlight() {
-    if (this.map.getLayer(`${this.id}-highlight`)) {
-      this.map.setLayoutProperty(
+    if (this.mapLibreMap.getLayer(`${this.id}-highlight`)) {
+      this.mapLibreMap.setLayoutProperty(
         `${this.id}-highlight`,
         "visibility",
         "visible",
@@ -269,8 +276,12 @@ export class Overlay {
   }
 
   hideHighlight() {
-    if (this.map.getLayer(`${this.id}-highlight`)) {
-      this.map.setLayoutProperty(`${this.id}-highlight`, "visibility", "none");
+    if (this.mapLibreMap.getLayer(`${this.id}-highlight`)) {
+      this.mapLibreMap.setLayoutProperty(
+        `${this.id}-highlight`,
+        "visibility",
+        "none",
+      );
     }
   }
 

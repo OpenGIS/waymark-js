@@ -114,7 +114,7 @@ export class LineOverlay extends Overlay {
 
   flyTo() {
     const bounds = this.getBounds();
-    this.map.fitBounds(bounds, flyToOptions);
+    this.mapLibreMap.fitBounds(bounds, flyToOptions);
   }
 
   inBounds(bounds) {
@@ -128,12 +128,12 @@ export class LineOverlay extends Overlay {
   zoomIn() {
     // Zoom to 18
     const targetZoom = 16;
-    const currentZoom = this.map.getZoom();
+    const currentZoom = this.mapLibreMap.getZoom();
 
     if (currentZoom < targetZoom) {
       const coords = this.getLinePositions();
       const center = coords.length ? coords[0] : [0, 0];
-      this.map.flyTo({
+      this.mapLibreMap.flyTo({
         center: [center[0], center[1]],
         zoom: targetZoom,
         ...flyToOptions,
