@@ -1,4 +1,4 @@
-import { Overlay } from "../Overlays.js";
+import { Overlay } from "@/classes/Overlays/Overlay.js";
 import { length } from "@turf/length";
 import { LngLatBounds } from "maplibre-gl";
 import { flyToOptions } from "@/helpers/MapLibre.js";

@@ -1,4 +1,4 @@
-import { Overlay } from "../Overlays.js";
+import { Overlay } from "@/classes/Overlays/Overlay.js";
 import { LngLatBounds } from "maplibre-gl";
 import { flyToOptions } from "@/helpers/MapLibre.js";
 import { waymarkPrimaryColour } from "@/helpers/Common.js";

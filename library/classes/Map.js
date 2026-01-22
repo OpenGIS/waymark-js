@@ -1,6 +1,6 @@
 import { ulid } from "ulid";
-import { Overlay } from "@/classes/Overlays";
-import { fitBoundsOptions } from "@/helpers/MapLibre.js";
+import { createOverlay } from "@/helpers/Factory";
+import { fitBoundsOptions } from "@/helpers/MapLibre";
 
 export class WaymarkMap {
     constructor(geoJSON = {}) {
@@ -31,11 +31,7 @@ export class WaymarkMap {
         this.overlays = [];
         geoJSON.features.forEach((feature) => {
             // Create
-            const overlay = new Overlay(feature);
-
-            console.log(overlay);
-            debugger;
-
+            const overlay = createOverlay(feature);
             overlay.setMap(this);
 
             // Extend bounds
