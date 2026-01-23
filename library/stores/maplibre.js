@@ -3,8 +3,8 @@ import { throttle } from "lodash-es";
 import { mapOptions } from "@/helpers/MapLibre.js";
 import { Map } from "maplibre-gl";
 
-export function createMapLibreStore(waymarkState, geoJSONStore) {
-	const { dispatchEvent } = waymarkState;
+export function createMapLibreStore(stateStore, geoJSONStore) {
+	const { dispatchEvent } = stateStore;
 
 	// State
 	const map = shallowRef(null);
@@ -83,14 +83,14 @@ export function createMapLibreStore(waymarkState, geoJSONStore) {
 					(o) => o.id === features[0].layer.id,
 				);
 
-				if (overlay && waymarkState) {
-					waymarkState.setActiveOverlay(overlay);
+				if (overlay && stateStore) {
+					stateStore.setActiveOverlay(overlay);
 				}
 				// No features found
 			} else {
 				// Remove active overlay
-				if (waymarkState) {
-					waymarkState.setActiveOverlay();
+				if (stateStore) {
+					stateStore.setActiveOverlay();
 				}
 			}
 		});

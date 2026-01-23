@@ -34,6 +34,7 @@ export default class WaymarkInstance {
 
     // Create State Store
     this.stateStore = createStateStore();
+    this.stateStore.setContainer(container);
 
     // Create GeoJSON Store
     this.geoJSONStore = createGeoJSONStore(this.stateStore);
@@ -51,7 +52,6 @@ export default class WaymarkInstance {
     app.provide("mapLibreStore", this.mapLibreStore);
 
     // Setup
-    this.stateStore.setContainer(container);
 
     // Listen for maplibre-map-ready event
     this.stateStore.onEvent("maplibre-map-ready", () => {

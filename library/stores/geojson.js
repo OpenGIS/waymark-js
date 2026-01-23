@@ -3,8 +3,8 @@ import { throttle } from "lodash-es";
 import { LngLatBounds } from "maplibre-gl";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
 
-export function createGeoJSONStore(waymarkState) {
-	const { dispatchEvent } = waymarkState;
+export function createGeoJSONStore(stateStore) {
+	const { dispatchEvent } = stateStore;
 
 	// State
 	const maps = shallowRef([]);
