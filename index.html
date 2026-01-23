@@ -21,23 +21,13 @@
         margin: 0;
         padding: 0;
       }
-      .waymark-instances {
-        height: 100%;
-        width: 100%;
-      }
-      .waymark-instances > div {
-        width: 100%;
+      .waymark-instance {
         height: 50%;
+        width: 50%;
       }
     </style>
   </head>
   <body>
-    <!-- Container -->
-    <div class="waymark-instances">
-      <div id="waymark-top"></div>
-      <div id="waymark-bottom"></div>
-    </div>
-
     <!-- Load Waymark JS -->
     <script type="module">
       import { createInstance } from "./library/entry.js";

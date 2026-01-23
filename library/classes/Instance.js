@@ -15,7 +15,7 @@ import {
 export default class WaymarkInstance {
   constructor(config = {}) {
     const defaultConfig = {
-      id: null,
+      id: ulid(),
       geoJSON: {
         type: "FeatureCollection",
         features: [],
@@ -31,9 +31,12 @@ export default class WaymarkInstance {
     // Get the container div
     this.container = document.getElementById(this.id);
     if (!this.container) {
-      // console.error("[Waymark] Could not find container with in DOM");
-      throw new Error(`Could not find element with id="${this.id}"`);
+      // Create one, append to body
+      this.container = document.createElement("div");
+      this.container.id = this.id;
+      document.body.appendChild(this.container);
     }
+    this.container.classList.add("waymark-instance");
     this.addEventHandling();
 
     // Add dimensions
@@ -58,7 +61,7 @@ export default class WaymarkInstance {
     // Setup
 
     // Mount to DOM
-    app.mount("#" + this.id);
+    app.mount(this.container);
   }
 
   // Event Handling
