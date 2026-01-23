@@ -1,12 +1,10 @@
 import { ref, shallowRef, watch } from "vue";
 import { throttle } from "lodash-es";
-import { defineStore, storeToRefs } from "pinia";
-import { useGeoJSONStore } from "@/stores/geojson.js";
 import { dispatchEvent } from "@/classes/Event.js";
 import { mapOptions } from "@/helpers/MapLibre.js";
 import { Map } from "maplibre-gl";
 
-export const useMapLibreStore = defineStore("maplibre", () => {
+export function createMapLibreStore(waymarkState, geoJSONStore) {
 	// State
 	const map = shallowRef(null);
 	const mapReady = shallowRef(false);
@@ -17,13 +15,6 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 		zoom: null,
 		center: null,
 	});
-
-	// Injected State
-	const waymarkState = shallowRef(null);
-
-	function setState(state) {
-		waymarkState.value = state;
-	}
 
 	// Actions
 	function createMap(divID = "") {
@@ -37,8 +28,7 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 
 	// Add Event Listeners
 	function addListeners() {
-		const geoJSONStore = useGeoJSONStore();
-		const { overlays } = storeToRefs(geoJSONStore);
+		const { overlays } = geoJSONStore;
 
 		// When MapLibre has loaded
 		map.value.on("load", () => {
@@ -51,7 +41,7 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 			view.value.zoom = map.value.getZoom();
 			view.value.center = map.value.getCenter();
 
-			dispatchEvent("maplibre-map-ready", {}, waymarkState.value);
+			dispatchEvent("maplibre-map-ready", {}, waymarkState);
 		});
 
 		// Track Bearing
@@ -92,14 +82,14 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 					(o) => o.id === features[0].layer.id,
 				);
 
-				if (overlay && waymarkState.value) {
-					waymarkState.value.setActiveOverlay(overlay);
+				if (overlay && waymarkState) {
+					waymarkState.setActiveOverlay(overlay);
 				}
 				// No features found
 			} else {
 				// Remove active overlay
-				if (waymarkState.value) {
-					waymarkState.value.setActiveOverlay();
+				if (waymarkState) {
+					waymarkState.setActiveOverlay();
 				}
 			}
 		});
@@ -110,7 +100,7 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 		throttle((newVal) => {
 			if (!mapReady.value) return;
 
-			dispatchEvent("maplibre-view-change", {}, waymarkState.value);
+			dispatchEvent("maplibre-view-change", {}, waymarkState);
 		}, 1000),
 		{ deep: true },
 	);
@@ -123,6 +113,5 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 
 		// Actions
 		createMap,
-		setState,
 	};
-});
+}

@@ -1,21 +1,13 @@
 import { shallowRef, watch, computed } from "vue";
 import { throttle } from "lodash-es";
-import { defineStore } from "pinia";
 import { LngLatBounds } from "maplibre-gl";
 import { dispatchEvent } from "@/classes/Event.js";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
 
-export const useGeoJSONStore = defineStore("geojson", () => {
+export function createGeoJSONStore(waymarkState) {
 	// State
 	const maps = shallowRef([]);
 	const overlays = shallowRef([]);
-
-	// Injected State
-	const waymarkState = shallowRef(null);
-
-	function setState(state) {
-		waymarkState.value = state;
-	}
 
 	// Actions
 
@@ -46,13 +38,13 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		// Add overlays too
 		overlays.value = [...overlays.value, ...map.overlays];
 
-		dispatchEvent("geojson-map-added", { map }, waymarkState.value);
+		dispatchEvent("geojson-map-added", { map }, waymarkState);
 	};
 
 	const addOverlay = (overlay) => {
 		overlays.value.push(overlay);
 
-		dispatchEvent("geojson-overlay-added", { overlay }, waymarkState.value);
+		dispatchEvent("geojson-overlay-added", { overlay }, waymarkState);
 	};
 
 	// Getters
@@ -120,7 +112,7 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	watch(
 		() => state.value,
 		throttle((newVal) => {
-			dispatchEvent("geojson-state-change", {}, waymarkState.value);
+			dispatchEvent("geojson-state-change", {}, waymarkState);
 		}, 1000),
 		{ deep: true },
 	);
@@ -137,9 +129,8 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 
 		// Actions
 		addJSON,
-		setState,
 
 		// Persistence
 		toJSON,
 	};
-});
+}

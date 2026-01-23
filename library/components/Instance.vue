@@ -1,9 +1,8 @@
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, inject } from "vue";
 import { ulid } from "ulid";
 
-import { useMapLibreStore } from "@/stores/maplibre.js";
-const { createMap } = useMapLibreStore();
+const { createMap } = inject("mapLibre");
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/assets/css/index.less";

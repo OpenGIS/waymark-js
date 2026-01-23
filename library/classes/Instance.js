@@ -1,8 +1,7 @@
 import { createApp } from "vue";
-import { createPinia, storeToRefs } from "pinia";
 import { createStateStore } from "@/stores/state.js";
-import { useGeoJSONStore } from "@/stores/geojson.js";
-import { useMapLibreStore } from "@/stores/maplibre.js";
+import { createGeoJSONStore } from "@/stores/geojson.js";
+import { createMapLibreStore } from "@/stores/maplibre.js";
 import InstanceComponent from "@/components/Instance.vue";
 import { onEvent } from "@/classes/Event.js";
 import {
@@ -37,19 +36,17 @@ export default class WaymarkInstance {
     // Create State Store
     this.state = createStateStore();
 
-    // Create Pinia
-    const pinia = createPinia();
+    // Create GeoJSON Store
+    this.geoJSONStore = createGeoJSONStore(this.state);
+
+    // Create MapLibre Store
+    this.mapLibreStore = createMapLibreStore(this.state, this.geoJSONStore);
 
     // Create Vue App for this instance
     const app = createApp(InstanceComponent);
-    app.use(pinia);
-
-    // Inject state into MapLibre store
-    const mapLibreStore = useMapLibreStore(pinia);
-    mapLibreStore.setState(this.state);
-
-    const geoJSONStore = useGeoJSONStore(pinia);
-    geoJSONStore.setState(this.state);
+    
+    // Provide stores to app
+    app.provide("mapLibre", this.mapLibreStore);
 
     // Setup
     this.state.setContainer(container);
@@ -81,8 +78,8 @@ export default class WaymarkInstance {
   }
 
   drawGeoJSON() {
-    const { maps } = storeToRefs(useGeoJSONStore());
-    const { map: mapLibreMap } = storeToRefs(useMapLibreStore());
+    const { maps } = this.geoJSONStore;
+    const { map: mapLibreMap } = this.mapLibreStore;
 
     maps.value.forEach((waymarkMap) => {
       waymarkMap.addTo(mapLibreMap.value);
@@ -90,11 +87,11 @@ export default class WaymarkInstance {
   }
 
   addGeoJSON(geoJSON) {
-    useGeoJSONStore().addJSON(geoJSON);
+    this.geoJSONStore.addJSON(geoJSON);
   }
 
   rotateMap(direction = "cw", degrees = 90) {
-    const { map } = storeToRefs(useMapLibreStore());
+    const { map } = this.mapLibreStore;
 
     // Ensure not currently roating
     if (map.value.isRotating()) {
@@ -109,7 +106,7 @@ export default class WaymarkInstance {
   }
 
   pitchMap(direction = "down", degrees = 15) {
-    const { map } = storeToRefs(useMapLibreStore());
+    const { map } = this.mapLibreStore;
 
     const currentPitch = map.value.getPitch();
     let newPitch =
@@ -128,7 +125,7 @@ export default class WaymarkInstance {
   }
 
   pointNorth() {
-    const { map } = storeToRefs(useMapLibreStore());
+    const { map } = this.mapLibreStore;
 
     if (!map.value) return;
     map.value.easeTo({
@@ -138,7 +135,7 @@ export default class WaymarkInstance {
   }
 
   set3D(is3D = true) {
-    const { map } = storeToRefs(useMapLibreStore());
+    const { map } = this.mapLibreStore;
 
     if (is3D) {
       // Set to 3D
@@ -162,7 +159,7 @@ export default class WaymarkInstance {
   }
 
   toggle3D() {
-    const { map, view } = storeToRefs(useMapLibreStore());
+    const { map, view } = this.mapLibreStore;
 
     if (view.value.pitch > 0) {
       // Reset to 2D
@@ -186,8 +183,8 @@ export default class WaymarkInstance {
   }
 
   resetView() {
-    const { overlaysBounds } = storeToRefs(useGeoJSONStore());
-    const { map } = storeToRefs(useMapLibreStore());
+    const { overlaysBounds } = this.geoJSONStore;
+    const { map } = this.mapLibreStore;
     this.pointNorth();
     this.set3D(false);
     map.value.fitBounds(overlaysBounds.value, flyToOptions);

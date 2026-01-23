@@ -1,5 +1,3 @@
-import { storeToRefs } from "pinia";
-
 const waymarkEventName = "waymark-event";
 
 export class WaymarkEvent extends CustomEvent {
