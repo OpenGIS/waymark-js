@@ -1,5 +1,5 @@
 import { computed, shallowRef } from "vue";
-import { createEventHooks } from "@/classes/Event.js";
+import { WaymarkEvent, waymarkEventName } from "@/classes/Event.js";
 
 export function createStateStore() {
 	// State
@@ -12,11 +12,26 @@ export function createStateStore() {
 		};
 	});
 
-	// Create Event Hooks
-	const { dispatchEvent, onEvent } = createEventHooks({
-		container,
-		eventData,
-	});
+	// Event Handling
+	function dispatchEvent(eventName, params = {}) {
+		// Create event
+		const event = new WaymarkEvent(eventName, params, eventData.value);
+
+		// Fire
+		if (container.value) {
+			container.value.dispatchEvent(event);
+		}
+	}
+
+	function onEvent(eventName, callback) {
+		if (container.value) {
+			container.value.addEventListener(waymarkEventName, (event) => {
+				if (event.detail && event.detail.eventName === eventName) {
+					callback(event);
+				}
+			});
+		}
+	}
 
 	// Actions
 	function setContainer(divElement) {
