@@ -81,15 +81,13 @@ export function createMapLibreStore(WaymarkInstance) {
 					(o) => o.id === features[0].layer.id,
 				);
 
-				if (overlay && stateStore) {
-					WaymarkInstance.stateStore.setActiveOverlay(overlay);
+				if (overlay) {
+					WaymarkInstance.setActiveOverlay(overlay);
 				}
 				// No features found
 			} else {
 				// Remove active overlay
-				if (stateStore) {
-					WaymarkInstance.stateStore.setActiveOverlay();
-				}
+				WaymarkInstance.setActiveOverlay();
 			}
 		});
 	}

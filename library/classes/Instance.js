@@ -1,6 +1,5 @@
 import { ulid } from "ulid";
 import { createApp } from "vue";
-import { createStateStore } from "@/stores/state.js";
 import { createGeoJSONStore } from "@/stores/geojson.js";
 import { createMapLibreStore } from "@/stores/maplibre.js";
 import InstanceComponent from "@/components/Instance.vue";
@@ -39,26 +38,20 @@ export default class WaymarkInstance {
     this.container.classList.add("waymark-instance");
     this.addEventHandling();
 
-    // Add dimensions
-    // container.style.height = "100%";
-    // container.style.width = "100%";
-
-    // Create State Store
-    this.stateStore = createStateStore(this);
-
     // Create GeoJSON Store
     this.geoJSONStore = createGeoJSONStore(this);
 
     // Create MapLibre Store
     this.mapLibreStore = createMapLibreStore(this);
 
+    // Track active Overlay
+    this.activeOverlay = null;
+
     // Create Vue App for this instance
     const app = createApp(InstanceComponent);
 
     // Provide stores to app
     app.provide("mapLibreStore", this.mapLibreStore);
-
-    // Setup
 
     // Mount to DOM
     app.mount(this.container);
@@ -124,6 +117,47 @@ export default class WaymarkInstance {
 
   addGeoJSON(geoJSON) {
     this.geoJSONStore.addJSON(geoJSON);
+  }
+
+  // Actions
+  setActiveOverlay(overlay = null) {
+    if (!overlay) {
+      // Remove highlight
+      if (this.activeOverlay) {
+        this.activeOverlay.setActive(false);
+      }
+
+      this.activeOverlay = null;
+
+      this.dispatchEvent("state-active-overlay-unset");
+
+      return;
+    }
+
+    // If active layer is set
+    if (this.activeOverlay) {
+      //If already active layer - focus on it
+      if (this.activeOverlay === overlay) {
+        overlay.zoomIn();
+
+        // Stop here
+        return;
+      }
+
+      // Remove highlight
+      this.activeOverlay.setActive(false);
+
+      // Make inactive
+      this.activeOverlay = null;
+    }
+
+    // Make active
+    this.activeOverlay = overlay;
+    overlay.setActive(true);
+    overlay.flyTo();
+    overlay.openPopup();
+
+    this.dispatchEvent("state-active-overlay-set");
   }
 
   rotateMap(direction = "cw", degrees = 90) {
