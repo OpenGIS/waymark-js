@@ -12,28 +12,31 @@ export class WaymarkEvent extends CustomEvent {
   }
 }
 
-export function dispatchEvent(eventName, params = {}, state) {
-  // Get state
+export function createEventHooks(state) {
   const { container } = state;
 
-  // Create event
-  const event = new WaymarkEvent(eventName, params, state);
+  function dispatchEvent(eventName, params = {}) {
+    // Create event
+    const event = new WaymarkEvent(eventName, params, state);
 
-  // Fire
-  if (container.value) {
-    container.value.dispatchEvent(event);
+    // Fire
+    if (container.value) {
+      container.value.dispatchEvent(event);
+    }
   }
-}
 
-export function onEvent(eventName, callback, state) {
-  // Get state
-  const { container } = state;
-
-  if (container.value) {
-    container.value.addEventListener(waymarkEventName, (event) => {
-      if (event.detail && event.detail.eventName === eventName) {
-        callback(event);
-      }
-    });
+  function onEvent(eventName, callback) {
+    if (container.value) {
+      container.value.addEventListener(waymarkEventName, (event) => {
+        if (event.detail && event.detail.eventName === eventName) {
+          callback(event);
+        }
+      });
+    }
   }
+
+  return {
+    dispatchEvent,
+    onEvent,
+  };
 }

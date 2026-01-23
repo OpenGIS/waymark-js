@@ -439,4 +439,19 @@ describe("Instance", () => {
     expect(overlays).toHaveLength(1);
     expect(overlays[0]).toBeInstanceOf(ShapeOverlay);
   });
+
+  it("dispatches events via state store", () => {
+    const instance = new WaymarkInstance({
+        containerID: "waymark-instance"
+    });
+
+    const callback = vi.fn();
+    instance.stateStore.onEvent("test-event", callback);
+    instance.stateStore.dispatchEvent("test-event", { data: "test" });
+
+    // Since onEvent attaches a DOM listener, we need to ensure the container is set and the event is fired on it.
+    // The Instance constructor sets the container.
+    // However, JSdom event dispatching is synchronous.
+    expect(callback).toHaveBeenCalled();
+  });
 });

@@ -1,10 +1,11 @@
 import { shallowRef, watch, computed } from "vue";
 import { throttle } from "lodash-es";
 import { LngLatBounds } from "maplibre-gl";
-import { dispatchEvent } from "@/classes/Event.js";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
 
 export function createGeoJSONStore(waymarkState) {
+	const { dispatchEvent } = waymarkState;
+
 	// State
 	const maps = shallowRef([]);
 	const overlays = shallowRef([]);
@@ -38,13 +39,13 @@ export function createGeoJSONStore(waymarkState) {
 		// Add overlays too
 		overlays.value = [...overlays.value, ...map.overlays];
 
-		dispatchEvent("geojson-map-added", { map }, waymarkState);
+		dispatchEvent("geojson-map-added", { map });
 	};
 
 	const addOverlay = (overlay) => {
 		overlays.value.push(overlay);
 
-		dispatchEvent("geojson-overlay-added", { overlay }, waymarkState);
+		dispatchEvent("geojson-overlay-added", { overlay });
 	};
 
 	// Getters
@@ -112,7 +113,7 @@ export function createGeoJSONStore(waymarkState) {
 	watch(
 		() => state.value,
 		throttle((newVal) => {
-			dispatchEvent("geojson-state-change", {}, waymarkState);
+			dispatchEvent("geojson-state-change");
 		}, 1000),
 		{ deep: true },
 	);

@@ -1,5 +1,5 @@
-import { computed, ref, shallowRef } from "vue";
-import { dispatchEvent } from "@/classes/Event.js";
+import { computed, shallowRef } from "vue";
+import { createEventHooks } from "@/classes/Event.js";
 
 export function createStateStore() {
 	// State
@@ -12,13 +12,11 @@ export function createStateStore() {
 		};
 	});
 
-	const state = {
-		// State
+	// Create Event Hooks
+	const { dispatchEvent, onEvent } = createEventHooks({
 		container,
-		activeOverlay,
-		// Computed
 		eventData,
-	};
+	});
 
 	// Actions
 	function setContainer(divElement) {
@@ -35,7 +33,7 @@ export function createStateStore() {
 
 			activeOverlay.value = null;
 
-			dispatchEvent("state-active-overlay-unset", {}, state);
+			dispatchEvent("state-active-overlay-unset");
 
 			return;
 		}
@@ -63,11 +61,21 @@ export function createStateStore() {
 		overlay.flyTo();
 		overlay.openPopup();
 
-		dispatchEvent("state-active-overlay-set", {}, state);
+		dispatchEvent("state-active-overlay-set");
 	};
 
-	state.setContainer = setContainer;
-	state.setActiveOverlay = setActiveOverlay;
+	return {
+		// State
+		container,
+		activeOverlay,
+		eventData,
 
-	return state;
+		// Actions
+		setContainer,
+		setActiveOverlay,
+
+		// Events
+		dispatchEvent,
+		onEvent,
+	};
 }

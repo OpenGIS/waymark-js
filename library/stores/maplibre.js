@@ -1,10 +1,11 @@
 import { ref, shallowRef, watch } from "vue";
 import { throttle } from "lodash-es";
-import { dispatchEvent } from "@/classes/Event.js";
 import { mapOptions } from "@/helpers/MapLibre.js";
 import { Map } from "maplibre-gl";
 
 export function createMapLibreStore(waymarkState, geoJSONStore) {
+	const { dispatchEvent } = waymarkState;
+
 	// State
 	const map = shallowRef(null);
 	const mapReady = shallowRef(false);
@@ -41,7 +42,7 @@ export function createMapLibreStore(waymarkState, geoJSONStore) {
 			view.value.zoom = map.value.getZoom();
 			view.value.center = map.value.getCenter();
 
-			dispatchEvent("maplibre-map-ready", {}, waymarkState);
+			dispatchEvent("maplibre-map-ready");
 		});
 
 		// Track Bearing
@@ -100,7 +101,7 @@ export function createMapLibreStore(waymarkState, geoJSONStore) {
 		throttle((newVal) => {
 			if (!mapReady.value) return;
 
-			dispatchEvent("maplibre-view-change", {}, waymarkState);
+			dispatchEvent("maplibre-view-change");
 		}, 1000),
 		{ deep: true },
 	);

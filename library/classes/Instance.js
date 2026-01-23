@@ -3,7 +3,6 @@ import { createStateStore } from "@/stores/state.js";
 import { createGeoJSONStore } from "@/stores/geojson.js";
 import { createMapLibreStore } from "@/stores/maplibre.js";
 import InstanceComponent from "@/components/Instance.vue";
-import { onEvent } from "@/classes/Event.js";
 import {
   flyToOptions,
   rotateOptions,
@@ -34,13 +33,13 @@ export default class WaymarkInstance {
     // container.style.width = "100%";
 
     // Create State Store
-    this.state = createStateStore();
+    this.stateStore = createStateStore();
 
     // Create GeoJSON Store
-    this.geoJSONStore = createGeoJSONStore(this.state);
+    this.geoJSONStore = createGeoJSONStore(this.stateStore);
 
     // Create MapLibre Store
-    this.mapLibreStore = createMapLibreStore(this.state, this.geoJSONStore);
+    this.mapLibreStore = createMapLibreStore(this.stateStore, this.geoJSONStore);
 
     // Create Vue App for this instance
     const app = createApp(InstanceComponent);
@@ -49,29 +48,21 @@ export default class WaymarkInstance {
     app.provide("mapLibre", this.mapLibreStore);
 
     // Setup
-    this.state.setContainer(container);
+    this.stateStore.setContainer(container);
 
     // Listen for maplibre-map-ready event
-    onEvent(
-      "maplibre-map-ready",
-      () => {
-        // When GeoJSON data changes
-        onEvent(
-          "geojson-state-change",
-          () => {
-            // Draw
-            this.drawGeoJSON();
-          },
-          this.state,
-        );
+    this.stateStore.onEvent("maplibre-map-ready", () => {
+      // When GeoJSON data changes
+      this.stateStore.onEvent("geojson-state-change", () => {
+        // Draw
+        this.drawGeoJSON();
+      });
 
-        // Initial
-        if (this.config.geoJSON) {
-          this.addGeoJSON(this.config.geoJSON);
-        }
-      },
-      this.state,
-    );
+      // Initial
+      if (this.config.geoJSON) {
+        this.addGeoJSON(this.config.geoJSON);
+      }
+    });
 
     // Mount to DOM
     app.mount("#" + this.config.containerID);
