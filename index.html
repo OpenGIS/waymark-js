@@ -21,49 +21,28 @@
         margin: 0;
         padding: 0;
       }
-      #dev-ui {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 999;
-        background: rgba(255, 255, 255, 0.8);
-        padding: 10px;
-        border-radius: 5px;
+      .waymark-instances {
+        height: 100%;
+        width: 100%;
+      }
+      .waymark-instances div {
+        width: 100%;
+        height: 50%;
       }
     </style>
   </head>
   <body>
     <!-- Container -->
-    <div id="waymark-instance" style="height: 100%"></div>
-
-    <!-- Dev UI -->
-    <div id="dev-ui">
-      <button onclick="window.waymarkInstance.resetView()">
-        Reset<br />View
-      </button>
-      <button onclick="window.waymarkInstance.rotateMap('cw', 90)">
-        Rotate<br />CW 90°
-      </button>
-      <button onclick="window.waymarkInstance.rotateMap('ccw', 90)">
-        Rotate<br />CCW 90°
-      </button>
-      <button onclick="window.waymarkInstance.pitchMap('down', 15)">
-        Pitch<br />Down 15°
-      </button>
-      <button onclick="window.waymarkInstance.pitchMap('up', 15)">
-        Pitch<br />Up 15°
-      </button>
-      <button onclick="window.waymarkInstance.pointNorth()">
-        Point<br />North
-      </button>
-      <button onclick="window.waymarkInstance.toggle3D()">
-        Toggle<br />3D
-      </button>
+    <div class="waymark-instances">
+      <div id="waymark-top"></div>
+      <div id="waymark-bottom"></div>
     </div>
 
     <!-- Load Waymark JS -->
     <script type="module">
       import { createInstance } from "./library/entry.js";
+
+      // ==================== TOP ====================
 
       // Demo data
       const urls = [
@@ -72,30 +51,37 @@
       ];
 
       // Container
-      const container = document.getElementById("waymark-instance");
+      let topInstance = null;
+      document
+        .getElementById("waymark-top")
+        .addEventListener("waymark-event", (event) => {
+          console.log("Waymark Event:", event.detail);
 
-      // Wildcard Listen for all events on container
-      container.addEventListener("waymark-event", (event) => {
-        console.log("Waymark Event:", event.detail);
-
-        switch (event.detail.eventName) {
-          case "maplibre-map-ready":
-            // Each URL
-            urls.forEach(async (url) => {
-              fetch(url).then(async (res) => {
-                const geoJSON = await res.json();
-                window.waymarkInstance.addGeoJSON(geoJSON);
+          switch (event.detail.eventName) {
+            case "maplibre-map-ready":
+              // Each URL
+              urls.forEach(async (url) => {
+                fetch(url).then(async (res) => {
+                  const geoJSON = await res.json();
+                  topInstance.addGeoJSON(geoJSON);
+                });
               });
-            });
 
-            break;
-        }
-      });
+              break;
+          }
+        });
 
       // Create Instance
-      window.waymarkInstance = createInstance({
-        divID: "waymark-instance",
+      topInstance = createInstance({
+        containerID: "waymark-top",
         // geoJSON,
+      });
+
+      // =================== BOTTOM ===================
+
+      // Create Instance
+      createInstance({
+        containerID: "waymark-bottom",
       });
     </script>
   </body>

@@ -14,7 +14,7 @@ import {
 export default class WaymarkInstance {
   constructor(config = {}) {
     const defaultConfig = {
-      divID: "waymark-instance",
+      containerID: "waymark-instance",
       geoJSON: {
         type: "FeatureCollection",
         features: [],
@@ -25,14 +25,14 @@ export default class WaymarkInstance {
     this.config = { ...defaultConfig, ...config };
 
     // Get the container div
-    const container = document.getElementById(this.config.divID);
+    const container = document.getElementById(this.config.containerID);
     if (!container) {
       console.error("[Waymark] Could not find container in DOM");
     }
 
     // Add dimensions
-    container.style.height = "100%";
-    container.style.width = "100%";
+    // container.style.height = "100%";
+    // container.style.width = "100%";
 
     // Create Pinia
     const pinia = createPinia();
@@ -59,7 +59,7 @@ export default class WaymarkInstance {
     });
 
     // Mount to DOM
-    app.mount("#" + this.config.divID);
+    app.mount("#" + this.config.containerID);
   }
 
   drawGeoJSON() {
