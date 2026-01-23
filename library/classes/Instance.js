@@ -35,14 +35,14 @@ export default class WaymarkInstance {
     // container.style.width = "100%";
 
     // Create Pinia
-    const pinia = createPinia();
+    this.pinia = createPinia();
 
     // Create Vue App for this instance
     const app = createApp(InstanceComponent);
-    app.use(pinia);
+    app.use(this.pinia);
 
     // Setup
-    useStateStore().setContainer(container);
+    useStateStore(this.pinia).setContainer(container);
 
     // Listen for maplibre-map-ready event
     onEvent("maplibre-map-ready", () => {
@@ -63,8 +63,8 @@ export default class WaymarkInstance {
   }
 
   drawGeoJSON() {
-    const { maps } = storeToRefs(useGeoJSONStore());
-    const { map: mapLibreMap } = storeToRefs(useMapLibreStore());
+    const { maps } = storeToRefs(useGeoJSONStore(this.pinia));
+    const { map: mapLibreMap } = storeToRefs(useMapLibreStore(this.pinia));
 
     maps.value.forEach((waymarkMap) => {
       waymarkMap.addTo(mapLibreMap.value);
@@ -72,11 +72,11 @@ export default class WaymarkInstance {
   }
 
   addGeoJSON(geoJSON) {
-    useGeoJSONStore().addJSON(geoJSON);
+    useGeoJSONStore(this.pinia).addJSON(geoJSON);
   }
 
   rotateMap(direction = "cw", degrees = 90) {
-    const { map } = storeToRefs(useMapLibreStore());
+    const { map } = storeToRefs(useMapLibreStore(this.pinia));
 
     // Ensure not currently roating
     if (map.value.isRotating()) {
@@ -91,7 +91,7 @@ export default class WaymarkInstance {
   }
 
   pitchMap(direction = "down", degrees = 15) {
-    const { map } = storeToRefs(useMapLibreStore());
+    const { map } = storeToRefs(useMapLibreStore(this.pinia));
 
     const currentPitch = map.value.getPitch();
     let newPitch =
@@ -110,7 +110,7 @@ export default class WaymarkInstance {
   }
 
   pointNorth() {
-    const { map } = storeToRefs(useMapLibreStore());
+    const { map } = storeToRefs(useMapLibreStore(this.pinia));
 
     if (!map.value) return;
     map.value.easeTo({
@@ -120,7 +120,7 @@ export default class WaymarkInstance {
   }
 
   set3D(is3D = true) {
-    const { map } = storeToRefs(useMapLibreStore());
+    const { map } = storeToRefs(useMapLibreStore(this.pinia));
 
     if (is3D) {
       // Set to 3D
@@ -144,7 +144,7 @@ export default class WaymarkInstance {
   }
 
   toggle3D() {
-    const { map, view } = storeToRefs(useMapLibreStore());
+    const { map, view } = storeToRefs(useMapLibreStore(this.pinia));
 
     if (view.value.pitch > 0) {
       // Reset to 2D
@@ -168,8 +168,8 @@ export default class WaymarkInstance {
   }
 
   resetView() {
-    const { overlaysBounds } = storeToRefs(useGeoJSONStore());
-    const { map } = storeToRefs(useMapLibreStore());
+    const { overlaysBounds } = storeToRefs(useGeoJSONStore(this.pinia));
+    const { map } = storeToRefs(useMapLibreStore(this.pinia));
     this.pointNorth();
     this.set3D(false);
     map.value.fitBounds(overlaysBounds.value, flyToOptions);
