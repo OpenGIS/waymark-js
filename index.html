@@ -55,7 +55,7 @@
       document
         .getElementById("waymark-top")
         .addEventListener("waymark-event", (event) => {
-          console.log("Waymark Event:", event.detail);
+          console.log("[TOP] Waymark Event:", event.detail);
 
           switch (event.detail.eventName) {
             case "maplibre-map-ready":
@@ -79,9 +79,52 @@
 
       // =================== BOTTOM ===================
 
+      document
+        .getElementById("waymark-bottom")
+        .addEventListener("waymark-event", (event) => {
+          console.log("[BOTTOM] Waymark Event:", event.detail);
+        });
+
       // Create Instance
       createInstance({
         containerID: "waymark-bottom",
+        geoJSON: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: {
+                name: "Point Example",
+              },
+              geometry: {
+                type: "Point",
+                coordinates: [-77.034084, 38.909671],
+              },
+            },
+            {
+              type: "Feature",
+              properties: {
+                name: "LineString Example",
+              },
+              geometry: {
+                type: "LineString",
+                coordinates: [
+                  [-77.044211, 38.852924],
+                  [-77.045659, 38.860158],
+                  [-77.044232, 38.862326],
+                  [-77.040879, 38.865948],
+                  [-77.039936, 38.867698],
+                  [-77.032969, 38.870285],
+                  [-77.029609, 38.871907],
+                  [-77.020339, 38.874276],
+                  [-77.018789, 38.875115],
+                  [-77.016841, 38.876516],
+                  [-77.009051, 38.878241],
+                ],
+              },
+            },
+          ],
+        },
       });
     </script>
   </body>
