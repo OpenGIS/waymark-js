@@ -1,9 +1,9 @@
-import { Overlay } from "@/classes/Overlays/Overlay.js";
+import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 import { LngLatBounds } from "maplibre-gl";
 import { flyToOptions } from "@/helpers/MapLibre.js";
 import { waymarkPrimaryColour } from "@/helpers/Common.js";
 
-export class ShapeOverlay extends Overlay {
+export default class WaymarkShape extends WaymarkOverlay {
   constructor(feature) {
     super(feature);
   }

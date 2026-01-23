@@ -1,7 +1,7 @@
 import { getFeatureType } from "@/helpers/Overlay.js";
-import { MarkerOverlay } from "@/classes/Overlays/Marker.js";
-import { LineOverlay } from "@/classes/Overlays/Line.js";
-import { ShapeOverlay } from "@/classes/Overlays/Shape.js";
+import WaymarkMarker from "@/classes/Overlays/Marker.js";
+import WaymarkLine from "@/classes/Overlays/Line.js";
+import WaymarkShape from "@/classes/Overlays/Shape.js";
 import WaymarkMap from "@/classes/Map.js";
 import WaymarkInstance from "@/classes/Instance.js";
 
@@ -20,11 +20,11 @@ export function createOverlay(feature) {
 
   switch (getFeatureType(feature)) {
     case "marker":
-      return new MarkerOverlay(feature);
+      return new WaymarkMarker(feature);
     case "line":
-      return new LineOverlay(feature);
+      return new WaymarkLine(feature);
     case "shape":
-      return new ShapeOverlay(feature);
+      return new WaymarkShape(feature);
     default:
       throw new Error("Unsupported feature type for overlay creation");
   }

@@ -3,7 +3,7 @@ import { getFeatureType, getFeatureImages } from "@/helpers/Overlay.js";
 import { flyToOptions } from "@/helpers/MapLibre.js";
 import { Popup } from "maplibre-gl";
 
-export class Overlay {
+export default class WaymarkOverlay {
   constructor(feature) {
     if (!feature || feature.type !== "Feature") {
       throw new Error("Valid GeoJSON Feature required");
@@ -22,6 +22,10 @@ export class Overlay {
 
     // Get Type
     this.popup = this.createPopup();
+  }
+
+  toJSON() {
+    return feature;
   }
 
   setMap(waymarkMap) {

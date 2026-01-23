@@ -4,6 +4,9 @@ import { fitBoundsOptions } from "@/helpers/MapLibre";
 
 export default class WaymarkMap {
     constructor(geoJSON = {}) {
+        // Unique ID
+        this.id = geoJSON.id ? geoJSON.id : ulid();
+
         // Must be a valid GeoJSON Feature
         if (
             !geoJSON ||
@@ -17,7 +20,6 @@ export default class WaymarkMap {
         // Get properties
         this.properties = geoJSON.properties || {};
         this.waymark = {
-            id: ulid(),
             title: "",
             slug: "",
             description: "",
@@ -25,7 +27,6 @@ export default class WaymarkMap {
             zoom: null,
             ...this.properties.waymark,
         };
-        this.id = this.waymark.id;
 
         // Create overlays
         this.overlays = [];
@@ -39,17 +40,20 @@ export default class WaymarkMap {
                 typeof this.bounds === "object"
                     ? this.bounds.extend(overlay.getBounds())
                     : overlay.getBounds();
-            this.geojson.bbox = [
-                this.bounds.getWest(),
-                this.bounds.getSouth(),
-                this.bounds.getEast(),
-                this.bounds.getNorth(),
-            ];
 
             this.overlays.push(overlay);
         });
 
         return this;
+    }
+
+    toJSON() {
+        return {
+            type: "FeatureCollection",
+            id: this.id,
+            properties: this.properties,
+            features: this.overlays.map((overlay) => overlay.toJSON()),
+        };
     }
 
     addTo(map) {
@@ -78,9 +82,5 @@ export default class WaymarkMap {
 
         // Zoom to bounds
         map.fitBounds(this.bounds, fitBoundsOptions);
-    }
-
-    toJSON() {
-        this.geojson;
     }
 }
