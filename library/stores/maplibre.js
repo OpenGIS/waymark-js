@@ -1,7 +1,6 @@
 import { ref, shallowRef, watch } from "vue";
 import { throttle } from "lodash-es";
 import { defineStore, storeToRefs } from "pinia";
-import { useStateStore } from "@/stores/state.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
 import { dispatchEvent } from "@/classes/Event.js";
 import { mapOptions } from "@/helpers/MapLibre.js";
@@ -18,6 +17,13 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 		zoom: null,
 		center: null,
 	});
+
+	// Injected State
+	const waymarkState = shallowRef(null);
+
+	function setState(state) {
+		waymarkState.value = state;
+	}
 
 	// Actions
 	function createMap(divID = "") {
@@ -45,7 +51,7 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 			view.value.zoom = map.value.getZoom();
 			view.value.center = map.value.getCenter();
 
-			dispatchEvent("maplibre-map-ready");
+			dispatchEvent("maplibre-map-ready", {}, waymarkState.value);
 		});
 
 		// Track Bearing
@@ -86,13 +92,15 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 					(o) => o.id === features[0].layer.id,
 				);
 
-				if (overlay) {
-					useStateStore().setActiveOverlay(overlay);
+				if (overlay && waymarkState.value) {
+					waymarkState.value.setActiveOverlay(overlay);
 				}
 				// No features found
 			} else {
 				// Remove active overlay
-				useStateStore().setActiveOverlay();
+				if (waymarkState.value) {
+					waymarkState.value.setActiveOverlay();
+				}
 			}
 		});
 	}
@@ -102,7 +110,7 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 		throttle((newVal) => {
 			if (!mapReady.value) return;
 
-			dispatchEvent("maplibre-view-change");
+			dispatchEvent("maplibre-view-change", {}, waymarkState.value);
 		}, 1000),
 		{ deep: true },
 	);
@@ -115,5 +123,6 @@ export const useMapLibreStore = defineStore("maplibre", () => {
 
 		// Actions
 		createMap,
+		setState,
 	};
 });

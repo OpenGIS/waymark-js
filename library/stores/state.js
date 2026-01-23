@@ -1,11 +1,24 @@
 import { computed, ref, shallowRef } from "vue";
-import { defineStore } from "pinia";
 import { dispatchEvent } from "@/classes/Event.js";
 
-export const useStateStore = defineStore("state", () => {
+export function createStateStore() {
 	// State
 	const container = shallowRef(null);
 	const activeOverlay = shallowRef(null);
+
+	const eventData = computed(() => {
+		return {
+			activeOverlay: activeOverlay.value,
+		};
+	});
+
+	const state = {
+		// State
+		container,
+		activeOverlay,
+		// Computed
+		eventData,
+	};
 
 	// Actions
 	function setContainer(divElement) {
@@ -22,7 +35,7 @@ export const useStateStore = defineStore("state", () => {
 
 			activeOverlay.value = null;
 
-			dispatchEvent("state-active-overlay-unset");
+			dispatchEvent("state-active-overlay-unset", {}, state);
 
 			return;
 		}
@@ -50,25 +63,11 @@ export const useStateStore = defineStore("state", () => {
 		overlay.flyTo();
 		overlay.openPopup();
 
-		dispatchEvent("state-active-overlay-set");
+		dispatchEvent("state-active-overlay-set", {}, state);
 	};
 
-	const eventData = computed(() => {
-		return {
-			activeOverlay: activeOverlay.value,
-		};
-	});
+	state.setContainer = setContainer;
+	state.setActiveOverlay = setActiveOverlay;
 
-	return {
-		// State
-		container,
-		activeOverlay,
-
-		// Actions
-		setContainer,
-		setActiveOverlay,
-
-		// Computed
-		eventData,
-	};
-});
+	return state;
+}

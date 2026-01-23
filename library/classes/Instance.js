@@ -1,6 +1,6 @@
 import { createApp } from "vue";
 import { createPinia, storeToRefs } from "pinia";
-import { useStateStore } from "@/stores/state.js";
+import { createStateStore } from "@/stores/state.js";
 import { useGeoJSONStore } from "@/stores/geojson.js";
 import { useMapLibreStore } from "@/stores/maplibre.js";
 import InstanceComponent from "@/components/Instance.vue";
@@ -34,6 +34,9 @@ export default class WaymarkInstance {
     // container.style.height = "100%";
     // container.style.width = "100%";
 
+    // Create State Store
+    this.state = createStateStore();
+
     // Create Pinia
     const pinia = createPinia();
 
@@ -41,22 +44,37 @@ export default class WaymarkInstance {
     const app = createApp(InstanceComponent);
     app.use(pinia);
 
+    // Inject state into MapLibre store
+    const mapLibreStore = useMapLibreStore(pinia);
+    mapLibreStore.setState(this.state);
+
+    const geoJSONStore = useGeoJSONStore(pinia);
+    geoJSONStore.setState(this.state);
+
     // Setup
-    useStateStore().setContainer(container);
+    this.state.setContainer(container);
 
     // Listen for maplibre-map-ready event
-    onEvent("maplibre-map-ready", () => {
-      // When GeoJSON data changes
-      onEvent("geojson-state-change", () => {
-        // Draw
-        this.drawGeoJSON();
-      });
+    onEvent(
+      "maplibre-map-ready",
+      () => {
+        // When GeoJSON data changes
+        onEvent(
+          "geojson-state-change",
+          () => {
+            // Draw
+            this.drawGeoJSON();
+          },
+          this.state,
+        );
 
-      // Initial
-      if (this.config.geoJSON) {
-        this.addGeoJSON(this.config.geoJSON);
-      }
-    });
+        // Initial
+        if (this.config.geoJSON) {
+          this.addGeoJSON(this.config.geoJSON);
+        }
+      },
+      this.state,
+    );
 
     // Mount to DOM
     app.mount("#" + this.config.containerID);

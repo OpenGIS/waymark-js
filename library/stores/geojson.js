@@ -10,6 +10,13 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	const maps = shallowRef([]);
 	const overlays = shallowRef([]);
 
+	// Injected State
+	const waymarkState = shallowRef(null);
+
+	function setState(state) {
+		waymarkState.value = state;
+	}
+
 	// Actions
 
 	const addJSON = (json) => {
@@ -39,13 +46,13 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 		// Add overlays too
 		overlays.value = [...overlays.value, ...map.overlays];
 
-		dispatchEvent("geojson-map-added", { map });
+		dispatchEvent("geojson-map-added", { map }, waymarkState.value);
 	};
 
 	const addOverlay = (overlay) => {
 		overlays.value.push(overlay);
 
-		dispatchEvent("geojson-overlay-added", { overlay });
+		dispatchEvent("geojson-overlay-added", { overlay }, waymarkState.value);
 	};
 
 	// Getters
@@ -113,7 +120,7 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 	watch(
 		() => state.value,
 		throttle((newVal) => {
-			dispatchEvent("geojson-state-change");
+			dispatchEvent("geojson-state-change", {}, waymarkState.value);
 		}, 1000),
 		{ deep: true },
 	);
@@ -130,6 +137,7 @@ export const useGeoJSONStore = defineStore("geojson", () => {
 
 		// Actions
 		addJSON,
+		setState,
 
 		// Persistence
 		toJSON,
