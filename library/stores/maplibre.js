@@ -20,6 +20,7 @@ export function createMapLibreStore(WaymarkInstance) {
 		map.value = new Map({
 			container: divID,
 			...mapOptions,
+			...(WaymarkInstance.config.mapLibreMapOptions || {}),
 		});
 
 		addListeners();

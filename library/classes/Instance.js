@@ -15,6 +15,7 @@ export default class WaymarkInstance {
   constructor(config = {}) {
     const defaultConfig = {
       id: ulid(),
+      mapLibreMapOptions: {},
       geoJSON: {
         type: "FeatureCollection",
         features: [],
