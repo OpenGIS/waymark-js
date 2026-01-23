@@ -22,8 +22,9 @@
         padding: 0;
       }
       .waymark-instance {
-        height: 50%;
-        width: 50%;
+        height: 300px;
+        width: 300px;
+        margin: 10px;
       }
     </style>
   </head>
@@ -32,7 +33,7 @@
     <script type="module">
       import { createInstance } from "./library/entry.js";
 
-      // ==================== TOP ====================
+      // ==================== ONE ====================
 
       // Demo data
       const urls = [
@@ -42,8 +43,8 @@
 
       // Create Instance
       createInstance({
-        debug: true,
-        id: "waymark-top",
+        debug: false,
+        id: "waymark-one",
         onLoad: (WaymarkInstance) => {
           // Each URL
           urls.forEach(async (url) => {
@@ -55,13 +56,13 @@
         },
       });
 
-      // =================== BOTTOM ===================
+      // =================== TWO ===================
 
       // Create Instance
       createInstance({
-        debug: true,
-        id: "waymark-bottom",
-        mapLibreMapOptions: {
+        debug: false,
+        id: "waymark-two",
+        mapOptions: {
           attributionControl: true,
         },
         geoJSON: {
@@ -102,6 +103,8 @@
           ],
         },
       });
+
+      // =================== THREE ====================
     </script>
   </body>
 </html>
