@@ -39,13 +39,16 @@ export default class WaymarkInstance {
     this.geoJSONStore = createGeoJSONStore(this.stateStore);
 
     // Create MapLibre Store
-    this.mapLibreStore = createMapLibreStore(this.stateStore, this.geoJSONStore);
+    this.mapLibreStore = createMapLibreStore(
+      this.stateStore,
+      this.geoJSONStore,
+    );
 
     // Create Vue App for this instance
     const app = createApp(InstanceComponent);
-    
+
     // Provide stores to app
-    app.provide("mapLibre", this.mapLibreStore);
+    app.provide("mapLibreStore", this.mapLibreStore);
 
     // Setup
     this.stateStore.setContainer(container);

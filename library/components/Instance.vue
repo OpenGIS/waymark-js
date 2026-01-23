@@ -2,7 +2,7 @@
 import { onMounted, inject } from "vue";
 import { ulid } from "ulid";
 
-const { createMap } = inject("mapLibre");
+const { createMap } = inject("mapLibreStore");
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/assets/css/index.less";
