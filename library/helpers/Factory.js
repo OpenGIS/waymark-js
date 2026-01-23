@@ -6,7 +6,12 @@ import WaymarkMap from "@/classes/Map.js";
 import WaymarkInstance from "@/classes/Instance.js";
 
 export function createInstance(config = {}) {
-  return new WaymarkInstance(config);
+  try {
+    return new WaymarkInstance(config);
+  } catch (error) {
+    console.error("[Waymark]", error);
+    // throw error;
+  }
 }
 
 export function createMap(geoJSON) {

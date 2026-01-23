@@ -3,9 +3,7 @@ import { throttle } from "lodash-es";
 import { mapOptions } from "@/helpers/MapLibre.js";
 import { Map } from "maplibre-gl";
 
-export function createMapLibreStore(stateStore, geoJSONStore) {
-	const { dispatchEvent } = stateStore;
-
+export function createMapLibreStore(WaymarkInstance) {
 	// State
 	const map = shallowRef(null);
 	const mapReady = shallowRef(false);
@@ -29,7 +27,7 @@ export function createMapLibreStore(stateStore, geoJSONStore) {
 
 	// Add Event Listeners
 	function addListeners() {
-		const { overlays } = geoJSONStore;
+		const { overlays } = WaymarkInstance.geoJSONStore;
 
 		// When MapLibre has loaded
 		map.value.on("load", () => {
@@ -42,7 +40,7 @@ export function createMapLibreStore(stateStore, geoJSONStore) {
 			view.value.zoom = map.value.getZoom();
 			view.value.center = map.value.getCenter();
 
-			dispatchEvent("maplibre-map-ready");
+			WaymarkInstance.dispatchEvent("maplibre-map-ready");
 		});
 
 		// Track Bearing
@@ -84,13 +82,13 @@ export function createMapLibreStore(stateStore, geoJSONStore) {
 				);
 
 				if (overlay && stateStore) {
-					stateStore.setActiveOverlay(overlay);
+					WaymarkInstance.stateStore.setActiveOverlay(overlay);
 				}
 				// No features found
 			} else {
 				// Remove active overlay
 				if (stateStore) {
-					stateStore.setActiveOverlay();
+					WaymarkInstance.stateStore.setActiveOverlay();
 				}
 			}
 		});
@@ -101,7 +99,7 @@ export function createMapLibreStore(stateStore, geoJSONStore) {
 		throttle((newVal) => {
 			if (!mapReady.value) return;
 
-			dispatchEvent("maplibre-view-change");
+			WaymarkInstance.dispatchEvent("maplibre-view-change");
 		}, 1000),
 		{ deep: true },
 	);

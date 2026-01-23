@@ -3,9 +3,7 @@ import { throttle } from "lodash-es";
 import { LngLatBounds } from "maplibre-gl";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
 
-export function createGeoJSONStore(stateStore) {
-	const { dispatchEvent } = stateStore;
-
+export function createGeoJSONStore(WaymarkInstance) {
 	// State
 	const maps = shallowRef([]);
 	const overlays = shallowRef([]);
@@ -39,17 +37,16 @@ export function createGeoJSONStore(stateStore) {
 		// Add overlays too
 		overlays.value = [...overlays.value, ...map.overlays];
 
-		dispatchEvent("geojson-map-added", { map });
+		WaymarkInstance.dispatchEvent("geojson-map-added", { map });
 	};
 
 	const addOverlay = (overlay) => {
 		overlays.value.push(overlay);
 
-		dispatchEvent("geojson-overlay-added", { overlay });
+		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });
 	};
 
 	// Getters
-	const state = computed(() => toJSON());
 
 	const overlaysByType = computed(() => {
 		return {
@@ -111,16 +108,15 @@ export function createGeoJSONStore(stateStore) {
 	};
 
 	watch(
-		() => state.value,
+		computed(() => toJSON()),
 		throttle((newVal) => {
-			dispatchEvent("geojson-state-change");
+			WaymarkInstance.dispatchEvent("geojson-state-change");
 		}, 1000),
 		{ deep: true },
 	);
 
 	return {
 		// State
-		state,
 		features,
 		hasFeatures,
 		maps,

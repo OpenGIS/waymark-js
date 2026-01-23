@@ -1,42 +1,9 @@
 import { computed, shallowRef } from "vue";
-import { WaymarkEvent, waymarkEventName } from "@/classes/Event.js";
 
-export function createStateStore() {
+export function createStateStore(WaymarkInstance) {
 	// State
-	const container = shallowRef(null);
+	const container = shallowRef(WaymarkInstance.container);
 	const activeOverlay = shallowRef(null);
-
-	const eventData = computed(() => {
-		return {
-			activeOverlay: activeOverlay.value,
-		};
-	});
-
-	// Event Handling
-	function dispatchEvent(eventName, params = {}) {
-		// Create event
-		const event = new WaymarkEvent(eventName, params, eventData.value);
-
-		// Fire
-		if (container.value) {
-			container.value.dispatchEvent(event);
-		}
-	}
-
-	function onEvent(eventName, callback) {
-		if (container.value) {
-			container.value.addEventListener(waymarkEventName, (event) => {
-				if (event.detail && event.detail.eventName === eventName) {
-					callback(event);
-				}
-			});
-		}
-	}
-
-	// Actions
-	function setContainer(divElement) {
-		container.value = divElement;
-	}
 
 	// Actions
 	const setActiveOverlay = (overlay = null) => {
@@ -48,7 +15,7 @@ export function createStateStore() {
 
 			activeOverlay.value = null;
 
-			dispatchEvent("state-active-overlay-unset");
+			WaymarkInstance.dispatchEvent("state-active-overlay-unset");
 
 			return;
 		}
@@ -76,21 +43,15 @@ export function createStateStore() {
 		overlay.flyTo();
 		overlay.openPopup();
 
-		dispatchEvent("state-active-overlay-set");
+		WaymarkInstance.dispatchEvent("state-active-overlay-set");
 	};
 
 	return {
 		// State
 		container,
 		activeOverlay,
-		eventData,
 
 		// Actions
-		setContainer,
 		setActiveOverlay,
-
-		// Events
-		dispatchEvent,
-		onEvent,
 	};
 }
