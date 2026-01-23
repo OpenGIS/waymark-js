@@ -17,6 +17,7 @@ export default class WaymarkInstance {
         type: "FeatureCollection",
         features: [],
       },
+      onLoad: null,
     };
 
     // Merge config with defaults
@@ -64,6 +65,11 @@ export default class WaymarkInstance {
       // Initial
       if (this.config.geoJSON) {
         this.addGeoJSON(this.config.geoJSON);
+      }
+
+      // Call onLoad callback
+      if (this.config.onLoad && typeof this.config.onLoad === "function") {
+        this.config.onLoad(this);
       }
     });
 

@@ -50,31 +50,18 @@
         "./assets/data/waymark/feature.json",
       ];
 
-      // Container
-      let topInstance = null;
-      document
-        .getElementById("waymark-top")
-        .addEventListener("waymark-event", (event) => {
-          console.log("[TOP] Waymark Event:", event.detail);
-
-          switch (event.detail.eventName) {
-            case "maplibre-map-ready":
-              // Each URL
-              urls.forEach(async (url) => {
-                fetch(url).then(async (res) => {
-                  const geoJSON = await res.json();
-                  topInstance.addGeoJSON(geoJSON);
-                });
-              });
-
-              break;
-          }
-        });
-
       // Create Instance
-      topInstance = createInstance({
+      createInstance({
         containerID: "waymark-top",
-        // geoJSON,
+        onLoad: (WaymarkInstance) => {
+          // Each URL
+          urls.forEach(async (url) => {
+            fetch(url).then(async (res) => {
+              const geoJSON = await res.json();
+              WaymarkInstance.addGeoJSON(geoJSON);
+            });
+          });
+        },
       });
 
       // =================== BOTTOM ===================
