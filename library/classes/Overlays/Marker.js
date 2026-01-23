@@ -1,7 +1,7 @@
 import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 import { LngLatBounds } from "maplibre-gl";
 import { flyToOptions } from "@/helpers/MapLibre.js";
-import { waymarkPrimaryColour } from "@/helpers/Common.js";
+import { waymarkPrimaryColour, getRandomHexColour } from "@/helpers/Common.js";
 
 export default class WaymarkMarker extends WaymarkOverlay {
   constructor(feature) {
@@ -17,10 +17,10 @@ export default class WaymarkMarker extends WaymarkOverlay {
       type: "circle",
       source: this.id,
       paint: {
-        "circle-radius": 8,
+        "circle-radius": 3,
         "circle-color": "#ffffff",
-        "circle-stroke-color": "#000000",
-        "circle-stroke-width": 1,
+        "circle-stroke-color": getRandomHexColour(),
+        "circle-stroke-width": 3,
         ...waymarkPaint,
       },
     };

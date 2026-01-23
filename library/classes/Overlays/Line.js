@@ -2,7 +2,7 @@ import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 import { length } from "@turf/length";
 import { LngLatBounds } from "maplibre-gl";
 import { flyToOptions } from "@/helpers/MapLibre.js";
-import { waymarkPrimaryColour } from "@/helpers/Common.js";
+import { waymarkPrimaryColour, getRandomHexColour } from "@/helpers/Common.js";
 
 export default class WaymarkLine extends WaymarkOverlay {
   constructor(feature) {
@@ -21,8 +21,8 @@ export default class WaymarkLine extends WaymarkOverlay {
         "line-cap": "round",
       },
       paint: {
-        "line-color": "#000000",
-        "line-width": 2,
+        "line-color": getRandomHexColour(),
+        "line-width": 3,
         ...waymarkPaint,
       },
     };
