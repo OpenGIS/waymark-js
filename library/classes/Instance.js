@@ -1,3 +1,4 @@
+import { ulid } from "ulid";
 import { createApp } from "vue";
 import { createStateStore } from "@/stores/state.js";
 import { createGeoJSONStore } from "@/stores/geojson.js";
@@ -11,6 +12,8 @@ import {
 
 export default class WaymarkInstance {
   constructor(config = {}) {
+    this.id = ulid();
+
     const defaultConfig = {
       containerID: "waymark-instance",
       geoJSON: {
@@ -24,8 +27,8 @@ export default class WaymarkInstance {
     this.config = { ...defaultConfig, ...config };
 
     // Get the container div
-    const container = document.getElementById(this.config.containerID);
-    if (!container) {
+    this.container = document.getElementById(this.config.containerID);
+    if (!this.container) {
       console.error("[Waymark] Could not find container in DOM");
     }
 
@@ -35,7 +38,8 @@ export default class WaymarkInstance {
 
     // Create State Store
     this.stateStore = createStateStore();
-    this.stateStore.setContainer(container);
+    this.stateStore.setContainer(this.container);
+    this.addEventHandling();
 
     // Create GeoJSON Store
     this.geoJSONStore = createGeoJSONStore(this.stateStore);
@@ -53,6 +57,16 @@ export default class WaymarkInstance {
     app.provide("mapLibreStore", this.mapLibreStore);
 
     // Setup
+
+    // Mount to DOM
+    app.mount("#" + this.config.containerID);
+  }
+
+  addEventHandling() {
+    // Container
+    this.container.addEventListener("waymark-event", (event) => {
+      console.log(`[${this.id}] Waymark Event:`, event.detail);
+    });
 
     // Listen for maplibre-map-ready event
     this.stateStore.onEvent("maplibre-map-ready", () => {
@@ -72,9 +86,6 @@ export default class WaymarkInstance {
         this.config.onLoad(this);
       }
     });
-
-    // Mount to DOM
-    app.mount("#" + this.config.containerID);
   }
 
   drawGeoJSON() {
