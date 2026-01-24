@@ -32,12 +32,17 @@ export function createGeoJSONStore(WaymarkInstance) {
 	};
 
 	const addMap = (map) => {
+		// Ensure not already added
+		if (maps.value.has(map.id)) {
+			return;
+		}
+
 		maps.value.set(map.id, map);
 		triggerRef(maps);
 
 		// Add overlays too
 		map.overlays.forEach((overlay) => {
-			overlays.value.set(overlay.id, overlay);
+			addOverlay(overlay);
 		});
 		triggerRef(overlays);
 
@@ -45,6 +50,11 @@ export function createGeoJSONStore(WaymarkInstance) {
 	};
 
 	const addOverlay = (overlay) => {
+		// Ensure not already added
+		if (overlays.value.has(overlay.id)) {
+			return;
+		}
+
 		overlays.value.set(overlay.id, overlay);
 		triggerRef(overlays);
 
