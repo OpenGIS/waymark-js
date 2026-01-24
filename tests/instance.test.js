@@ -313,9 +313,9 @@ console.info = noop;
 console.debug = noop;
 
 import WaymarkInstance from "../library/classes/Instance.js";
-import { MarkerOverlay } from "../library/classes/Overlays/Marker.js";
-import { LineOverlay } from "../library/classes/Overlays/Line.js";
-import { ShapeOverlay } from "../library/classes/Overlays/Shape.js";
+import MarkerOverlay from "../library/classes/Overlays/Marker.js";
+import LineOverlay from "../library/classes/Overlays/Line.js";
+import ShapeOverlay from "../library/classes/Overlays/Shape.js";
 
 describe("Instance", () => {
   beforeEach(() => {
@@ -371,8 +371,8 @@ describe("Instance", () => {
     });
 
     const overlays = instance.geoJSONStore.overlays.value;
-    expect(overlays).toHaveLength(1);
-    expect(overlays[0]).toBeInstanceOf(MarkerOverlay);
+    expect(overlays.size).toBe(1);
+    expect(Array.from(overlays.values())[0]).toBeInstanceOf(MarkerOverlay);
   });
 
   it("renders line overlays", () => {
@@ -401,8 +401,8 @@ describe("Instance", () => {
     });
 
     const overlays = instance.geoJSONStore.overlays.value;
-    expect(overlays).toHaveLength(1);
-    expect(overlays[0]).toBeInstanceOf(LineOverlay);
+    expect(overlays.size).toBe(1);
+    expect(Array.from(overlays.values())[0]).toBeInstanceOf(LineOverlay);
   });
 
   it("renders shape overlays", () => {
@@ -436,8 +436,8 @@ describe("Instance", () => {
     });
 
     const overlays = instance.geoJSONStore.overlays.value;
-    expect(overlays).toHaveLength(1);
-    expect(overlays[0]).toBeInstanceOf(ShapeOverlay);
+    expect(overlays.size).toBe(1);
+    expect(Array.from(overlays.values())[0]).toBeInstanceOf(ShapeOverlay);
   });
 
   it("dispatches events via state store", () => {
@@ -446,8 +446,8 @@ describe("Instance", () => {
     });
 
     const callback = vi.fn();
-    instance.stateStore.onEvent("test-event", callback);
-    instance.stateStore.dispatchEvent("test-event", { data: "test" });
+    instance.onEvent("test-event", callback);
+    instance.dispatchEvent("test-event", { data: "test" });
 
     // Since onEvent attaches a DOM listener, we need to ensure the container is set and the event is fired on it.
     // The Instance constructor sets the container.

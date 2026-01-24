@@ -1,12 +1,12 @@
-import { shallowRef, watch, computed } from "vue";
+import { shallowRef, watch, computed, triggerRef } from "vue";
 import { throttle } from "lodash-es";
 import { LngLatBounds } from "maplibre-gl";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
 
 export function createGeoJSONStore(WaymarkInstance) {
 	// State
-	const maps = shallowRef([]);
-	const overlays = shallowRef([]);
+	const maps = shallowRef(new Map());
+	const overlays = shallowRef(new Map());
 
 	// Actions
 
@@ -32,16 +32,21 @@ export function createGeoJSONStore(WaymarkInstance) {
 	};
 
 	const addMap = (map) => {
-		maps.value.push(map);
+		maps.value.set(map.id, map);
+		triggerRef(maps);
 
 		// Add overlays too
-		overlays.value = [...overlays.value, ...map.overlays];
+		map.overlays.forEach((overlay) => {
+			overlays.value.set(overlay.id, overlay);
+		});
+		triggerRef(overlays);
 
 		WaymarkInstance.dispatchEvent("geojson-map-added", { map });
 	};
 
 	const addOverlay = (overlay) => {
-		overlays.value.push(overlay);
+		overlays.value.set(overlay.id, overlay);
+		triggerRef(overlays);
 
 		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });
 	};
@@ -49,12 +54,13 @@ export function createGeoJSONStore(WaymarkInstance) {
 	// Getters
 
 	const overlaysByType = computed(() => {
+		const overlaysArray = Array.from(overlays.value.values());
 		return {
-			markers: overlays.value.filter(
+			markers: overlaysArray.filter(
 				(overlay) => overlay.featureType === "marker",
 			),
-			lines: overlays.value.filter((overlay) => overlay.featureType === "line"),
-			shapes: overlays.value.filter(
+			lines: overlaysArray.filter((overlay) => overlay.featureType === "line"),
+			shapes: overlaysArray.filter(
 				(overlay) => overlay.featureType === "shape",
 			),
 		};
@@ -63,7 +69,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 	const overlaysBounds = computed(() => {
 		const bounds = new LngLatBounds();
 
-		if (overlays.value.length === 0) {
+		if (overlays.value.size === 0) {
 			return null;
 		}
 

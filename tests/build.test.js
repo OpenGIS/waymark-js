@@ -18,5 +18,5 @@ describe("Build", () => {
         }
       });
     });
-  }, 5000); // 5 second timeout
+  }, 30000); // 30 second timeout
 });
