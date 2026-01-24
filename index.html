@@ -105,6 +105,86 @@
       });
 
       // =================== THREE ====================
+
+      // Check local storage for
+      const localMaps =
+        JSON.parse(localStorage.getItem("waymarkLocalMaps")) || [];
+
+      const instanceThree = createInstance({
+        debug: true,
+        onLoad: (WaymarkInstance) => {
+          localMaps.forEach((geoJSON) => {
+            WaymarkInstance.addGeoJSON(geoJSON);
+          });
+        },
+      });
+
+      // Create file upload button
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = ".json,.geojson";
+      fileInput.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const geoJSON = JSON.parse(e.target.result);
+          instanceThree.addGeoJSON(geoJSON);
+
+          // Add to local storage
+          localMaps.push(geoJSON);
+          localStorage.setItem("waymarkLocalMaps", JSON.stringify(localMaps));
+        };
+        reader.readAsText(file);
+      });
+      document.body.appendChild(fileInput);
+
+      // =================== FOUR ====================
+
+      // Create a Waymark Instance with this configuration
+      const instanceFour = createInstance({
+        id: "waymark-instance",
+        // Passed directly to MapLibre GL JS
+        // See [MapLibre Map Options](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/)
+        mapOptions: {
+          zoom: 12,
+        },
+
+        // Can pass GeoJSON here
+        // geoJSON: { type: "FeatureCollection", features: [] }
+
+        // Callback function
+        onLoad: (WaymarkInstance) => {
+          console.log("Waymark Instance loaded:", WaymarkInstance.id);
+        },
+      });
+
+      // Load this GeoJSON, which contains a single "pub" Marker
+      instanceFour.addGeoJSON({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {
+              waymark: {
+                paint: {
+                  "circle-radius": 6,
+                  "circle-color": "blue",
+                  "circle-stroke-color": "red",
+                  "circle-stroke-width": 6,
+                },
+              },
+              type: "pub",
+              title: "The Scarlet Ibis",
+              description:
+                "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
+            },
+            geometry: {
+              type: "Point",
+              coordinates: [-128.0094, 50.6539],
+            },
+          },
+        ],
+      });
     </script>
   </body>
 </html>
