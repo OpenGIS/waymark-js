@@ -71,19 +71,21 @@ export function createMapLibreStore(WaymarkInstance) {
 			];
 
 			// Get features around click
+			const layerIDs = Array.from(overlays.value.keys());
 			const features = map.value.queryRenderedFeatures(bbox, {
-				layers: overlays.value.map((o) => o.id),
+				layerIDs,
 			});
 
 			// Features found
 			if (features.length) {
 				// Get the closest overlay
-				const overlay = overlays.value.find(
-					(o) => o.id === features[0].layer.id,
-				);
+				const overlay = overlays.value.get(features[0].layer.id);
 
 				if (overlay) {
 					WaymarkInstance.setActiveOverlay(overlay);
+				} else {
+					// Remove active overlay
+					WaymarkInstance.setActiveOverlay();
 				}
 				// No features found
 			} else {
