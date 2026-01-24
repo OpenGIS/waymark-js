@@ -99,6 +99,11 @@ export default class WaymarkOverlay {
       return;
     }
 
+    // Remove highlight
+    if (this.mapLibreMap.getLayer(`${this.id}-highlight`)) {
+      this.mapLibreMap.removeLayer(`${this.id}-highlight`);
+    }
+
     if (this.mapLibreMap.getLayer(this.id)) {
       this.mapLibreMap.removeLayer(this.id);
     }
@@ -277,5 +282,13 @@ export default class WaymarkOverlay {
 
   getHighlightStyle() {
     return this.toStyle();
+  }
+
+  toggleHighlight() {
+    if (this.isHighlighted()) {
+      this.hideHighlight();
+    } else {
+      this.showHighlight();
+    }
   }
 }

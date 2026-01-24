@@ -65,7 +65,16 @@
         mapOptions: {
           attributionControl: true,
         },
+        onLoad: (WaymarkInstance) => {
+          const map = WaymarkInstance.getMapByID("example-geojson");
+          map.overlays.forEach((overlay) => {
+            setInterval(() => {
+              overlay.toggleHighlight();
+            }, 500);
+          });
+        },
         geoJSON: {
+          id: "example-geojson",
           type: "FeatureCollection",
           features: [
             {
@@ -111,6 +120,7 @@
         JSON.parse(localStorage.getItem("waymarkLocalMaps")) || [];
 
       const instanceThree = createInstance({
+        id: "waymark-three",
         debug: true,
         onLoad: (WaymarkInstance) => {
           localMaps.forEach((geoJSON) => {
@@ -128,6 +138,7 @@
         const reader = new FileReader();
         reader.onload = (e) => {
           const geoJSON = JSON.parse(e.target.result);
+
           instanceThree.addGeoJSON(geoJSON);
 
           // Add to local storage
@@ -161,7 +172,7 @@
       });
 
       // Load this GeoJSON, which contains a single "pub" Marker
-      instanceFour.addGeoJSON({
+      const map = instanceFour.addGeoJSON({
         type: "FeatureCollection",
         features: [
           {
@@ -187,6 +198,10 @@
           },
         ],
       });
+
+      setTimeout(() => {
+        map.remove();
+      }, 10000);
     </script>
   </body>
 </html>

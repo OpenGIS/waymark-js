@@ -83,4 +83,10 @@ export default class WaymarkMap {
         // Zoom to bounds
         map.fitBounds(this.bounds, fitBoundsOptions);
     }
+
+    remove() {
+        this.overlays.forEach((overlay) => {
+            overlay.remove();
+        });
+    }
 }

@@ -10,7 +10,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 
 	// Actions
 
-	const addJSON = (json) => {
+	const addGeoJSON = (json) => {
 		if (!json || !json.type) {
 			throw new Error("Valid GeoJSON required");
 		}
@@ -18,12 +18,18 @@ export function createGeoJSONStore(WaymarkInstance) {
 		switch (json.type) {
 			case "FeatureCollection":
 				//Create & Add Map
-				addMap(createMap(json));
+				const map = createMap(json);
+				addMap(map);
+
+				return map;
 
 				break;
 			case "Feature":
 				//Create & Add Overlay
-				addOverlay(createOverlay(json));
+				const overlay = createOverlay(json);
+				addOverlay(overlay);
+
+				return overlay;
 
 				break;
 			default:
@@ -108,7 +114,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 
 	// Persistence
 
-	const toJSON = () => {
+	const toGeoJSON = () => {
 		const geoJSON = {
 			type: "FeatureCollection",
 			features: [],
@@ -124,7 +130,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 	};
 
 	watch(
-		computed(() => toJSON()),
+		computed(() => toGeoJSON()),
 		throttle((newVal) => {
 			WaymarkInstance.dispatchEvent("geojson-state-change");
 		}, 1000),
@@ -141,9 +147,9 @@ export function createGeoJSONStore(WaymarkInstance) {
 		overlaysBounds,
 
 		// Actions
-		addJSON,
+		addGeoJSON,
 
 		// Persistence
-		toJSON,
+		toGeoJSON,
 	};
 }

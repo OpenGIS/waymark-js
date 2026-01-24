@@ -58,6 +58,14 @@ export default class WaymarkInstance {
     app.mount(this.container);
   }
 
+  addGeoJSON(geoJSON) {
+    return this.geoJSONStore.addGeoJSON(geoJSON);
+  }
+
+  getMapByID(mapID) {
+    return this.geoJSONStore.maps.value.get(mapID);
+  }
+
   // Event Handling
   dispatchEvent(eventName, params = {}) {
     // Create event
@@ -114,10 +122,6 @@ export default class WaymarkInstance {
     maps.value.forEach((waymarkMap) => {
       waymarkMap.addTo(mapLibreMap.value);
     });
-  }
-
-  addGeoJSON(geoJSON) {
-    this.geoJSONStore.addJSON(geoJSON);
   }
 
   // Actions
