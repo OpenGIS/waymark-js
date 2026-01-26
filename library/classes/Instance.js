@@ -124,6 +124,12 @@ export default class WaymarkInstance {
     const { map: mapLibreMap } = this.mapLibreStore;
 
     maps.value.forEach((waymarkMap) => {
+      // Remove if already added
+      if (waymarkMap.hasMap()) {
+        waymarkMap.remove();
+      }
+
+      // Add
       waymarkMap.addTo(mapLibreMap.value);
     });
   }

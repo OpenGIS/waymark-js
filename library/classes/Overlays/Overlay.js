@@ -69,7 +69,7 @@ export default class WaymarkOverlay {
 
   addTo(map) {
     // Must be valid MapLibre map
-    if (!map || !map.addLayer) {
+    if (!map || !map.addLayer || this.hasMap()) {
       return;
     }
 
@@ -92,6 +92,10 @@ export default class WaymarkOverlay {
 
     // Add events
     this.addEvents();
+  }
+
+  hasMap() {
+    return this.mapLibreMap !== null;
   }
 
   remove() {

@@ -44,6 +44,8 @@ export default class WaymarkMap {
             this.overlays.push(overlay);
         });
 
+        this.mapLibreMap = null;
+
         return this;
     }
 
@@ -57,31 +59,37 @@ export default class WaymarkMap {
     }
 
     addTo(map) {
-        if (!map || !this.overlays.length) {
+        if (!map || !this.overlays.length || this.hasMap()) {
             return;
         }
+
+        this.mapLibreMap = map;
 
         // Rendering order - Shapes, Lines & then Markers
         this.overlays
             .filter((overlay) => overlay.featureType === "shape")
             .forEach((overlay) => {
-                overlay.addTo(map);
+                overlay.addTo(this.mapLibreMap);
             });
 
         this.overlays
             .filter((overlay) => overlay.featureType === "line")
             .forEach((overlay) => {
-                overlay.addTo(map);
+                overlay.addTo(this.mapLibreMap);
             });
 
         this.overlays
             .filter((overlay) => overlay.featureType === "marker")
             .forEach((overlay) => {
-                overlay.addTo(map);
+                overlay.addTo(this.mapLibreMap);
             });
 
         // Zoom to bounds
-        map.fitBounds(this.bounds, fitBoundsOptions);
+        this.mapLibreMap.fitBounds(this.bounds, fitBoundsOptions);
+    }
+
+    hasMap() {
+        return this.mapLibreMap !== null;
     }
 
     remove() {
