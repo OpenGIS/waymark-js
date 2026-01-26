@@ -66,6 +66,10 @@ export default class WaymarkInstance {
     return this.geoJSONStore.maps.value.get(mapID);
   }
 
+  getAllOverlays() {
+    return [...this.geoJSONStore.overlays.value.values()];
+  }
+
   // Event Handling
   dispatchEvent(eventName, params = {}) {
     // Create event
