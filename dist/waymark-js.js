@@ -21502,18 +21502,18 @@ ${k.shaderPreludeCode.vertexSource}`, define: k.shaderDefine }, defaultProjectio
 var io = nx();
 class sx {
   constructor(_ = {}) {
-    return this.type = _.type || "Feature", this.id = _.id || null, this.properties = _.properties || {}, this.geometry = _.geometry || {}, this;
+    return this.type = _.type || "Feature", this.id = _.id || null, this.properties = _.properties || {}, this.geometry = _.geometry || {
+      type: null,
+      coordinates: []
+    }, this;
   }
   toJSON() {
     return this;
   }
 }
 class kc extends sx {
-  constructor(_) {
-    super(_), this.id = fh(), this.featureType = $m(this) || null, this.properties.waymark = this.properties.waymark || {}, this.waymarkMap = null, this.mapLibreMap = null, this.active = !1, this.popup = this.createPopup();
-  }
-  setMap(_) {
-    this.waymarkMap = _;
+  constructor(_, w = null) {
+    super(_), this.id = fh(), this.featureType = $m(this) || null, this.properties.waymark = this.properties.waymark || {}, this.waymarkMap = null, this.mapLibreMap = null, this.active = !1, this.popup = this.createPopup(), this.waymarkMap = w;
   }
   setActive(_ = !0) {
     this.active = _, this.active ? this.showHighlight() : this.hideHighlight();
@@ -22185,7 +22185,7 @@ class Xd {
       ...this.properties.waymark
     }, this.overlays = [], _.features.forEach((w) => {
       const C = Qg(w);
-      C.setMap(this), this.bounds = typeof this.bounds == "object" ? this.bounds.extend(C.getBounds()) : C.getBounds(), this.overlays.push(C);
+      this.bounds = typeof this.bounds == "object" ? this.bounds.extend(C.getBounds()) : C.getBounds(), this.overlays.push(C);
     }), this.mapLibreMap = null, this;
   }
   toJSON() {
