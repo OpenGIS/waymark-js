@@ -85,7 +85,7 @@ export default class WaymarkMap {
             });
 
         // Zoom to bounds
-        this.mapLibreMap.fitBounds(this.bounds, fitBoundsOptions);
+        // this.mapLibreMap.fitBounds(this.bounds, fitBoundsOptions);
     }
 
     hasMap() {
