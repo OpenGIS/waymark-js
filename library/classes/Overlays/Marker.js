@@ -8,7 +8,7 @@ export default class WaymarkMarker extends WaymarkOverlay {
     super(feature);
 
     // Default to empty geometry if none provided
-    this.geometry = this.feature.geometry || {
+    this.geometry = this.geometry || {
       type: "Point",
       coordinates: [0, 0],
     };
@@ -16,7 +16,7 @@ export default class WaymarkMarker extends WaymarkOverlay {
 
   // GeoJson point
   toStyle() {
-    const waymarkPaint = this.feature.properties.waymark?.paint || {};
+    const waymarkPaint = this.properties.waymark?.paint || {};
 
     return {
       id: this.id,
@@ -34,7 +34,7 @@ export default class WaymarkMarker extends WaymarkOverlay {
 
   hasElevationData() {
     // Check if feature coordinates has third dimension (elevation)
-    return this.feature.geometry.coordinates.length === 3;
+    return this.geometry.coordinates.length === 3;
   }
 
   getElevationString() {
@@ -44,22 +44,14 @@ export default class WaymarkMarker extends WaymarkOverlay {
 
     // Return elevation value from coordinates, rounded to 1 decimal place
     return (
-      "Elevation: " +
-      Math.round(this.feature.geometry.coordinates[2] * 10) / 10 +
-      "m"
+      "Elevation: " + Math.round(this.geometry.coordinates[2] * 10) / 10 + "m"
     );
   }
 
   getBounds() {
     return new LngLatBounds(
-      [
-        this.feature.geometry.coordinates[0],
-        this.feature.geometry.coordinates[1],
-      ],
-      [
-        this.feature.geometry.coordinates[0],
-        this.feature.geometry.coordinates[1],
-      ],
+      [this.geometry.coordinates[0], this.geometry.coordinates[1]],
+      [this.geometry.coordinates[0], this.geometry.coordinates[1]],
     );
   }
 
@@ -67,26 +59,23 @@ export default class WaymarkMarker extends WaymarkOverlay {
     // For marker, return the coordinates as a string
     return (
       "Lat,Lng: " +
-      this.feature.geometry.coordinates[1].toFixed(6) +
+      this.geometry.coordinates[1].toFixed(6) +
       ", " +
-      this.feature.geometry.coordinates[0].toFixed(6)
+      this.geometry.coordinates[0].toFixed(6)
     );
   }
 
   flyTo() {
     this.mapLibreMap.flyTo({
-      center: [
-        this.feature.geometry.coordinates[0],
-        this.feature.geometry.coordinates[1],
-      ],
+      center: [this.geometry.coordinates[0], this.geometry.coordinates[1]],
       ...flyToOptions,
     });
   }
 
   inBounds(bounds) {
     return bounds.contains({
-      lng: this.feature.geometry.coordinates[0],
-      lat: this.feature.geometry.coordinates[1],
+      lng: this.geometry.coordinates[0],
+      lat: this.geometry.coordinates[1],
     });
   }
 

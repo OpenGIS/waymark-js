@@ -21634,14 +21634,14 @@ function Wm() {
 }
 class ox extends kc {
   constructor(_) {
-    super(_), this.geometry = this.feature.geometry || {
+    super(_), this.geometry = this.geometry || {
       type: "Point",
       coordinates: [0, 0]
     };
   }
   // GeoJson point
   toStyle() {
-    const _ = this.feature.properties.waymark?.paint || {};
+    const _ = this.properties.waymark?.paint || {};
     return {
       id: this.id,
       type: "circle",
@@ -21656,39 +21656,30 @@ class ox extends kc {
     };
   }
   hasElevationData() {
-    return this.feature.geometry.coordinates.length === 3;
+    return this.geometry.coordinates.length === 3;
   }
   getElevationString() {
-    return this.hasElevationData() ? "Elevation: " + Math.round(this.feature.geometry.coordinates[2] * 10) / 10 + "m" : "";
+    return this.hasElevationData() ? "Elevation: " + Math.round(this.geometry.coordinates[2] * 10) / 10 + "m" : "";
   }
   getBounds() {
     return new io.LngLatBounds(
-      [
-        this.feature.geometry.coordinates[0],
-        this.feature.geometry.coordinates[1]
-      ],
-      [
-        this.feature.geometry.coordinates[0],
-        this.feature.geometry.coordinates[1]
-      ]
+      [this.geometry.coordinates[0], this.geometry.coordinates[1]],
+      [this.geometry.coordinates[0], this.geometry.coordinates[1]]
     );
   }
   getCoordsString() {
-    return "Lat,Lng: " + this.feature.geometry.coordinates[1].toFixed(6) + ", " + this.feature.geometry.coordinates[0].toFixed(6);
+    return "Lat,Lng: " + this.geometry.coordinates[1].toFixed(6) + ", " + this.geometry.coordinates[0].toFixed(6);
   }
   flyTo() {
     this.mapLibreMap.flyTo({
-      center: [
-        this.feature.geometry.coordinates[0],
-        this.feature.geometry.coordinates[1]
-      ],
+      center: [this.geometry.coordinates[0], this.geometry.coordinates[1]],
       ...Wo
     });
   }
   inBounds(_) {
     return _.contains({
-      lng: this.feature.geometry.coordinates[0],
-      lat: this.feature.geometry.coordinates[1]
+      lng: this.geometry.coordinates[0],
+      lat: this.geometry.coordinates[1]
     });
   }
   customizeHighlight(_) {
@@ -21989,13 +21980,13 @@ function mx(f, _ = {}) {
 }
 class gx extends kc {
   constructor(_) {
-    super(_), this.geometry = this.feature.geometry || {
+    super(_), this.geometry = this.geometry || {
       type: "LineString",
       coordinates: []
     };
   }
   toStyle() {
-    const _ = this.feature.properties.waymark?.paint || {};
+    const _ = this.properties.waymark?.paint || {};
     return {
       id: this.id,
       type: "line",
@@ -22069,7 +22060,7 @@ class gx extends kc {
     }
   }
   getLinePositions() {
-    const _ = this.feature.geometry;
+    const _ = this.geometry;
     return _.type === "MultiLineString" ? _.coordinates.reduce((w, C) => w.concat(C), []) : _.coordinates || [];
   }
   customizeHighlight(_) {
@@ -22078,7 +22069,7 @@ class gx extends kc {
 }
 class _x extends kc {
   constructor(_) {
-    super(_), this.geometry = this.feature.geometry || {
+    super(_), this.geometry = this.geometry || {
       type: "Polygon",
       coordinates: []
     };
@@ -22090,7 +22081,7 @@ class _x extends kc {
     this.mapLibreMap && this.mapLibreMap.getLayer(`${this.id}-stroke`) && this.mapLibreMap.removeLayer(`${this.id}-stroke`), super.remove();
   }
   toStyle() {
-    const _ = this.feature.properties.waymark?.paint || {};
+    const _ = this.properties.waymark?.paint || {};
     return {
       id: this.id,
       type: "fill",
@@ -22128,7 +22119,7 @@ class _x extends kc {
         "line-cap": "round"
       },
       paint: {
-        "line-color": this.feature.properties.waymark?.shape_colour || "#000000",
+        "line-color": this.properties.waymark?.shape_colour || "#000000",
         "line-width": 1,
         "line-opacity": 1
       }
@@ -22163,7 +22154,7 @@ class _x extends kc {
     });
   }
   getPolygonPositions() {
-    const _ = this.feature.geometry;
+    const _ = this.geometry;
     return _.type === "MultiPolygon" ? _.coordinates.reduce((w, C) => (C.forEach((R) => w.push(...R)), w), []) : _.coordinates ? _.coordinates.reduce((w, C) => w.concat(C), []) : [];
   }
   flyTo() {

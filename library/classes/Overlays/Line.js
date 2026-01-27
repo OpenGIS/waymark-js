@@ -9,14 +9,14 @@ export default class WaymarkLine extends WaymarkOverlay {
     super(feature);
 
     // Default to empty geometry if none provided
-    this.geometry = this.feature.geometry || {
+    this.geometry = this.geometry || {
       type: "LineString",
       coordinates: [],
     };
   }
 
   toStyle() {
-    const waymarkPaint = this.feature.properties.waymark?.paint || {};
+    const waymarkPaint = this.properties.waymark?.paint || {};
 
     return {
       id: this.id,
@@ -148,7 +148,7 @@ export default class WaymarkLine extends WaymarkOverlay {
   }
 
   getLinePositions() {
-    const geom = this.feature.geometry;
+    const geom = this.geometry;
     if (geom.type === "MultiLineString") {
       return geom.coordinates.reduce((acc, line) => acc.concat(line), []);
     }

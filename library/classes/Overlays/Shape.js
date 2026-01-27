@@ -8,7 +8,7 @@ export default class WaymarkShape extends WaymarkOverlay {
     super(feature);
 
     // Default to empty geometry if none provided
-    this.geometry = this.feature.geometry || {
+    this.geometry = this.geometry || {
       type: "Polygon",
       coordinates: [],
     };
@@ -29,7 +29,7 @@ export default class WaymarkShape extends WaymarkOverlay {
   }
 
   toStyle() {
-    const waymarkPaint = this.feature.properties.waymark?.paint || {};
+    const waymarkPaint = this.properties.waymark?.paint || {};
 
     return {
       id: this.id,
@@ -81,8 +81,7 @@ export default class WaymarkShape extends WaymarkOverlay {
         "line-cap": "round",
       },
       paint: {
-        "line-color":
-          this.feature.properties.waymark?.shape_colour || "#000000",
+        "line-color": this.properties.waymark?.shape_colour || "#000000",
         "line-width": 1,
         "line-opacity": 1,
       },
@@ -136,7 +135,7 @@ export default class WaymarkShape extends WaymarkOverlay {
   }
 
   getPolygonPositions() {
-    const geom = this.feature.geometry;
+    const geom = this.geometry;
     if (geom.type === "MultiPolygon") {
       return geom.coordinates.reduce((acc, polygon) => {
         polygon.forEach((ring) => acc.push(...ring));
