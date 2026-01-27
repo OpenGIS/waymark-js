@@ -8,7 +8,7 @@ export default class WaymarkMarker extends WaymarkOverlay {
     super(feature);
 
     // Default to empty geometry if none provided
-    this.feature.geometry = this.feature.geometry || {
+    this.geometry = this.feature.geometry || {
       type: "Point",
       coordinates: [0, 0],
     };

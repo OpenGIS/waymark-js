@@ -2,30 +2,21 @@ import { ulid } from "ulid";
 import { getFeatureType, getFeatureImages } from "@/helpers/Overlay.js";
 import { flyToOptions } from "@/helpers/MapLibre.js";
 import { Popup } from "maplibre-gl";
+import GeoJSONFeature from "@/classes/GeoJSON/Feature.js";
 
-export default class WaymarkOverlay {
+export default class WaymarkOverlay extends GeoJSONFeature {
   constructor(feature) {
-    if (!feature || feature.type !== "Feature") {
-      throw new Error("Valid GeoJSON Feature required");
-    }
-    this.feature = feature;
+    super(feature);
 
     this.id = ulid();
-    this.featureType = getFeatureType(this.feature) || null;
-    this.feature.properties = this.feature.properties || {};
-    this.title = this.feature.properties.title || "";
-    this.description = this.feature.properties.description || "";
-    this.images = getFeatureImages(this.feature);
+    this.featureType = getFeatureType(this) || null;
+    this.properties.waymark = this.properties.waymark || {};
     this.waymarkMap = null;
     this.mapLibreMap = null;
     this.active = false;
 
     // Get Type
     this.popup = this.createPopup();
-  }
-
-  toJSON() {
-    return this.feature;
   }
 
   setMap(waymarkMap) {
@@ -78,7 +69,7 @@ export default class WaymarkOverlay {
     // Create Source
     this.mapLibreMap.addSource(this.id, {
       type: "geojson",
-      data: this.feature,
+      data: this.toJSON(),
     });
     this.source = this.mapLibreMap.getSource(this.id);
 
@@ -122,35 +113,19 @@ export default class WaymarkOverlay {
     this.style = null;
   }
 
-  toGeoJSON() {
-    return this.feature;
-  }
-
-  hasImage() {
-    return (
-      this.feature.properties.image_thumbnail_url ||
-      this.feature.properties.image_medium_url ||
-      this.feature.properties.image_large_url
-    );
-  }
-
-  getImage(size = "thumbnail") {
-    return this.images[size];
-  }
-
   getTitle() {
-    return this.title;
+    return this.properties.waymark?.title || "";
   }
 
   getDescription() {
-    return this.description;
+    return this.properties.waymark?.description || "";
   }
 
   containsText(text = "") {
     let matches = 0;
 
     // Check all GeoJSON properties VALUES (not keys) for existence of filter text
-    matches += Object.values(this.feature.properties).some((p) => {
+    matches += Object.values(this.properties).some((p) => {
       return p.toString().toLowerCase().includes(text.toLowerCase());
     });
 
@@ -168,10 +143,7 @@ export default class WaymarkOverlay {
 
     if (currentZoom < targetZoom) {
       this.mapLibreMap.flyTo({
-        center: [
-          this.feature.geometry.coordinates[0],
-          this.feature.geometry.coordinates[1],
-        ],
+        center: [this.geometry.coordinates[0], this.geometry.coordinates[1]],
         zoom: targetZoom,
         ...flyToOptions,
       });
