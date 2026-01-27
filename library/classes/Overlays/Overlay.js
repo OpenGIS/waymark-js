@@ -25,7 +25,7 @@ export default class WaymarkOverlay {
   }
 
   toJSON() {
-    return feature;
+    return this.feature;
   }
 
   setMap(waymarkMap) {

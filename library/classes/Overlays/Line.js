@@ -7,6 +7,12 @@ import { waymarkPrimaryColour, getRandomHexColour } from "@/helpers/Common.js";
 export default class WaymarkLine extends WaymarkOverlay {
   constructor(feature) {
     super(feature);
+
+    // Default to empty geometry if none provided
+    this.feature.geometry = this.feature.geometry || {
+      type: "LineString",
+      coordinates: [],
+    };
   }
 
   toStyle() {
