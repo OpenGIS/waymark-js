@@ -2,6 +2,8 @@ import { shallowRef, watch, computed, triggerRef } from "vue";
 import { throttle } from "lodash-es";
 import { LngLatBounds } from "maplibre-gl";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
+import WaymarkMap from "@/classes/Map.js";
+import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 
 export function createGeoJSONStore(WaymarkInstance) {
 	// State
@@ -38,6 +40,11 @@ export function createGeoJSONStore(WaymarkInstance) {
 	};
 
 	const addMap = (map) => {
+		// Ensure is WaymarkMap
+		if (!(map instanceof WaymarkMap)) {
+			throw new Error("WaymarkMap instance required");
+		}
+
 		// Ensure not already added
 		if (maps.value.has(map.id)) {
 			return;
@@ -55,16 +62,65 @@ export function createGeoJSONStore(WaymarkInstance) {
 		WaymarkInstance.dispatchEvent("geojson-map-added", { map });
 	};
 
+	const removeMap = (map) => {
+		// Ensure is WaymarkMap
+		if (!(map instanceof WaymarkMap)) {
+			throw new Error("WaymarkMap instance required");
+		}
+
+		// Ensure already added
+		if (!maps.value.has(map.id)) {
+			return;
+		}
+
+		maps.value.delete(map.id);
+		triggerRef(maps);
+
+		// Remove overlays too
+		map.overlays.forEach((overlay) => {
+			removeOverlay(overlay);
+		});
+		triggerRef(overlays);
+
+		WaymarkInstance.dispatchEvent("geojson-map-removed", { map });
+	};
+
 	const addOverlay = (overlay) => {
+		// Ensure is WaymarkOverlay
+		if (!(overlay instanceof WaymarkOverlay)) {
+			throw new Error("WaymarkOverlay instance required");
+		}
+
 		// Ensure not already added
 		if (overlays.value.has(overlay.id)) {
 			return;
 		}
 
+		console.log("Adding Overlay to Instance:", overlay);
+
 		overlays.value.set(overlay.id, overlay);
 		triggerRef(overlays);
 
 		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });
+	};
+
+	const removeOverlay = (overlay) => {
+		// Ensure is WaymarkOverlay
+		if (!(overlay instanceof WaymarkOverlay)) {
+			throw new Error("WaymarkOverlay instance required");
+		}
+
+		// Ensure already added
+		if (!overlays.value.has(overlay.id)) {
+			return;
+		}
+
+		console.log("Removing Overlay from Instance:", overlay);
+
+		overlays.value.delete(overlay.id);
+		triggerRef(overlays);
+
+		WaymarkInstance.dispatchEvent("geojson-overlay-removed", { overlay });
 	};
 
 	// Getters
@@ -148,6 +204,10 @@ export function createGeoJSONStore(WaymarkInstance) {
 
 		// Actions
 		addGeoJSON,
+		addMap,
+		removeMap,
+		addOverlay,
+		removeOverlay,
 
 		// Persistence
 		toGeoJSON,

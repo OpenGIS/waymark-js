@@ -62,6 +62,22 @@ export default class WaymarkInstance {
     return this.geoJSONStore.addGeoJSON(geoJSON);
   }
 
+  addMap(waymarkMap) {
+    this.geoJSONStore.addMap(waymarkMap);
+  }
+
+  removeMap(waymarkMap) {
+    this.geoJSONStore.removeMap(waymarkMap);
+  }
+
+  addOverlay(waymarkOverlay) {
+    this.geoJSONStore.addOverlay(waymarkOverlay);
+  }
+
+  removeOverlay(waymarkOverlay) {
+    this.geoJSONStore.removeOverlay(waymarkOverlay);
+  }
+
   getMapByID(mapID) {
     return this.geoJSONStore.maps.value.get(mapID);
   }
@@ -120,9 +136,10 @@ export default class WaymarkInstance {
   }
 
   drawGeoJSON() {
-    const { maps } = this.geoJSONStore;
+    const { maps, overlays } = this.geoJSONStore;
     const { map: mapLibreMap } = this.mapLibreStore;
 
+    // Maps
     maps.value.forEach((waymarkMap) => {
       // Remove if already added
       if (waymarkMap.hasMap()) {
@@ -131,6 +148,17 @@ export default class WaymarkInstance {
 
       // Add
       waymarkMap.addTo(mapLibreMap.value);
+    });
+
+    // Overlays
+    overlays.value.forEach((waymarkOverlay) => {
+      // Remove if already added
+      if (waymarkOverlay.hasMap()) {
+        waymarkOverlay.remove();
+      }
+
+      // Add
+      waymarkOverlay.addTo(mapLibreMap.value);
     });
   }
 
