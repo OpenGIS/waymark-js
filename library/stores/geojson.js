@@ -96,8 +96,6 @@ export function createGeoJSONStore(WaymarkInstance) {
 			return;
 		}
 
-		console.log("Adding Overlay to Instance:", overlay);
-
 		overlays.value.set(overlay.id, overlay);
 		triggerRef(overlays);
 
@@ -114,8 +112,6 @@ export function createGeoJSONStore(WaymarkInstance) {
 		if (!overlays.value.has(overlay.id)) {
 			return;
 		}
-
-		console.log("Removing Overlay from Instance:", overlay);
 
 		overlays.value.delete(overlay.id);
 		triggerRef(overlays);

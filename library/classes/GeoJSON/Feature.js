@@ -12,6 +12,11 @@ export default class GeoJSONFeature {
   }
 
   toJSON() {
-    return this;
+    return {
+      type: this.type,
+      id: this.id,
+      properties: this.properties,
+      geometry: this.geometry,
+    };
   }
 }
