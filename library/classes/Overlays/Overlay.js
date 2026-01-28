@@ -176,6 +176,8 @@ export default class WaymarkOverlay extends GeoJSONFeature {
       return;
     }
 
+    console.log("Opening popup for overlay:", this.id);
+
     //Add to center of bounds
     const bounds = this.getBounds();
     const center = bounds.getCenter();

@@ -38,13 +38,12 @@
   },
   "properties": {
     "waymark": {
+      "title": "Nahwitti Lake",
+      "description": "The North North Island route takes you from Port Hardy to Cape Scott and back, covering some of the most remote and scenic areas of Vancouver Island. Be prepared for rough terrain and changing weather conditions.",
       "paint": {
         "fill-color": "red",
         "fill-opacity": 1
       }
-    },
-    "title": "Nahwitti Lake",
-    "type": "water",
-    "description": "The North North Island route takes you from Port Hardy to Cape Scott and back, covering some of the most remote and scenic areas of Vancouver Island. Be prepared for rough terrain and changing weather conditions."
+    }
   }
 }

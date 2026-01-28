@@ -56,35 +56,6 @@
         },
       });
 
-      setTimeout(() => {
-        const map = instanceOne.addGeoJSON({
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              properties: {
-                waymark: {
-                  paint: {
-                    "circle-radius": 6,
-                    "circle-color": "blue",
-                    "circle-stroke-color": "red",
-                    "circle-stroke-width": 6,
-                  },
-                },
-                type: "pub",
-                title: "The Scarlet Ibis",
-                description:
-                  "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
-              },
-              geometry: {
-                type: "Point",
-                coordinates: [-128.0094, 50.6539],
-              },
-            },
-          ],
-        });
-      }, 3000);
-
       // =================== TWO ===================
 
       // Create Instance
