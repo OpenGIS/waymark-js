@@ -5,13 +5,13 @@ import { waymarkPrimaryColour, getRandomHexColour } from "@/helpers/Common.js";
 
 export default class WaymarkMarker extends WaymarkOverlay {
   constructor(feature) {
-    super(feature);
-
     // Default to empty geometry if none provided
-    this.geometry = this.geometry || {
+    feature.geometry = feature.geometry || {
       type: "Point",
-      coordinates: [0, 0],
+      coordinates: [],
     };
+
+    super(feature);
   }
 
   // GeoJson point

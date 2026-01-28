@@ -6,13 +6,13 @@ import { waymarkPrimaryColour, getRandomHexColour } from "@/helpers/Common.js";
 
 export default class WaymarkLine extends WaymarkOverlay {
   constructor(feature) {
-    super(feature);
-
     // Default to empty geometry if none provided
-    this.geometry = this.geometry || {
+    feature.geometry = feature.geometry || {
       type: "LineString",
       coordinates: [],
     };
+
+    super(feature);
   }
 
   toStyle() {
@@ -34,13 +34,21 @@ export default class WaymarkLine extends WaymarkOverlay {
     };
   }
 
+  addCoordinate(coord = []) {
+    if (!Array.isArray(coord) || coord.length < 2) {
+      return;
+    }
+
+    this.geometry.coordinates.push(coord);
+  }
+
   getLengthString() {
     let out = "";
 
     out += "Length: ";
 
     // Round to 2 DP
-    const lengthValue = length(this.feature, {
+    const lengthValue = length(this, {
       units: "kilometers",
     });
     out += Math.round(lengthValue * 100) / 100;

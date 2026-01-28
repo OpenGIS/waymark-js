@@ -5,13 +5,13 @@ import { waymarkPrimaryColour } from "@/helpers/Common.js";
 
 export default class WaymarkShape extends WaymarkOverlay {
   constructor(feature) {
-    super(feature);
-
     // Default to empty geometry if none provided
-    this.geometry = this.geometry || {
+    feature.geometry = feature.geometry || {
       type: "Polygon",
       coordinates: [],
     };
+
+    super(feature);
   }
 
   addTo(map) {
