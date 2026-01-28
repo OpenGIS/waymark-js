@@ -22287,13 +22287,13 @@ class bx {
 }
 class Xd extends bx {
   constructor(_ = {}) {
-    return super(_), this.id = this.id || fh(), this.properties = _.properties || {}, this.waymark = {
+    return super(_), this.id = this.id || fh(), this.waymark = {
       title: "",
       description: "",
       center: null,
       zoom: null,
       ...this.properties.waymark
-    }, this.overlays = [], _.features.forEach((w) => {
+    }, this.overlays = [], this.features.forEach((w) => {
       this.overlays.push(e_(w));
     }), this.mapLibreMap = null, this;
   }

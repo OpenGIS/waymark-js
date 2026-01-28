@@ -9,9 +9,6 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
 
         this.id = this.id || ulid();
 
-        // Get properties
-        this.properties = featureCollection.properties || {};
-
         // Waymark defaults
         this.waymark = {
             title: "",
@@ -23,7 +20,7 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
 
         // Create overlays
         this.overlays = [];
-        featureCollection.features.forEach((feature) => {
+        this.features.forEach((feature) => {
             // Create
             this.overlays.push(createOverlay(feature, this));
         });
