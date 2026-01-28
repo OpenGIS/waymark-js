@@ -7,10 +7,11 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         super(featureCollection);
 
         // Get properties
-        this.properties = geoJSON.properties || {};
+        this.properties = featureCollection.properties || {};
+
+        // Waymark defaults
         this.waymark = {
             title: "",
-            slug: "",
             description: "",
             center: null,
             zoom: null,
@@ -19,7 +20,7 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
 
         // Create overlays
         this.overlays = [];
-        geoJSON.features.forEach((feature) => {
+        featureCollection.features.forEach((feature) => {
             // Create
             const overlay = createOverlay(feature, this);
 

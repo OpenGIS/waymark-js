@@ -3,8 +3,8 @@
 export default class GeoJSONFeatureCollection {
   constructor(featureCollection = {}) {
     this.type = "FeatureCollection";
-    this.id = feature.id || null;
-    this.properties = feature.properties || {};
+    this.id = featureCollection.id || null;
+    this.properties = featureCollection.properties || {};
     this.features = Array.isArray(featureCollection.features)
       ? featureCollection.features
       : [];

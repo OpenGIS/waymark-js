@@ -22258,7 +22258,7 @@ class _x extends kc {
 }
 class yx {
   constructor(_ = {}) {
-    return this.type = "FeatureCollection", this.id = feature.id || null, this.properties = feature.properties || {}, this.features = Array.isArray(_.features) ? _.features : [], this;
+    return this.type = "FeatureCollection", this.id = _.id || null, this.properties = _.properties || {}, this.features = Array.isArray(_.features) ? _.features : [], this;
   }
   toJSON() {
     return {
@@ -22272,14 +22272,13 @@ class yx {
 }
 class Hd extends yx {
   constructor(_ = {}) {
-    return super(_), this.properties = geoJSON.properties || {}, this.waymark = {
+    return super(_), this.properties = _.properties || {}, this.waymark = {
       title: "",
-      slug: "",
       description: "",
       center: null,
       zoom: null,
       ...this.properties.waymark
-    }, this.overlays = [], geoJSON.features.forEach((w) => {
+    }, this.overlays = [], _.features.forEach((w) => {
       const C = Qg(w);
       this.bounds = typeof this.bounds == "object" ? this.bounds.extend(C.getBounds()) : C.getBounds(), this.overlays.push(C);
     }), this.mapLibreMap = null, this;
