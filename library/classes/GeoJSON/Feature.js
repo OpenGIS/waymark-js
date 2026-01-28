@@ -1,4 +1,4 @@
-// import bbox from "@turf/bbox";
+import bbox from "@turf/bbox";
 
 export default class GeoJSONFeature {
   constructor(feature = {}) {
@@ -10,6 +10,8 @@ export default class GeoJSONFeature {
       coordinates: [],
     };
 
+    this.bbox = bbox(this);
+
     return this;
   }
 
@@ -17,7 +19,7 @@ export default class GeoJSONFeature {
     return {
       type: this.type,
       id: this.id,
-      // bbox: bbox(this),
+      bbox: this.bbox,
       properties: this.properties,
       geometry: this.geometry,
     };
