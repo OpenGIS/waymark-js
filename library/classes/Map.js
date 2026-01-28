@@ -6,6 +6,8 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
     constructor(featureCollection = {}) {
         super(featureCollection);
 
+        this.id = this.id || ulid();
+
         // Get properties
         this.properties = featureCollection.properties || {};
 
