@@ -1,4 +1,5 @@
-import { bbox } from "@turf/bbox";
+// import bbox from "@turf/bbox";
+
 export default class GeoJSONFeatureCollection {
   constructor(featureCollection = {}) {
     this.type = "FeatureCollection";
@@ -15,7 +16,7 @@ export default class GeoJSONFeatureCollection {
     return {
       type: this.type,
       id: this.id,
-      bbox: bbox(this),
+      // bbox: bbox(this),
       properties: this.properties,
       features: this.features,
     };

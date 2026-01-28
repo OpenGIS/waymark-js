@@ -1,3 +1,5 @@
+// import bbox from "@turf/bbox";
+
 export default class GeoJSONFeature {
   constructor(feature = {}) {
     this.type = feature.type || "Feature";
@@ -15,6 +17,7 @@ export default class GeoJSONFeature {
     return {
       type: this.type,
       id: this.id,
+      // bbox: bbox(this),
       properties: this.properties,
       geometry: this.geometry,
     };
