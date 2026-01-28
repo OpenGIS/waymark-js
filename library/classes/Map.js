@@ -2,6 +2,7 @@ import { ulid } from "ulid";
 import { createOverlay } from "@/helpers/Factory";
 import GeoJSONFeatureCollection from "@/classes/GeoJSON/FeatureCollection.js";
 import { fitBoundsOptions } from "@/helpers/MapLibre.js";
+import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 
 export default class WaymarkMap extends GeoJSONFeatureCollection {
     constructor(featureCollection = {}) {
@@ -10,7 +11,7 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         this.id = this.id || ulid();
 
         // Waymark defaults
-        this.waymark = {
+        this.properties.waymark = {
             title: "",
             description: "",
             center: null,
@@ -19,15 +20,51 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         };
 
         // Create overlays
-        this.overlays = [];
+        this.overlays = new Map();
         this.features.forEach((feature) => {
             // Create
-            this.overlays.push(createOverlay(feature, this));
+            const overlay = createOverlay(feature, this);
+            this.overlays.set(overlay.id, overlay);
         });
 
         this.mapLibreMap = null;
 
         return this;
+    }
+
+    toJSON() {
+        const json = super.toJSON();
+
+        // Override features with overlays
+        json.features = Array.from(this.overlays.values()).map((overlay) =>
+            overlay.toJSON(),
+        );
+
+        return json;
+    }
+
+    addOverlay(overlay) {
+        if (!(overlay instanceof WaymarkOverlay)) {
+            throw new Error("WaymarkOverlay instance required");
+        }
+
+        if (this.overlays.has(overlay.id)) {
+            return;
+        }
+
+        this.overlays.set(overlay.id, overlay);
+    }
+
+    removeOverlay(overlay) {
+        if (!(overlay instanceof WaymarkOverlay)) {
+            throw new Error("WaymarkOverlay instance required");
+        }
+
+        if (!this.overlays.has(overlay.id)) {
+            return;
+        }
+
+        this.overlays.delete(overlay.id);
     }
 
     getBounds() {

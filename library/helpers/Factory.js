@@ -10,7 +10,6 @@ export function createInstance(config = {}) {
     return new WaymarkInstance(config);
   } catch (error) {
     console.error("[Waymark]", error);
-    // throw error;
   }
 }
 
