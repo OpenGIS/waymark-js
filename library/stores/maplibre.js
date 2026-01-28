@@ -97,10 +97,12 @@ export function createMapLibreStore(WaymarkInstance) {
 
 	watch(
 		() => view.value,
-		throttle((newVal) => {
+		throttle((viewValue) => {
 			if (!mapReady.value) return;
 
-			WaymarkInstance.dispatchEvent("maplibre-view-change");
+			WaymarkInstance.dispatchEvent("maplibre-view-change", {
+				view: viewValue,
+			});
 		}, 1000),
 		{ deep: true },
 	);
