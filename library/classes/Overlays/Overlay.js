@@ -1,5 +1,5 @@
 import { ulid } from "ulid";
-import { getFeatureType, getFeatureImages } from "@/helpers/Overlay.js";
+import { getFeatureType } from "@/helpers/Overlay.js";
 import { flyToOptions } from "@/helpers/MapLibre.js";
 import { Popup } from "maplibre-gl";
 import GeoJSONFeature from "@/classes/GeoJSON/Feature.js";
@@ -8,7 +8,7 @@ export default class WaymarkOverlay extends GeoJSONFeature {
   constructor(feature, waymarkMap = null) {
     super(feature);
 
-    this.id = ulid();
+    this.id = this.id || ulid();
     this.featureType = getFeatureType(this) || null;
     this.properties.waymark = this.properties.waymark || {};
     this.waymarkMap = null;

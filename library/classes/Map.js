@@ -1,21 +1,10 @@
 import { ulid } from "ulid";
 import { createOverlay } from "@/helpers/Factory";
-import { fitBoundsOptions } from "@/helpers/MapLibre";
+import GeoJSONFeatureCollection from "@/classes/GeoJSON/FeatureCollection.js";
 
-export default class WaymarkMap {
-    constructor(geoJSON = {}) {
-        // Unique ID
-        this.id = geoJSON.id ? geoJSON.id : ulid();
-
-        // Must be a valid GeoJSON Feature
-        if (
-            !geoJSON ||
-            geoJSON.type !== "FeatureCollection" ||
-            !Array.isArray(geoJSON.features)
-        ) {
-            throw new Error("Valid GeoJSON FeatureCollection required");
-        }
-        this.geojson = geoJSON;
+export default class WaymarkMap extends GeoJSONFeatureCollection {
+    constructor(featureCollection = {}) {
+        super(featureCollection);
 
         // Get properties
         this.properties = geoJSON.properties || {};
@@ -46,15 +35,6 @@ export default class WaymarkMap {
         this.mapLibreMap = null;
 
         return this;
-    }
-
-    toJSON() {
-        return {
-            type: "FeatureCollection",
-            id: this.id,
-            properties: this.properties,
-            features: this.overlays.map((overlay) => overlay.toJSON()),
-        };
     }
 
     addTo(map) {

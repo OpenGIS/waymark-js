@@ -36,6 +36,7 @@
     "setupFiles": "./tests/setupTests.js"
   },
   "dependencies": {
+    "@turf/bbox": "^7.3.2",
     "@turf/length": "^7.2.0",
     "lodash-es": "^4.17.22",
     "maplibre-gl": "^5.7.1",
