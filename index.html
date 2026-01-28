@@ -37,8 +37,8 @@
 
       // Demo data
       const urls = [
-        "./assets/data/waymark/featureCollection.json",
         "./assets/data/waymark/feature.json",
+        "./assets/data/waymark/featureCollection.json",
       ];
 
       // Create Instance
@@ -58,145 +58,152 @@
 
       // =================== TWO ===================
 
-      // Create Instance
-      createInstance({
-        debug: false,
-        id: "waymark-two",
-        mapOptions: {
-          attributionControl: true,
-        },
-        onLoad: (WaymarkInstance) => {
-          const map = WaymarkInstance.getMapByID("example-geojson");
-          map.overlays.forEach((overlay) => {
-            setInterval(() => {
-              overlay.toggleHighlight();
-            }, 500);
-          });
-        },
-        geoJSON: {
-          id: "example-geojson",
+      if (false) {
+        // Create Instance
+        createInstance({
+          debug: false,
+          id: "waymark-two",
+          mapOptions: {
+            attributionControl: true,
+          },
+          onLoad: (WaymarkInstance) => {
+            const map = WaymarkInstance.getMapByID("example-geojson");
+            map.overlays.forEach((overlay) => {
+              setInterval(() => {
+                overlay.toggleHighlight();
+              }, 500);
+            });
+          },
+          geoJSON: {
+            id: "example-geojson",
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                properties: {
+                  name: "Point Example",
+                },
+                geometry: {
+                  type: "Point",
+                  coordinates: [-77.034084, 38.909671],
+                },
+              },
+              {
+                type: "Feature",
+                properties: {
+                  name: "LineString Example",
+                },
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [-77.044211, 38.852924],
+                    [-77.045659, 38.860158],
+                    [-77.044232, 38.862326],
+                    [-77.040879, 38.865948],
+                    [-77.039936, 38.867698],
+                    [-77.032969, 38.870285],
+                    [-77.029609, 38.871907],
+                    [-77.020339, 38.874276],
+                    [-77.018789, 38.875115],
+                    [-77.016841, 38.876516],
+                    [-77.009051, 38.878241],
+                  ],
+                },
+              },
+            ],
+          },
+        });
+      }
+
+      // =================== THREE ====================
+
+      if (false) {
+        // Check local storage for
+        const localMaps =
+          JSON.parse(localStorage.getItem("waymarkLocalMaps")) || [];
+
+        const instanceThree = createInstance({
+          id: "waymark-three",
+          debug: false,
+          onLoad: (WaymarkInstance) => {
+            localMaps.forEach((geoJSON) => {
+              WaymarkInstance.addGeoJSON(geoJSON);
+            });
+          },
+        });
+
+        // Create file upload button
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = ".json,.geojson";
+        fileInput.addEventListener("change", (event) => {
+          const file = event.target.files[0];
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const geoJSON = JSON.parse(e.target.result);
+
+            instanceThree.addGeoJSON(geoJSON);
+
+            // Add to local storage
+            localMaps.push(geoJSON);
+            localStorage.setItem("waymarkLocalMaps", JSON.stringify(localMaps));
+          };
+          reader.readAsText(file);
+        });
+        document.body.appendChild(fileInput);
+      }
+
+      // =================== FOUR ====================
+
+      if (false) {
+        // Create a Waymark Instance with this configuration
+        const instanceFour = createInstance({
+          // debug: false,
+
+          id: "waymark-instance",
+          // Passed directly to MapLibre GL JS
+          // See [MapLibre Map Options](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/)
+          mapOptions: {
+            zoom: 12,
+          },
+
+          // Can pass GeoJSON here
+          // geoJSON: { type: "FeatureCollection", features: [] }
+
+          // Callback function
+          onLoad: (WaymarkInstance) => {
+            console.log("Waymark Instance loaded:", WaymarkInstance.id);
+          },
+        });
+
+        // Load this GeoJSON, which contains a single "pub" Marker
+        const map = instanceFour.addGeoJSON({
           type: "FeatureCollection",
           features: [
             {
               type: "Feature",
               properties: {
-                name: "Point Example",
+                waymark: {
+                  paint: {
+                    "circle-radius": 6,
+                    "circle-color": "blue",
+                    "circle-stroke-color": "red",
+                    "circle-stroke-width": 6,
+                  },
+                },
+                type: "pub",
+                title: "The Scarlet Ibis",
+                description:
+                  "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
               },
               geometry: {
                 type: "Point",
-                coordinates: [-77.034084, 38.909671],
-              },
-            },
-            {
-              type: "Feature",
-              properties: {
-                name: "LineString Example",
-              },
-              geometry: {
-                type: "LineString",
-                coordinates: [
-                  [-77.044211, 38.852924],
-                  [-77.045659, 38.860158],
-                  [-77.044232, 38.862326],
-                  [-77.040879, 38.865948],
-                  [-77.039936, 38.867698],
-                  [-77.032969, 38.870285],
-                  [-77.029609, 38.871907],
-                  [-77.020339, 38.874276],
-                  [-77.018789, 38.875115],
-                  [-77.016841, 38.876516],
-                  [-77.009051, 38.878241],
-                ],
+                coordinates: [-128.0094, 50.6539],
               },
             },
           ],
-        },
-      });
-      // =================== THREE ====================
-
-      // Check local storage for
-      const localMaps =
-        JSON.parse(localStorage.getItem("waymarkLocalMaps")) || [];
-
-      const instanceThree = createInstance({
-        id: "waymark-three",
-        debug: false,
-        onLoad: (WaymarkInstance) => {
-          localMaps.forEach((geoJSON) => {
-            WaymarkInstance.addGeoJSON(geoJSON);
-          });
-        },
-      });
-
-      // Create file upload button
-      const fileInput = document.createElement("input");
-      fileInput.type = "file";
-      fileInput.accept = ".json,.geojson";
-      fileInput.addEventListener("change", (event) => {
-        const file = event.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const geoJSON = JSON.parse(e.target.result);
-
-          instanceThree.addGeoJSON(geoJSON);
-
-          // Add to local storage
-          localMaps.push(geoJSON);
-          localStorage.setItem("waymarkLocalMaps", JSON.stringify(localMaps));
-        };
-        reader.readAsText(file);
-      });
-      document.body.appendChild(fileInput);
-
-      // =================== FOUR ====================
-
-      // Create a Waymark Instance with this configuration
-      const instanceFour = createInstance({
-        // debug: false,
-
-        id: "waymark-instance",
-        // Passed directly to MapLibre GL JS
-        // See [MapLibre Map Options](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/)
-        mapOptions: {
-          zoom: 12,
-        },
-
-        // Can pass GeoJSON here
-        // geoJSON: { type: "FeatureCollection", features: [] }
-
-        // Callback function
-        onLoad: (WaymarkInstance) => {
-          console.log("Waymark Instance loaded:", WaymarkInstance.id);
-        },
-      });
-
-      // Load this GeoJSON, which contains a single "pub" Marker
-      const map = instanceFour.addGeoJSON({
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: {
-              waymark: {
-                paint: {
-                  "circle-radius": 6,
-                  "circle-color": "blue",
-                  "circle-stroke-color": "red",
-                  "circle-stroke-width": 6,
-                },
-              },
-              type: "pub",
-              title: "The Scarlet Ibis",
-              description:
-                "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
-            },
-            geometry: {
-              type: "Point",
-              coordinates: [-128.0094, 50.6539],
-            },
-          },
-        ],
-      });
+        });
+      }
 
       // setTimeout(() => {
       //   map.remove();

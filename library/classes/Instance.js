@@ -4,6 +4,8 @@ import { createGeoJSONStore } from "@/stores/geojson.js";
 import { createMapLibreStore } from "@/stores/maplibre.js";
 import InstanceComponent from "@/components/Instance.vue";
 import { WaymarkEvent, waymarkEventName } from "@/classes/Event.js";
+import WaymarkMap from "@/classes/Map.js";
+import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 
 import {
   flyToOptions,
@@ -16,10 +18,7 @@ export default class WaymarkInstance {
     const defaultConfig = {
       id: ulid(),
       mapOptions: {},
-      geoJSON: {
-        type: "FeatureCollection",
-        features: [],
-      },
+      geoJSON: null,
       onLoad: null,
       debug: false,
     };
@@ -136,11 +135,15 @@ export default class WaymarkInstance {
   }
 
   drawGeoJSON() {
-    const { maps, overlays } = this.geoJSONStore;
+    const { mapsArray, overlaysArray } = this.geoJSONStore;
     const { map: mapLibreMap } = this.mapLibreStore;
 
+    console.log("Drawing GeoJSON...", mapsArray.value, overlaysArray.value);
+
     // Maps
-    maps.value.forEach((waymarkMap) => {
+    mapsArray.value.forEach((waymarkMap) => {
+      console.log("Adding map:", waymarkMap);
+
       // Remove if already added
       if (waymarkMap.hasMap()) {
         waymarkMap.remove();
@@ -151,7 +154,9 @@ export default class WaymarkInstance {
     });
 
     // Overlays
-    overlays.value.forEach((waymarkOverlay) => {
+    overlaysArray.value.forEach((waymarkOverlay) => {
+      console.log("Adding overlay:", waymarkOverlay);
+
       // Remove if already added
       if (waymarkOverlay.hasMap()) {
         waymarkOverlay.remove();

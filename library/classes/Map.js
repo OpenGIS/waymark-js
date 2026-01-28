@@ -32,15 +32,25 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         return this;
     }
 
+    get overlaysArray() {
+        return Array.from(this.overlays.values());
+    }
+
     toJSON() {
         const json = super.toJSON();
 
         // Override features with overlays
-        json.features = Array.from(this.overlays.values()).map((overlay) =>
-            overlay.toJSON(),
-        );
+        json.features = this.overlaysArray.map((overlay) => overlay.toJSON());
 
         return json;
+    }
+
+    hasOverlay(overlayID) {
+        return this.overlays.has(overlayID);
+    }
+
+    getOverlay(overlayID) {
+        return this.overlays.get(overlayID) || null;
     }
 
     addOverlay(overlay) {
@@ -85,30 +95,33 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
     }
 
     addTo(map) {
-        if (!map || !this.overlays.length || this.hasMap()) {
+        if (!map || !this.overlaysArray.length || this.hasMap()) {
             return;
         }
 
         this.mapLibreMap = map;
 
         // Rendering order - Shapes, Lines & then Markers
-        this.overlays
+        this.overlaysArray
             .filter((overlay) => overlay.featureType === "shape")
             .forEach((overlay) => {
                 overlay.addTo(this.mapLibreMap);
             });
 
-        this.overlays
+        this.overlaysArray
             .filter((overlay) => overlay.featureType === "line")
             .forEach((overlay) => {
                 overlay.addTo(this.mapLibreMap);
             });
 
-        this.overlays
+        this.overlaysArray
             .filter((overlay) => overlay.featureType === "marker")
             .forEach((overlay) => {
                 overlay.addTo(this.mapLibreMap);
             });
+
+        // console.log("fitting bounds", this.getBounds());
+        // debugger;
 
         // Zoom to geojson this.bbox
         this.mapLibreMap.fitBounds(this.getBounds(), fitBoundsOptions);
@@ -119,7 +132,7 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
     }
 
     remove() {
-        this.overlays.forEach((overlay) => {
+        this.overlaysArray.forEach((overlay) => {
             overlay.remove();
         });
     }

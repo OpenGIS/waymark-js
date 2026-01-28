@@ -10,6 +10,14 @@ export function createGeoJSONStore(WaymarkInstance) {
 	const maps = shallowRef(new Map());
 	const overlays = shallowRef(new Map());
 
+	const mapsArray = computed(() => {
+		return Array.from(maps.value.values());
+	});
+
+	const overlaysArray = computed(() => {
+		return Array.from(overlays.value.values());
+	});
+
 	// Actions
 
 	const addGeoJSON = (json) => {
@@ -54,11 +62,12 @@ export function createGeoJSONStore(WaymarkInstance) {
 		triggerRef(maps);
 
 		// Add overlays too
-		map.overlays.forEach((overlay) => {
-			addOverlay(overlay);
-		});
-		triggerRef(overlays);
+		// map.overlays.forEach((overlay) => {
+		// 	addOverlay(overlay);
+		// });
+		// triggerRef(overlays);
 
+		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-map-added", { map });
 	};
 
@@ -77,11 +86,12 @@ export function createGeoJSONStore(WaymarkInstance) {
 		triggerRef(maps);
 
 		// Remove overlays too
-		map.overlays.forEach((overlay) => {
-			removeOverlay(overlay);
-		});
-		triggerRef(overlays);
+		// map.overlays.forEach((overlay) => {
+		// 	removeOverlay(overlay);
+		// });
+		// triggerRef(overlays);
 
+		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-map-removed", { map });
 	};
 
@@ -99,6 +109,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 		overlays.value.set(overlay.id, overlay);
 		triggerRef(overlays);
 
+		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });
 	};
 
@@ -116,6 +127,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 		overlays.value.delete(overlay.id);
 		triggerRef(overlays);
 
+		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-overlay-removed", { overlay });
 	};
 
@@ -164,37 +176,14 @@ export function createGeoJSONStore(WaymarkInstance) {
 		return features.value.length > 0;
 	});
 
-	// Persistence
-
-	const toGeoJSON = () => {
-		const geoJSON = {
-			type: "FeatureCollection",
-			features: [],
-		};
-
-		["markers", "lines", "shapes"].forEach((type) => {
-			overlaysByType.value[type].forEach((overlay) => {
-				geoJSON.features.push(overlay.feature);
-			});
-		});
-
-		return geoJSON;
-	};
-
-	watch(
-		computed(() => toGeoJSON()),
-		throttle((newVal) => {
-			WaymarkInstance.dispatchEvent("geojson-state-change");
-		}, 1000),
-		{ deep: true },
-	);
-
 	return {
 		// State
 		features,
 		hasFeatures,
 		maps,
+		mapsArray,
 		overlays,
+		overlaysArray,
 		overlaysByType,
 		overlaysBounds,
 
@@ -204,8 +193,5 @@ export function createGeoJSONStore(WaymarkInstance) {
 		removeMap,
 		addOverlay,
 		removeOverlay,
-
-		// Persistence
-		toGeoJSON,
 	};
 }
