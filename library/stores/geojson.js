@@ -1,4 +1,4 @@
-import { shallowRef, watch, computed, triggerRef } from "vue";
+import { ref, watch, computed, triggerRef } from "vue";
 import { throttle } from "lodash-es";
 import { LngLatBounds } from "maplibre-gl";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
@@ -7,8 +7,8 @@ import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 
 export function createGeoJSONStore(WaymarkInstance) {
 	// State
-	const maps = shallowRef(new Map());
-	const overlays = shallowRef(new Map());
+	const maps = ref(new Map());
+	const overlays = ref(new Map());
 
 	const mapsArray = computed(() => {
 		return Array.from(maps.value.values());
@@ -17,6 +17,24 @@ export function createGeoJSONStore(WaymarkInstance) {
 	const overlaysArray = computed(() => {
 		return Array.from(overlays.value.values());
 	});
+
+	const toJSON = computed(() => {
+		return {
+			maps: mapsArray.value.map((map) => map.toJSON()),
+			overlays: overlaysArray.value.map((overlay) => overlay.toJSON()),
+		};
+	});
+
+	// Fire event every time toJSON changes
+	watch(
+		() => toJSON.value,
+		throttle((newValue) => {
+			WaymarkInstance.dispatchEvent("geojson-state-change", {
+				geoJSON: newValue,
+			});
+		}, 250),
+		{ deep: true },
+	);
 
 	// Actions
 
@@ -67,7 +85,6 @@ export function createGeoJSONStore(WaymarkInstance) {
 		// });
 		// triggerRef(overlays);
 
-		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-map-added", { map });
 	};
 
@@ -91,7 +108,6 @@ export function createGeoJSONStore(WaymarkInstance) {
 		// });
 		// triggerRef(overlays);
 
-		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-map-removed", { map });
 	};
 
@@ -109,7 +125,6 @@ export function createGeoJSONStore(WaymarkInstance) {
 		overlays.value.set(overlay.id, overlay);
 		triggerRef(overlays);
 
-		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });
 	};
 
@@ -127,7 +142,6 @@ export function createGeoJSONStore(WaymarkInstance) {
 		overlays.value.delete(overlay.id);
 		triggerRef(overlays);
 
-		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-overlay-removed", { overlay });
 	};
 

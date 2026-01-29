@@ -224,19 +224,23 @@
         const instanceFive = createInstance({
           debug: true,
           id: "waymark-five",
-          onLoad: (WaymarkInstance) => {
+          onLoad: (thisInstance) => {
             const line = createLine({
               id: "dynamic-line",
             });
 
             // Add to Waymark Instance
-            WaymarkInstance.addOverlay(line);
+            thisInstance.addOverlay(line);
 
             // Add random point every second
             setInterval(() => {
               const lng = -122.447303 + Math.random() * 0.1;
               const lat = 37.753574 + Math.random() * 0.1;
               line.addCoordinate([lng, lat]);
+
+              thisInstance.dispatchEvent("dynamic-line-updated", {
+                line,
+              });
             }, 1000);
           },
         });
