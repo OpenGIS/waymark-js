@@ -112,17 +112,24 @@ export function createGeoJSONStore(WaymarkInstance) {
 	};
 
 	const addOverlay = (overlay) => {
+        console.log("addOverlay called with:", overlay);
 		// Ensure is WaymarkOverlay
 		if (!(overlay instanceof WaymarkOverlay)) {
+            console.error("addOverlay failed: Not an instance of WaymarkOverlay", overlay);
+            console.log("Is proxy?", overlay);
+            console.log("Constructor name:", overlay?.constructor?.name);
 			throw new Error("WaymarkOverlay instance required");
 		}
+        console.log("instanceof check passed");
 
 		// Ensure not already added
 		if (overlays.value.has(overlay.id)) {
+            console.log("Already has overlay", overlay.id);
 			return;
 		}
 
 		overlays.value.set(overlay.id, overlay);
+        console.log("Added overlay to map. New size:", overlays.value.size);
 		triggerRef(overlays);
 
 		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });

@@ -69,6 +69,14 @@ export default class WaymarkInstance {
     this.geoJSONStore.removeMap(waymarkMap);
   }
 
+  getAllMaps() {
+    return this.geoJSONStore.mapsArray.value;
+  }
+
+  getMapByID(mapID) {
+    return this.geoJSONStore.maps.value.get(mapID);
+  }
+
   addOverlay(waymarkOverlay) {
     this.geoJSONStore.addOverlay(waymarkOverlay);
   }
@@ -77,12 +85,12 @@ export default class WaymarkInstance {
     this.geoJSONStore.removeOverlay(waymarkOverlay);
   }
 
-  getMapByID(mapID) {
-    return this.geoJSONStore.maps.value.get(mapID);
+  getAllOverlays() {
+    return this.geoJSONStore.overlaysArray.value;
   }
 
-  getAllOverlays() {
-    return [...this.geoJSONStore.overlays.value.values()];
+  getOverlayByID(overlayID) {
+    return this.geoJSONStore.overlays.value.get(overlayID);
   }
 
   // Event Handling

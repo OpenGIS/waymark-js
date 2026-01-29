@@ -308,9 +308,9 @@ vi.mock("maplibre-gl", () => {
 
 // Silence console.log/info/debug during tests
 const noop = () => {};
-console.log = noop;
-console.info = noop;
-console.debug = noop;
+// console.log = noop;
+// console.info = noop;
+// console.debug = noop;
 
 import WaymarkInstance from "../library/classes/Instance.js";
 import MarkerOverlay from "../library/classes/Overlays/Marker.js";

@@ -38,6 +38,7 @@
       const doThree = false;
       const doFour = false;
       const doFive = true;
+      const doSix = true;
 
       // ==================== ONE ====================
 
@@ -224,13 +225,85 @@
         const instanceFive = createInstance({
           debug: true,
           id: "waymark-five",
+          mapOptions: {
+            center: [-122.447303, 37.753574],
+            zoom: 10,
+          },
+          geoJSON: {
+            id: "instance-five-map",
+            type: "FeatureCollection",
+            features: [
+              {
+                id: "instance-five-line",
+                type: "Feature",
+                properties: {
+                  waymark: {
+                    paint: {
+                      "line-color": "#FF0000",
+                      "line-width": 4,
+                    },
+                  },
+                },
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [-122.447303, 37.753574],
+                    [-122.445303, 37.752574],
+                  ],
+                },
+              },
+            ],
+          },
           onLoad: (thisInstance) => {
-            const line = createLine({
-              id: "dynamic-line",
-            });
+            const map = thisInstance.getMapByID("instance-five-map");
+            const line = map.getOverlayByID("instance-five-line");
 
-            // Add to Waymark Instance
-            thisInstance.addOverlay(line);
+            // Add random point every second
+            setInterval(() => {
+              const lng = -122.447303 + Math.random() * 0.1;
+              const lat = 37.753574 + Math.random() * 0.1;
+              line.addCoordinate([lng, lat]);
+
+              thisInstance.dispatchEvent("dynamic-line-updated", {
+                line,
+              });
+            }, 1000);
+          },
+        });
+      }
+
+      // =================== SIX ====================
+
+      if (doSix) {
+        // Create Instance
+        const instanceFive = createInstance({
+          debug: true,
+          id: "waymark-six",
+          mapOptions: {
+            center: [-122.447303, 37.753574],
+            zoom: 10,
+          },
+          geoJSON: {
+            id: "instance-five-line",
+            type: "Feature",
+            properties: {
+              waymark: {
+                paint: {
+                  "line-color": "#FF0000",
+                  "line-width": 4,
+                },
+              },
+            },
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [-122.447303, 37.753574],
+                [-122.445303, 37.752574],
+              ],
+            },
+          },
+          onLoad: (thisInstance) => {
+            const line = thisInstance.getOverlayByID("instance-five-line");
 
             // Add random point every second
             setInterval(() => {

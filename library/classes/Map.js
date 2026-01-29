@@ -1,4 +1,5 @@
 import { ulid } from "ulid";
+import { LngLatBounds } from "maplibre-gl";
 import { createOverlay } from "@/helpers/Factory";
 import GeoJSONFeatureCollection from "@/classes/GeoJSON/FeatureCollection.js";
 import { fitBoundsOptions } from "@/helpers/MapLibre.js";
@@ -34,6 +35,10 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
 
     get overlaysArray() {
         return Array.from(this.overlays.values());
+    }
+
+    getOverlayByID(overlayID) {
+        return this.overlays.get(overlayID) || null;
     }
 
     toJSON() {
@@ -78,20 +83,31 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
     }
 
     getBounds() {
-        // Convert from geojson bbox value to maplibre LngLatBounds array
-        const bbox = this.bbox;
-
-        if (
-            Array.isArray(bbox) &&
-            bbox.length === 4 &&
-            bbox.every((coord) => typeof coord === "number")
-        ) {
-            return [
-                [bbox[0], bbox[1]], // Southwest [lng, lat]
-                [bbox[2], bbox[3]], // Northeast [lng, lat]
-            ];
+        if (!this.bbox) {
+            return null;
         }
-        return null;
+
+        // Ensure bbox values are finite numbers
+        if (
+            !isFinite(this.bbox[0]) ||
+            !isFinite(this.bbox[1]) ||
+            !isFinite(this.bbox[2]) ||
+            !isFinite(this.bbox[3])
+        ) {
+            return null;
+        }
+
+        // Use this.bbox value and convert to LngLatBounds
+        const bounds = new LngLatBounds(
+            [this.bbox[0], this.bbox[1]],
+            [this.bbox[2], this.bbox[3]],
+        );
+
+        if (bounds.isEmpty()) {
+            return null;
+        }
+
+        return bounds;
     }
 
     addTo(map) {
@@ -119,9 +135,6 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
             .forEach((overlay) => {
                 overlay.addTo(this.mapLibreMap);
             });
-
-        // console.log("fitting bounds", this.getBounds());
-        // debugger;
 
         // Zoom to geojson this.bbox
         if (this.getBounds()) {
