@@ -76,7 +76,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 		}
 
 		maps.value.set(map.id, map);
-		triggerRef(maps);
+		// triggerRef(maps);
 
 		// Add overlays too
 		// map.overlays.forEach((overlay) => {
@@ -99,7 +99,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 		}
 
 		maps.value.delete(map.id);
-		triggerRef(maps);
+		// triggerRef(maps);
 
 		// Remove overlays too
 		// map.overlays.forEach((overlay) => {
