@@ -33,3 +33,15 @@ export function createOverlay(feature) {
       throw new Error("Unsupported feature type for overlay creation");
   }
 }
+
+export function createMarker(feature) {
+  return new WaymarkMarker(feature);
+}
+
+export function createLine(feature) {
+  return new WaymarkLine(feature);
+}
+
+export function createShape(feature) {
+  return new WaymarkShape(feature);
+}

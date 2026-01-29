@@ -31,34 +31,42 @@
   <body>
     <!-- Load Waymark JS -->
     <script type="module">
-      import { createInstance } from "./library/entry.js";
+      import { createInstance, createLine } from "./library/entry.js";
+
+      const doOne = false;
+      const doTwo = false;
+      const doThree = false;
+      const doFour = false;
+      const doFive = true;
 
       // ==================== ONE ====================
 
-      // Demo data
-      const urls = [
-        "./assets/data/waymark/feature.json",
-        "./assets/data/waymark/featureCollection.json",
-      ];
+      if (doOne) {
+        // Demo data
+        const urls = [
+          "./assets/data/waymark/feature.json",
+          "./assets/data/waymark/featureCollection.json",
+        ];
 
-      // Create Instance
-      const instanceOne = createInstance({
-        debug: true,
-        id: "waymark-one",
-        onLoad: (WaymarkInstance) => {
-          // Each URL
-          urls.forEach(async (url) => {
-            fetch(url).then(async (res) => {
-              const geoJSON = await res.json();
-              WaymarkInstance.addGeoJSON(geoJSON);
+        // Create Instance
+        const instanceOne = createInstance({
+          debug: true,
+          id: "waymark-one",
+          onLoad: (WaymarkInstance) => {
+            // Each URL
+            urls.forEach(async (url) => {
+              fetch(url).then(async (res) => {
+                const geoJSON = await res.json();
+                WaymarkInstance.addGeoJSON(geoJSON);
+              });
             });
-          });
-        },
-      });
+          },
+        });
+      }
 
       // =================== TWO ===================
 
-      if (false) {
+      if (doTwo) {
         // Create Instance
         createInstance({
           debug: false,
@@ -117,7 +125,7 @@
 
       // =================== THREE ====================
 
-      if (false) {
+      if (doThree) {
         // Check local storage for
         const localMaps =
           JSON.parse(localStorage.getItem("waymarkLocalMaps")) || [];
@@ -155,7 +163,7 @@
 
       // =================== FOUR ====================
 
-      if (false) {
+      if (doFour) {
         // Create a Waymark Instance with this configuration
         const instanceFour = createInstance({
           // debug: false,
@@ -208,6 +216,31 @@
       // setTimeout(() => {
       //   map.remove();
       // }, 10000);
+
+      // =================== FIVE ====================
+
+      if (doFive) {
+        // Create Instance
+        const instanceFive = createInstance({
+          debug: true,
+          id: "waymark-five",
+          onLoad: (WaymarkInstance) => {
+            const line = createLine({
+              id: "dynamic-line",
+            });
+
+            // Add to Waymark Instance
+            WaymarkInstance.addOverlay(line);
+
+            // Add random point every second
+            setInterval(() => {
+              const lng = -122.447303 + Math.random() * 0.1;
+              const lat = 37.753574 + Math.random() * 0.1;
+              line.addCoordinate([lng, lat]);
+            }, 1000);
+          },
+        });
+      }
     </script>
   </body>
 </html>

@@ -1,4 +1,11 @@
-export { createOverlay, createMap, createInstance } from "@/helpers/Factory.js";
+export {
+  createInstance,
+  createMap,
+  createOverlay,
+  createMarker,
+  createLine,
+  createShape,
+} from "@/helpers/Factory.js";
 export { default as WaymarkInstance } from "@/classes/Instance.js";
 export { default as WaymarkMap } from "@/classes/Map.js";
 export { default as WaymarkMarker } from "@/classes/Overlays/Marker.js";

@@ -5,7 +5,7 @@ import { Popup } from "maplibre-gl";
 import GeoJSONFeature from "@/classes/GeoJSON/Feature.js";
 
 export default class WaymarkOverlay extends GeoJSONFeature {
-  constructor(feature, waymarkMap = null) {
+  constructor(feature = {}, waymarkMap = null) {
     super(feature);
 
     this.id = this.id || ulid();
