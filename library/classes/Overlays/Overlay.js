@@ -3,20 +3,26 @@ import { getFeatureType } from "@/helpers/Overlay.js";
 import { flyToOptions } from "@/helpers/MapLibre.js";
 import { Popup } from "maplibre-gl";
 import GeoJSONFeature from "@/classes/GeoJSON/Feature.js";
+import { markRaw } from "vue";
 
 export default class WaymarkOverlay extends GeoJSONFeature {
-  constructor(feature = {}, waymarkMap = null) {
+  constructor(feature = {}) {
     super(feature);
 
     this.id = this.id || ulid();
     this.featureType = getFeatureType(this) || null;
     this.properties.waymark = this.properties.waymark || {};
-    this.waymarkMap = null;
-    this.mapLibreMap = null;
     this.active = false;
     this.popup = this.createPopup();
+    if (this.popup) {
+      this.popup = markRaw(this.popup);
+    }
 
-    this.waymarkMap = waymarkMap;
+    this.mapLibreMap = null;
+    this.source = null;
+    this.layer = null;
+    this.style = null;
+    this.highlightLayer = null;
   }
 
   setActive(active = true) {
@@ -56,23 +62,30 @@ export default class WaymarkOverlay extends GeoJSONFeature {
 
   addTo(map) {
     // Must be valid MapLibre map
-    if (!map || !map.addLayer || this.hasMap()) {
+    if (!map || !map.addLayer) {
       return;
     }
 
-    this.mapLibreMap = map;
+    this.mapLibreMap = markRaw(map);
+
+    // If already added, just update data
+    if (this.source) {
+      this.source.setData(this.toJSON());
+
+      return;
+    }
 
     // Create Source
     this.mapLibreMap.addSource(this.id, {
       type: "geojson",
       data: this.toJSON(),
     });
-    this.source = this.mapLibreMap.getSource(this.id);
+    this.source = markRaw(this.mapLibreMap.getSource(this.id));
 
     // Create Layer
     this.style = this.toStyle();
     this.mapLibreMap.addLayer(this.style);
-    this.layer = this.mapLibreMap.getLayer(this.id);
+    this.layer = markRaw(this.mapLibreMap.getLayer(this.id));
 
     // Create Highlight Layer
     this.highlightLayer = this.addHighlightLayer();
@@ -91,7 +104,7 @@ export default class WaymarkOverlay extends GeoJSONFeature {
     }
 
     // Remove highlight
-    if (this.mapLibreMap.getLayer(`${this.id}-highlight`)) {
+    if (this.highlightLayer) {
       this.mapLibreMap.removeLayer(`${this.id}-highlight`);
     }
 
@@ -222,7 +235,7 @@ export default class WaymarkOverlay extends GeoJSONFeature {
   }
 
   isHighlighted() {
-    if (this.mapLibreMap.getLayer(`${this.id}-highlight`)) {
+    if (this.highlightLayer) {
       return (
         this.mapLibreMap.getLayoutProperty(
           `${this.id}-highlight`,
@@ -235,7 +248,7 @@ export default class WaymarkOverlay extends GeoJSONFeature {
   }
 
   showHighlight() {
-    if (this.mapLibreMap.getLayer(`${this.id}-highlight`)) {
+    if (this.highlightLayer) {
       this.mapLibreMap.setLayoutProperty(
         `${this.id}-highlight`,
         "visibility",
@@ -245,7 +258,7 @@ export default class WaymarkOverlay extends GeoJSONFeature {
   }
 
   hideHighlight() {
-    if (this.mapLibreMap.getLayer(`${this.id}-highlight`)) {
+    if (this.highlightLayer) {
       this.mapLibreMap.setLayoutProperty(
         `${this.id}-highlight`,
         "visibility",

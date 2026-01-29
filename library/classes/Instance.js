@@ -148,23 +148,13 @@ export default class WaymarkInstance {
 
     // Maps
     mapsArray.value.forEach((waymarkMap) => {
-      // Remove if already added
-      if (waymarkMap.hasMap()) {
-        waymarkMap.remove();
-      }
-
-      // Add
+      // Add (Idempotent)
       waymarkMap.addTo(mapLibreMap.value);
     });
 
     // Overlays
     overlaysArray.value.forEach((waymarkOverlay) => {
-      // Remove if already added
-      if (waymarkOverlay.hasMap()) {
-        waymarkOverlay.remove();
-      }
-
-      // Add
+      // Add (Idempotent)
       waymarkOverlay.addTo(mapLibreMap.value);
     });
   }

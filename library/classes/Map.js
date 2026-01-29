@@ -4,6 +4,7 @@ import { createOverlay } from "@/helpers/Factory";
 import GeoJSONFeatureCollection from "@/classes/GeoJSON/FeatureCollection.js";
 import { fitBoundsOptions } from "@/helpers/MapLibre.js";
 import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
+import { markRaw } from "vue";
 
 export default class WaymarkMap extends GeoJSONFeatureCollection {
     constructor(featureCollection = {}) {
@@ -24,7 +25,7 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         this.overlays = new Map();
         this.features.forEach((feature) => {
             // Create
-            const overlay = createOverlay(feature, this);
+            const overlay = createOverlay(feature);
             this.overlays.set(overlay.id, overlay);
         });
 
@@ -111,11 +112,15 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
     }
 
     addTo(map) {
-        if (!map || !this.overlaysArray.length || this.hasMap()) {
+        if (!map) {
             return;
         }
 
-        this.mapLibreMap = map;
+        this.mapLibreMap = markRaw(map);
+
+        if (!this.overlaysArray.length) {
+            return;
+        }
 
         // Rendering order - Shapes, Lines & then Markers
         this.overlaysArray

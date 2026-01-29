@@ -370,9 +370,14 @@ describe("Instance", () => {
       ],
     });
 
-    const overlays = instance.geoJSONStore.overlays.value;
-    expect(overlays.size).toBe(1);
-    expect(Array.from(overlays.values())[0]).toBeInstanceOf(MarkerOverlay);
+    // FeatureCollection creates a Map, not standalone overlays
+    const maps = instance.getAllMaps();
+    expect(maps.length).toBe(1);
+    
+    const map = maps[0];
+    const overlays = map.overlaysArray;
+    expect(overlays.length).toBe(1);
+    expect(overlays[0]).toBeInstanceOf(MarkerOverlay);
   });
 
   it("renders line overlays", () => {
@@ -400,9 +405,13 @@ describe("Instance", () => {
       ],
     });
 
-    const overlays = instance.geoJSONStore.overlays.value;
-    expect(overlays.size).toBe(1);
-    expect(Array.from(overlays.values())[0]).toBeInstanceOf(LineOverlay);
+    const maps = instance.getAllMaps();
+    expect(maps.length).toBe(1);
+    
+    const map = maps[0];
+    const overlays = map.overlaysArray;
+    expect(overlays.length).toBe(1);
+    expect(overlays[0]).toBeInstanceOf(LineOverlay);
   });
 
   it("renders shape overlays", () => {
@@ -435,9 +444,13 @@ describe("Instance", () => {
       ],
     });
 
-    const overlays = instance.geoJSONStore.overlays.value;
-    expect(overlays.size).toBe(1);
-    expect(Array.from(overlays.values())[0]).toBeInstanceOf(ShapeOverlay);
+    const maps = instance.getAllMaps();
+    expect(maps.length).toBe(1);
+    
+    const map = maps[0];
+    const overlays = map.overlaysArray;
+    expect(overlays.length).toBe(1);
+    expect(overlays[0]).toBeInstanceOf(ShapeOverlay);
   });
 
   it("dispatches events via state store", () => {
