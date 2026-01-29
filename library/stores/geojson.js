@@ -1,4 +1,4 @@
-import { ref, watch, computed, triggerRef } from "vue";
+import { shallowRef, watch, computed, triggerRef } from "vue";
 import { throttle } from "lodash-es";
 import { LngLatBounds } from "maplibre-gl";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
@@ -7,8 +7,8 @@ import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 
 export function createGeoJSONStore(WaymarkInstance) {
 	// State
-	const maps = ref(new Map());
-	const overlays = ref(new Map());
+	const maps = shallowRef(new Map());
+	const overlays = shallowRef(new Map());
 
 	const mapsArray = computed(() => {
 		return Array.from(maps.value.values());
@@ -33,7 +33,6 @@ export function createGeoJSONStore(WaymarkInstance) {
 				geoJSON: newValue,
 			});
 		}, 250),
-		{ deep: true },
 	);
 
 	// Actions
@@ -112,24 +111,17 @@ export function createGeoJSONStore(WaymarkInstance) {
 	};
 
 	const addOverlay = (overlay) => {
-        console.log("addOverlay called with:", overlay);
 		// Ensure is WaymarkOverlay
 		if (!(overlay instanceof WaymarkOverlay)) {
-            console.error("addOverlay failed: Not an instance of WaymarkOverlay", overlay);
-            console.log("Is proxy?", overlay);
-            console.log("Constructor name:", overlay?.constructor?.name);
 			throw new Error("WaymarkOverlay instance required");
 		}
-        console.log("instanceof check passed");
 
 		// Ensure not already added
 		if (overlays.value.has(overlay.id)) {
-            console.log("Already has overlay", overlay.id);
 			return;
 		}
 
 		overlays.value.set(overlay.id, overlay);
-        console.log("Added overlay to map. New size:", overlays.value.size);
 		triggerRef(overlays);
 
 		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });
