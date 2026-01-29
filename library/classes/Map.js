@@ -150,5 +150,7 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         this.overlaysArray.forEach((overlay) => {
             overlay.remove();
         });
+
+        this.mapLibreMap = null;
     }
 }

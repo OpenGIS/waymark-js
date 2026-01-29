@@ -26010,7 +26010,7 @@ class ap extends Hb {
   remove() {
     this.overlaysArray.forEach((_) => {
       _.remove();
-    });
+    }), this.mapLibreMap = null;
   }
 }
 var Xb = typeof global == "object" && global && global.Object === Object && global, Kb = typeof self == "object" && self && self.Object === Object && self, t_ = Xb || Kb || Function("return this")(), dh = t_.Symbol, i_ = Object.prototype, Yb = i_.hasOwnProperty, Jb = i_.toString, vc = dh ? dh.toStringTag : void 0;
