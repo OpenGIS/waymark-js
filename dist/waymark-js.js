@@ -22335,7 +22335,7 @@ class Xd extends vx {
   }
   getBounds() {
     const _ = this.bbox;
-    return console.log("WaymarkMap.getBounds()", _), Array.isArray(_) && _.length === 4 && _.every((w) => typeof w == "number") ? [
+    return Array.isArray(_) && _.length === 4 && _.every((w) => typeof w == "number") ? [
       [_[0], _[1]],
       // Southwest [lng, lat]
       [_[2], _[3]]
@@ -26322,10 +26322,10 @@ class Cb {
   }
   drawGeoJSON() {
     const { mapsArray: _, overlaysArray: w } = this.geoJSONStore, { map: C } = this.mapLibreStore;
-    console.log("Drawing GeoJSON...", _.value, w.value), _.value.forEach((R) => {
-      console.log("Adding map:", R), R.hasMap() && R.remove(), R.addTo(C.value);
+    _.value.forEach((R) => {
+      R.hasMap() && R.remove(), R.addTo(C.value);
     }), w.value.forEach((R) => {
-      console.log("Adding overlay:", R), R.hasMap() && R.remove(), R.addTo(C.value);
+      R.hasMap() && R.remove(), R.addTo(C.value);
     });
   }
   // Actions

@@ -138,12 +138,8 @@ export default class WaymarkInstance {
     const { mapsArray, overlaysArray } = this.geoJSONStore;
     const { map: mapLibreMap } = this.mapLibreStore;
 
-    console.log("Drawing GeoJSON...", mapsArray.value, overlaysArray.value);
-
     // Maps
     mapsArray.value.forEach((waymarkMap) => {
-      console.log("Adding map:", waymarkMap);
-
       // Remove if already added
       if (waymarkMap.hasMap()) {
         waymarkMap.remove();
@@ -155,8 +151,6 @@ export default class WaymarkInstance {
 
     // Overlays
     overlaysArray.value.forEach((waymarkOverlay) => {
-      console.log("Adding overlay:", waymarkOverlay);
-
       // Remove if already added
       if (waymarkOverlay.hasMap()) {
         waymarkOverlay.remove();
