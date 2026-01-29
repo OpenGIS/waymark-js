@@ -10,9 +10,16 @@ export default class GeoJSONFeature {
       coordinates: [],
     };
 
-    this.bbox = bbox(this);
-
     return this;
+  }
+
+  get bbox() {
+    return this.geometry && this.geometry.type
+      ? bbox({
+          type: "Feature",
+          geometry: this.geometry,
+        })
+      : null;
   }
 
   toJSON() {

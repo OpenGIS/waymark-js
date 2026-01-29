@@ -81,6 +81,8 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         // Convert from geojson bbox value to maplibre LngLatBounds array
         const bbox = this.bbox;
 
+        console.log("WaymarkMap.getBounds()", bbox);
+
         if (
             Array.isArray(bbox) &&
             bbox.length === 4 &&
@@ -124,7 +126,9 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         // debugger;
 
         // Zoom to geojson this.bbox
-        this.mapLibreMap.fitBounds(this.getBounds(), fitBoundsOptions);
+        if (this.getBounds()) {
+            this.mapLibreMap.fitBounds(this.getBounds(), fitBoundsOptions);
+        }
     }
 
     hasMap() {

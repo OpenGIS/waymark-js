@@ -9,9 +9,16 @@ export default class GeoJSONFeatureCollection {
       ? featureCollection.features
       : [];
 
-    this.bbox = bbox(this);
-
     return this;
+  }
+
+  get bbox() {
+    return this.features.length > 0
+      ? bbox({
+          type: "FeatureCollection",
+          features: this.features,
+        })
+      : null;
   }
 
   toJSON() {

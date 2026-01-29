@@ -21856,7 +21856,13 @@ class fx {
     return this.type = _.type || "Feature", this.id = _.id || null, this.properties = _.properties || {}, this.geometry = _.geometry || {
       type: null,
       coordinates: []
-    }, this.bbox = Hm(this), this;
+    }, this;
+  }
+  get bbox() {
+    return this.geometry && this.geometry.type ? Hm({
+      type: "Feature",
+      geometry: this.geometry
+    }) : null;
   }
   toJSON() {
     return {
@@ -22273,7 +22279,13 @@ class xx extends Xo {
 }
 class vx {
   constructor(_ = {}) {
-    return this.type = "FeatureCollection", this.id = _.id || null, this.properties = _.properties || {}, this.features = Array.isArray(_.features) ? _.features : [], this.bbox = Hm(this), this;
+    return this.type = "FeatureCollection", this.id = _.id || null, this.properties = _.properties || {}, this.features = Array.isArray(_.features) ? _.features : [], this;
+  }
+  get bbox() {
+    return this.features.length > 0 ? Hm({
+      type: "FeatureCollection",
+      features: this.features
+    }) : null;
   }
   toJSON() {
     return {
@@ -22323,7 +22335,7 @@ class Xd extends vx {
   }
   getBounds() {
     const _ = this.bbox;
-    return Array.isArray(_) && _.length === 4 && _.every((w) => typeof w == "number") ? [
+    return console.log("WaymarkMap.getBounds()", _), Array.isArray(_) && _.length === 4 && _.every((w) => typeof w == "number") ? [
       [_[0], _[1]],
       // Southwest [lng, lat]
       [_[2], _[3]]
@@ -22337,7 +22349,7 @@ class Xd extends vx {
       w.addTo(this.mapLibreMap);
     }), this.overlaysArray.filter((w) => w.featureType === "marker").forEach((w) => {
       w.addTo(this.mapLibreMap);
-    }), this.mapLibreMap.fitBounds(this.getBounds(), ix));
+    }), this.getBounds() && this.mapLibreMap.fitBounds(this.getBounds(), ix));
   }
   hasMap() {
     return this.mapLibreMap !== null;
