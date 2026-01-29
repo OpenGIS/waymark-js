@@ -12,16 +12,22 @@ export default class WaymarkShape extends WaymarkOverlay {
     };
 
     super(feature);
+
+    this.strokeLayer = null;
   }
 
   addTo(map) {
     super.addTo(map);
-    this.mapLibreMap.addLayer(this.strokeStyle());
+
+    if (!this.strokeLayer) {
+      this.mapLibreMap.addLayer(this.strokeStyle());
+      this.strokeLayer = this.mapLibreMap.getLayer(`${this.id}-stroke`);
+    }
   }
 
   remove() {
     if (this.mapLibreMap) {
-      if (this.mapLibreMap.getLayer(`${this.id}-stroke`)) {
+      if (this.strokeLayer) {
         this.mapLibreMap.removeLayer(`${this.id}-stroke`);
       }
     }
@@ -49,7 +55,7 @@ export default class WaymarkShape extends WaymarkOverlay {
     if (this.mapLibreMap.getLayer(this.id)) {
       this.mapLibreMap.setLayoutProperty(this.id, "visibility", "visible");
     }
-    if (this.mapLibreMap.getLayer(`${this.id}-stroke`)) {
+    if (this.strokeLayer) {
       this.mapLibreMap.setLayoutProperty(
         `${this.id}-stroke`,
         "visibility",
@@ -62,7 +68,7 @@ export default class WaymarkShape extends WaymarkOverlay {
     if (this.mapLibreMap.getLayer(this.id)) {
       this.mapLibreMap.setLayoutProperty(this.id, "visibility", "none");
     }
-    if (this.mapLibreMap.getLayer(`${this.id}-stroke`)) {
+    if (this.strokeLayer) {
       this.mapLibreMap.setLayoutProperty(
         `${this.id}-stroke`,
         "visibility",

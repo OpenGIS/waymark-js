@@ -25833,13 +25833,13 @@ class e_ extends Yo {
     _.geometry = _.geometry || {
       type: "Polygon",
       coordinates: []
-    }, super(_);
+    }, super(_), this.strokeLayer = null;
   }
   addTo(_) {
-    super.addTo(_), this.mapLibreMap.addLayer(this.strokeStyle());
+    super.addTo(_), this.strokeLayer || (this.mapLibreMap.addLayer(this.strokeStyle()), this.strokeLayer = this.mapLibreMap.getLayer(`${this.id}-stroke`));
   }
   remove() {
-    this.mapLibreMap && this.mapLibreMap.getLayer(`${this.id}-stroke`) && this.mapLibreMap.removeLayer(`${this.id}-stroke`), super.remove();
+    this.mapLibreMap && this.strokeLayer && this.mapLibreMap.removeLayer(`${this.id}-stroke`), super.remove();
   }
   toStyle() {
     const _ = this.properties.waymark?.paint || {};
@@ -25857,14 +25857,14 @@ class e_ extends Yo {
     };
   }
   show() {
-    this.mapLibreMap.getLayer(this.id) && this.mapLibreMap.setLayoutProperty(this.id, "visibility", "visible"), this.mapLibreMap.getLayer(`${this.id}-stroke`) && this.mapLibreMap.setLayoutProperty(
+    this.mapLibreMap.getLayer(this.id) && this.mapLibreMap.setLayoutProperty(this.id, "visibility", "visible"), this.strokeLayer && this.mapLibreMap.setLayoutProperty(
       `${this.id}-stroke`,
       "visibility",
       "visible"
     );
   }
   hide() {
-    this.mapLibreMap.getLayer(this.id) && this.mapLibreMap.setLayoutProperty(this.id, "visibility", "none"), this.mapLibreMap.getLayer(`${this.id}-stroke`) && this.mapLibreMap.setLayoutProperty(
+    this.mapLibreMap.getLayer(this.id) && this.mapLibreMap.setLayoutProperty(this.id, "visibility", "none"), this.strokeLayer && this.mapLibreMap.setLayoutProperty(
       `${this.id}-stroke`,
       "visibility",
       "none"
