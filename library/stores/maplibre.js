@@ -28,7 +28,7 @@ export function createMapLibreStore(WaymarkInstance) {
 
 	// Add Event Listeners
 	function addListeners() {
-		const { overlays } = WaymarkInstance.geoJSONStore;
+		const { overlays, maps } = WaymarkInstance.geoJSONStore;
 
 		// When MapLibre has loaded
 		map.value.on("load", () => {
@@ -70,24 +70,34 @@ export function createMapLibreStore(WaymarkInstance) {
 				[e.point.x + 10, e.point.y + 10],
 			];
 
-			// Get features around click
-			const layerIDs = Array.from(overlays.value.keys());
-			const features = map.value.queryRenderedFeatures(bbox, {
-				layerIDs,
-			});
+			// Query all rendered features
+			const features = map.value.queryRenderedFeatures(bbox);
 
-			// Features found
-			if (features.length) {
-				// Get the closest overlay
-				const overlay = overlays.value.get(features[0].layer.id);
+			let match = null;
 
-				if (overlay) {
-					WaymarkInstance.setActiveOverlay(overlay);
-				} else {
-					// Remove active overlay
-					WaymarkInstance.setActiveOverlay();
+			// Find first feature that exists in our stores
+			for (const feature of features) {
+				const id = feature.layer.id;
+
+				// 1. Check standalone overlays (Fast O(1))
+				if (overlays.value.has(id)) {
+					match = overlays.value.get(id);
+					break;
 				}
-				// No features found
+
+				// 2. Check nested maps
+				for (const mapInstance of maps.value.values()) {
+					if (mapInstance.hasOverlay(id)) {
+						match = mapInstance.getOverlay(id);
+						break;
+					}
+				}
+
+				if (match) break;
+			}
+
+			if (match) {
+				WaymarkInstance.setActiveOverlay(match);
 			} else {
 				// Remove active overlay
 				WaymarkInstance.setActiveOverlay();
