@@ -1,4 +1,4 @@
-import { shallowRef, watch, computed, triggerRef } from "vue";
+import { ref, watch, computed, triggerRef } from "vue";
 import { throttle } from "lodash-es";
 import { LngLatBounds } from "maplibre-gl";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
@@ -7,8 +7,8 @@ import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 
 export function createGeoJSONStore(WaymarkInstance) {
 	// State
-	const maps = shallowRef(new Map());
-	const overlays = shallowRef(new Map());
+	const maps = ref(new Map());
+	const overlays = ref(new Map());
 
 	const mapsArray = computed(() => {
 		return Array.from(maps.value.values());
@@ -122,7 +122,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 		}
 
 		overlays.value.set(overlay.id, overlay);
-		triggerRef(overlays);
+		// triggerRef(overlays);
 
 		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });
 	};
@@ -139,7 +139,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 		}
 
 		overlays.value.delete(overlay.id);
-		triggerRef(overlays);
+		// triggerRef(overlays);
 
 		WaymarkInstance.dispatchEvent("geojson-overlay-removed", { overlay });
 	};
