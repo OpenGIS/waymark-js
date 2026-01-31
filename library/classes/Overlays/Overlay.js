@@ -3,7 +3,6 @@ import { getFeatureType } from "@/helpers/Overlay.js";
 import { flyToOptions } from "@/helpers/MapLibre.js";
 import { Popup } from "maplibre-gl";
 import GeoJSONFeature from "@/classes/GeoJSON/Feature.js";
-import { markRaw } from "vue";
 
 export default class WaymarkOverlay extends GeoJSONFeature {
   constructor(feature = {}) {
@@ -15,7 +14,7 @@ export default class WaymarkOverlay extends GeoJSONFeature {
     this.active = false;
     this.popup = this.createPopup();
     if (this.popup) {
-      this.popup = markRaw(this.popup);
+      this.popup = this.popup;
     }
 
     this.mapLibreMap = null;
@@ -66,7 +65,7 @@ export default class WaymarkOverlay extends GeoJSONFeature {
       return;
     }
 
-    this.mapLibreMap = markRaw(map);
+    this.mapLibreMap = map;
 
     // If already added, just update data
     if (this.source) {
@@ -80,12 +79,12 @@ export default class WaymarkOverlay extends GeoJSONFeature {
       type: "geojson",
       data: this.toJSON(),
     });
-    this.source = markRaw(this.mapLibreMap.getSource(this.id));
+    this.source = this.mapLibreMap.getSource(this.id);
 
     // Create Layer
     this.style = this.toStyle();
     this.mapLibreMap.addLayer(this.style);
-    this.layer = markRaw(this.mapLibreMap.getLayer(this.id));
+    this.layer = this.mapLibreMap.getLayer(this.id);
 
     // Create Highlight Layer
     this.highlightLayer = this.addHighlightLayer();

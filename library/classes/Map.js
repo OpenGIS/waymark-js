@@ -4,7 +4,6 @@ import { createOverlay } from "@/helpers/Factory";
 import GeoJSONFeatureCollection from "@/classes/GeoJSON/FeatureCollection.js";
 import { fitBoundsOptions } from "@/helpers/MapLibre.js";
 import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
-import { markRaw } from "vue";
 
 export default class WaymarkMap extends GeoJSONFeatureCollection {
     constructor(featureCollection = {}) {
@@ -116,7 +115,7 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
             return;
         }
 
-        this.mapLibreMap = markRaw(map);
+        this.mapLibreMap = map;
 
         if (!this.overlaysArray.length) {
             return;
