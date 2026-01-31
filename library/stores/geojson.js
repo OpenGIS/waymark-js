@@ -58,19 +58,20 @@ export function createGeoJSONStore(WaymarkInstance) {
 			case item instanceof WaymarkMap:
 				maps.set(item.id, item);
 
-				WaymarkInstance.dispatchEvent("geojson-state-change");
-				WaymarkInstance.dispatchEvent("geojson-map-added", { item });
-
-				return;
+				break;
 			case item instanceof WaymarkOverlay:
 				overlays.set(item.id, item);
-				WaymarkInstance.dispatchEvent("geojson-state-change");
-				WaymarkInstance.dispatchEvent("geojson-overlay-added", { item });
 
 				break;
 			default:
 				throw new Error("WaymarkMap or WaymarkOverlay instance required");
 		}
+
+		WaymarkInstance.dispatchEvent("geojson-item-added", {
+			item,
+		});
+
+		return item;
 	};
 
 	const removeItem = (item = {}) => {
@@ -88,22 +89,38 @@ export function createGeoJSONStore(WaymarkInstance) {
 			case item instanceof WaymarkMap:
 				maps.delete(item.id);
 
-				WaymarkInstance.dispatchEvent("geojson-state-change");
-				WaymarkInstance.dispatchEvent("geojson-map-removed", { map: item });
-
-				return;
+				break;
 			case item instanceof WaymarkOverlay:
 				overlays.delete(item.id);
 
-				WaymarkInstance.dispatchEvent("geojson-state-change");
-				WaymarkInstance.dispatchEvent("geojson-overlay-removed", {
-					overlay: item,
-				});
-
-				return;
+				break;
 			default:
 				throw new Error("WaymarkMap or WaymarkOverlay instance required");
 		}
+
+		WaymarkInstance.dispatchEvent("geojson-item-removed", {
+			item,
+		});
+
+		return item;
+	};
+
+	const updateItem = (item = {}) => {
+		if (!item.id) {
+			throw new Error("Item must have an ID");
+		}
+
+		if (!items.has(item.id)) {
+			throw new Error("Item with this ID does not exist");
+		}
+
+		items.set(item.id, item);
+
+		WaymarkInstance.dispatchEvent("geojson-item-updated", {
+			item,
+		});
+
+		return item;
 	};
 
 	// Getters
@@ -165,6 +182,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 		// Actions
 		addGeoJSON,
 		addItem,
+		updateItem,
 		removeItem,
 	};
 }

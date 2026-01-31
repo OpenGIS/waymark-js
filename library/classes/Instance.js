@@ -4,6 +4,8 @@ import { createMapLibreStore } from "@/stores/maplibre.js";
 import { WaymarkEvent, waymarkEventName } from "@/classes/Event.js";
 import { defaultMapOptions } from "@/helpers/MapLibre.js";
 import { Map } from "maplibre-gl";
+import WaymarkMap from "@/classes/Map.js";
+import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/assets/css/index.less";
 
@@ -104,10 +106,61 @@ export default class WaymarkInstance {
 
     // Listen for maplibre-map-ready event
     this.onEvent("maplibre-map-ready", () => {
-      // When GeoJSON data changes
-      this.onEvent("geojson-state-change", () => {
-        // Draw
-        this.drawGeoJSON();
+      // Listen for geojson-item-added event
+      this.onEvent("geojson-item-added", (event) => {
+        if (!event.detail?.item) {
+          throw new Error("geojson-item-added event missing item detail");
+        }
+
+        switch (true) {
+          case event.detail.item instanceof WaymarkMap:
+          case event.detail.item instanceof WaymarkOverlay:
+            event.detail.item.addTo(this.mapLibreStore.mapLibreMap);
+
+            break;
+          default:
+            throw new Error(
+              "geojson-item-added event item must be WaymarkMap or WaymarkOverlay instance",
+            );
+        }
+      });
+
+      // Listen for geojson-item-removed event
+      this.onEvent("geojson-item-removed", (event) => {
+        if (!event.detail?.item) {
+          throw new Error("geojson-item-removed event missing item detail");
+        }
+
+        switch (true) {
+          case event.detail.item instanceof WaymarkMap:
+          case event.detail.item instanceof WaymarkOverlay:
+            event.detail.item.remove();
+
+            break;
+          default:
+            throw new Error(
+              "geojson-item-removed event item must be WaymarkMap or WaymarkOverlay instance",
+            );
+        }
+      });
+
+      // Listen for geojson-item-updated event
+      this.onEvent("geojson-item-updated", (event) => {
+        if (!event.detail?.item) {
+          throw new Error("geojson-item-updated event missing item detail");
+        }
+
+        switch (true) {
+          case event.detail.item instanceof WaymarkMap:
+          case event.detail.item instanceof WaymarkOverlay:
+            event.detail.item.addTo(this.mapLibreStore.mapLibreMap);
+
+            break;
+          default:
+            throw new Error(
+              "geojson-item-updated event item must be WaymarkMap or WaymarkOverlay instance",
+            );
+        }
       });
 
       // Initial
@@ -119,23 +172,6 @@ export default class WaymarkInstance {
       if (this.config.onLoad && typeof this.config.onLoad === "function") {
         this.config.onLoad(this);
       }
-    });
-  }
-
-  drawGeoJSON() {
-    const { mapsArray, overlaysArray } = this.geoJSONStore;
-    const { mapLibreMap } = this.mapLibreStore;
-
-    // Maps
-    mapsArray().forEach((waymarkMap) => {
-      // Add (Idempotent)
-      waymarkMap.addTo(mapLibreMap);
-    });
-
-    // Overlays
-    overlaysArray().forEach((waymarkOverlay) => {
-      // Add (Idempotent)
-      waymarkOverlay.addTo(mapLibreMap);
     });
   }
 

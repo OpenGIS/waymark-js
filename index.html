@@ -268,8 +268,9 @@
               const lat = 37.753574 + Math.random() * 0.1;
               line.addCoordinate([lng, lat]);
 
-              thisInstance.geoJSONStore.removeItem(map);
-              thisInstance.geoJSONStore.addItem(map);
+              // thisInstance.geoJSONStore.removeItem(map);
+              // thisInstance.geoJSONStore.addItem(map);
+              thisInstance.geoJSONStore.updateItem(map);
 
               thisInstance.dispatchEvent("dynamic-line-updated", {
                 line,
