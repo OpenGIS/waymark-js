@@ -1,4 +1,3 @@
-import { reactive } from "vue";
 import { getFeatureType } from "@/helpers/Overlay.js";
 import WaymarkMarker from "@/classes/Overlays/Marker.js";
 import WaymarkLine from "@/classes/Overlays/Line.js";
@@ -15,7 +14,7 @@ export function createInstance(config = {}) {
 }
 
 export function createMap(geoJSON) {
-  return reactive(new WaymarkMap(geoJSON));
+  return new WaymarkMap(geoJSON);
 }
 
 export function createOverlay(feature) {
@@ -25,24 +24,24 @@ export function createOverlay(feature) {
 
   switch (getFeatureType(feature)) {
     case "marker":
-      return reactive(new WaymarkMarker(feature));
+      return new WaymarkMarker(feature);
     case "line":
-      return reactive(new WaymarkLine(feature));
+      return new WaymarkLine(feature);
     case "shape":
-      return reactive(new WaymarkShape(feature));
+      return new WaymarkShape(feature);
     default:
       throw new Error("Unsupported feature type for overlay creation");
   }
 }
 
 export function createMarker(feature) {
-  return reactive(new WaymarkMarker(feature));
+  return new WaymarkMarker(feature);
 }
 
 export function createLine(feature) {
-  return reactive(new WaymarkLine(feature));
+  return new WaymarkLine(feature);
 }
 
 export function createShape(feature) {
-  return reactive(new WaymarkShape(feature));
+  return new WaymarkShape(feature);
 }
