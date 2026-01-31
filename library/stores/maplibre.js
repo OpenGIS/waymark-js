@@ -1,23 +1,24 @@
-import { ref, shallowRef, watch } from "vue";
-import { throttle } from "lodash-es";
+import { ref, shallowRef } from "vue";
 import { mapOptions } from "@/helpers/MapLibre.js";
 import { Map } from "maplibre-gl";
 
 export function createMapLibreStore(WaymarkInstance) {
 	// State
-	const map = shallowRef(null);
-	const mapReady = shallowRef(false);
-	const view = ref({
-		bearing: null,
-		pitch: null,
-		bounds: null,
-		zoom: null,
-		center: null,
-	});
+	const store = {
+		mapLibreMap: null,
+		mapReady: shallowRef(false),
+		view: ref({
+			bearing: null,
+			pitch: null,
+			bounds: null,
+			zoom: null,
+			center: null,
+		}),
+	};
 
 	// Actions
 	function createMap(divID = "") {
-		map.value = new Map({
+		store.mapLibreMap = new Map({
 			container: divID,
 			...mapOptions,
 			...(WaymarkInstance.config.mapOptions || {}),
@@ -31,39 +32,39 @@ export function createMapLibreStore(WaymarkInstance) {
 		const { overlays, maps } = WaymarkInstance.geoJSONStore;
 
 		// When MapLibre has loaded
-		map.value.on("load", () => {
-			mapReady.value = true;
+		store.mapLibreMap.on("load", () => {
+			store.mapReady.value = true;
 
 			// Set Initial View
-			view.value.bounds = map.value.getBounds();
-			view.value.bearing = map.value.getBearing();
-			view.value.pitch = map.value.getPitch();
-			view.value.zoom = map.value.getZoom();
-			view.value.center = map.value.getCenter();
+			store.view.value.bounds = store.mapLibreMap.getBounds();
+			store.view.value.bearing = store.mapLibreMap.getBearing();
+			store.view.value.pitch = store.mapLibreMap.getPitch();
+			store.view.value.zoom = store.mapLibreMap.getZoom();
+			store.view.value.center = store.mapLibreMap.getCenter();
 
 			WaymarkInstance.dispatchEvent("maplibre-map-ready");
 		});
 
 		// Track Bearing
-		map.value.on("rotateend", () => {
-			view.value.bearing = map.value.getBearing();
+		store.mapLibreMap.on("rotateend", () => {
+			store.view.value.bearing = store.mapLibreMap.getBearing();
 		});
 
 		// Track Pitch
-		map.value.on("pitchend", () => {
-			view.value.pitch = map.value.getPitch();
+		store.mapLibreMap.on("pitchend", () => {
+			store.view.value.pitch = store.mapLibreMap.getPitch();
 		});
 
 		//Track map bounds
-		map.value.on("moveend", () => {
+		store.mapLibreMap.on("moveend", () => {
 			//Set Max bounds
-			view.value.bounds = map.value.getBounds();
-			view.value.center = map.value.getCenter();
-			view.value.zoom = map.value.getZoom();
+			store.view.value.bounds = store.mapLibreMap.getBounds();
+			store.view.value.center = store.mapLibreMap.getCenter();
+			store.view.value.zoom = store.mapLibreMap.getZoom();
 		});
 
 		// Lines & Shape click handling
-		map.value.on("click", (e) => {
+		store.mapLibreMap.on("click", (e) => {
 			// Create a bounding box to find features within a certain distance of the click
 			const bbox = [
 				[e.point.x - 10, e.point.y - 10],
@@ -71,7 +72,7 @@ export function createMapLibreStore(WaymarkInstance) {
 			];
 
 			// Query all rendered features
-			const features = map.value.queryRenderedFeatures(bbox);
+			const features = store.mapLibreMap.queryRenderedFeatures(bbox);
 
 			let match = null;
 
@@ -80,13 +81,13 @@ export function createMapLibreStore(WaymarkInstance) {
 				const id = feature.layer.id;
 
 				// 1. Check standalone overlays (Fast O(1))
-				if (overlays.value.has(id)) {
-					match = overlays.value.get(id);
+				if (overlays.has(id)) {
+					match = overlays.get(id);
 					break;
 				}
 
 				// 2. Check nested maps
-				for (const mapInstance of maps.value.values()) {
+				for (const mapInstance of maps.values()) {
 					if (mapInstance.hasOverlay(id)) {
 						match = mapInstance.getOverlay(id);
 						break;
@@ -105,25 +106,19 @@ export function createMapLibreStore(WaymarkInstance) {
 		});
 	}
 
-	watch(
-		() => view.value,
-		throttle((viewValue) => {
-			if (!mapReady.value) return;
+	// watch(
+	// 	() => view.value,
+	// 	throttle((viewValue) => {
+	// 		if (!mapReady.value) return;
+	// 
+	// 		WaymarkInstance.dispatchEvent("maplibre-view-change", {
+	// 			view: viewValue,
+	// 		});
+	// 	}, 1000),
+	// 	{ deep: true },
+	// );
 
-			WaymarkInstance.dispatchEvent("maplibre-view-change", {
-				view: viewValue,
-			});
-		}, 1000),
-		{ deep: true },
-	);
+	store.createMap = createMap;
 
-	return {
-		// State
-		mapReady,
-		map,
-		view,
-
-		// Actions
-		createMap,
-	};
+	return store;
 }

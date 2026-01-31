@@ -143,19 +143,22 @@ export default class WaymarkInstance {
   }
 
   drawGeoJSON() {
+    console.log("[Waymark][%s] Drawing GeoJSON", this.id);
+
     const { mapsArray, overlaysArray } = this.geoJSONStore;
-    const { map: mapLibreMap } = this.mapLibreStore;
+    const { mapLibreMap } = this.mapLibreStore;
+
 
     // Maps
     mapsArray().forEach((waymarkMap) => {
       // Add (Idempotent)
-      waymarkMap.addTo(mapLibreMap.value);
+      waymarkMap.addTo(mapLibreMap);
     });
 
     // Overlays
     overlaysArray().forEach((waymarkOverlay) => {
       // Add (Idempotent)
-      waymarkOverlay.addTo(mapLibreMap.value);
+      waymarkOverlay.addTo(mapLibreMap);
     });
   }
 
@@ -201,31 +204,31 @@ export default class WaymarkInstance {
   }
 
   rotateMap(direction = "cw", degrees = 90) {
-    const { map } = this.mapLibreStore;
+    const { mapLibreMap } = this.mapLibreStore;
 
     // Ensure not currently roating
-    if (map.value.isRotating()) {
+    if (mapLibreMap.isRotating()) {
       return;
     }
 
-    const currentBearing = map.value.getBearing();
+    const currentBearing = mapLibreMap.getBearing();
     const newBearing =
       direction === "cw" ? currentBearing + degrees : currentBearing - degrees;
 
-    map.value.rotateTo(newBearing, rotateOptions);
+    mapLibreMap.rotateTo(newBearing, rotateOptions);
   }
 
   pitchMap(direction = "down", degrees = 15) {
-    const { map } = this.mapLibreStore;
+    const { mapLibreMap } = this.mapLibreStore;
 
-    const currentPitch = map.value.getPitch();
+    const currentPitch = mapLibreMap.getPitch();
     let newPitch =
       direction === "down" ? currentPitch + degrees : currentPitch - degrees;
 
     // Constrain pitch to 0-60
     newPitch = Math.max(0, Math.min(60, newPitch));
 
-    map.value.easeTo(
+    mapLibreMap.easeTo(
       {
         pitch: newPitch,
         ...easeToOptions,
@@ -235,21 +238,21 @@ export default class WaymarkInstance {
   }
 
   pointNorth() {
-    const { map } = this.mapLibreStore;
+    const { mapLibreMap } = this.mapLibreStore;
 
-    if (!map.value) return;
-    map.value.easeTo({
+    if (!mapLibreMap) return;
+    mapLibreMap.easeTo({
       bearing: 0,
       ...easeToOptions,
     });
   }
 
   set3D(is3D = true) {
-    const { map } = this.mapLibreStore;
+    const { mapLibreMap } = this.mapLibreStore;
 
     if (is3D) {
       // Set to 3D
-      map.value.easeTo(
+      mapLibreMap.easeTo(
         {
           pitch: 60,
           ...easeToOptions,
@@ -258,7 +261,7 @@ export default class WaymarkInstance {
       );
     } else {
       // Reset to 2D
-      map.value.easeTo(
+      mapLibreMap.easeTo(
         {
           pitch: 0,
           ...easeToOptions,
@@ -269,11 +272,11 @@ export default class WaymarkInstance {
   }
 
   toggle3D() {
-    const { map, view } = this.mapLibreStore;
+    const { mapLibreMap, view } = this.mapLibreStore;
 
     if (view.value.pitch > 0) {
       // Reset to 2D
-      map.value.easeTo(
+      mapLibreMap.easeTo(
         {
           pitch: 0,
           ...easeToOptions,
@@ -282,7 +285,7 @@ export default class WaymarkInstance {
       );
     } else {
       // Set to 3D
-      map.value.easeTo(
+      mapLibreMap.easeTo(
         {
           pitch: 60,
           ...easeToOptions,
@@ -294,9 +297,9 @@ export default class WaymarkInstance {
 
   resetView() {
     const { overlaysBounds } = this.geoJSONStore;
-    const { map } = this.mapLibreStore;
+    const { mapLibreMap } = this.mapLibreStore;
     this.pointNorth();
     this.set3D(false);
-    map.value.fitBounds(overlaysBounds.value, flyToOptions);
+    mapLibreMap.fitBounds(overlaysBounds.value, flyToOptions);
   }
 }
