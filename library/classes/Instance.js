@@ -139,8 +139,6 @@ export default class WaymarkInstance {
   }
 
   drawGeoJSON() {
-    console.log("[Waymark][%s] Drawing GeoJSON", this.id);
-
     const { mapsArray, overlaysArray } = this.geoJSONStore;
     const { mapLibreMap } = this.mapLibreStore;
 

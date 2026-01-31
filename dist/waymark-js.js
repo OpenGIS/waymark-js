@@ -1,7 +1,7 @@
-function Rd(me = {}) {
-  if (!me || !me.geometry)
+function Rd(fe = {}) {
+  if (!fe || !fe.geometry)
     return null;
-  switch (me.geometry.type) {
+  switch (fe.geometry.type) {
     case "Point":
       return "marker";
     case "LineString":
@@ -16,24 +16,24 @@ function Rd(me = {}) {
 }
 const Bd = "0123456789ABCDEFGHJKMNPQRSTVWXYZ", zc = 32, Nf = 16, Fd = 10, kd = 281474976710655;
 var ea;
-(function(me) {
-  me.Base32IncorrectEncoding = "B32_ENC_INVALID", me.DecodeTimeInvalidCharacter = "DEC_TIME_CHAR", me.DecodeTimeValueMalformed = "DEC_TIME_MALFORMED", me.EncodeTimeNegative = "ENC_TIME_NEG", me.EncodeTimeSizeExceeded = "ENC_TIME_SIZE_EXCEED", me.EncodeTimeValueMalformed = "ENC_TIME_MALFORMED", me.PRNGDetectFailure = "PRNG_DETECT", me.ULIDInvalid = "ULID_INVALID", me.Unexpected = "UNEXPECTED", me.UUIDInvalid = "UUID_INVALID";
+(function(fe) {
+  fe.Base32IncorrectEncoding = "B32_ENC_INVALID", fe.DecodeTimeInvalidCharacter = "DEC_TIME_CHAR", fe.DecodeTimeValueMalformed = "DEC_TIME_MALFORMED", fe.EncodeTimeNegative = "ENC_TIME_NEG", fe.EncodeTimeSizeExceeded = "ENC_TIME_SIZE_EXCEED", fe.EncodeTimeValueMalformed = "ENC_TIME_MALFORMED", fe.PRNGDetectFailure = "PRNG_DETECT", fe.ULIDInvalid = "ULID_INVALID", fe.Unexpected = "UNEXPECTED", fe.UUIDInvalid = "UUID_INVALID";
 })(ea || (ea = {}));
 class yl extends Error {
   constructor(N, ne) {
     super(`${ne} (${N})`), this.name = "ULIDError", this.code = N;
   }
 }
-function Vf(me) {
-  const N = Math.floor(me() * zc) % zc;
+function Vf(fe) {
+  const N = Math.floor(fe() * zc) % zc;
   return Bd.charAt(N);
 }
-function Uf(me) {
+function Uf(fe) {
   const N = $f(), ne = N && (N.crypto || N.msCrypto) || null;
   if (typeof (ne == null ? void 0 : ne.getRandomValues) == "function")
     return () => {
-      const fe = new Uint8Array(1);
-      return ne.getRandomValues(fe), fe[0] / 256;
+      const me = new Uint8Array(1);
+      return ne.getRandomValues(me), me[0] / 256;
     };
   if (typeof (ne == null ? void 0 : ne.randomBytes) == "function")
     return () => ne.randomBytes(1).readUInt8() / 256;
@@ -42,32 +42,32 @@ function Uf(me) {
 function $f() {
   return qf() ? self : typeof window < "u" ? window : typeof global < "u" ? global : typeof globalThis < "u" ? globalThis : null;
 }
-function Zf(me, N) {
+function Zf(fe, N) {
   let ne = "";
-  for (; me > 0; me--)
+  for (; fe > 0; fe--)
     ne = Vf(N) + ne;
   return ne;
 }
-function Gf(me, N = Fd) {
-  if (isNaN(me))
-    throw new yl(ea.EncodeTimeValueMalformed, `Time must be a number: ${me}`);
-  if (me > kd)
-    throw new yl(ea.EncodeTimeSizeExceeded, `Cannot encode a time larger than ${kd}: ${me}`);
-  if (me < 0)
-    throw new yl(ea.EncodeTimeNegative, `Time must be positive: ${me}`);
-  if (Number.isInteger(me) === !1)
-    throw new yl(ea.EncodeTimeValueMalformed, `Time must be an integer: ${me}`);
-  let ne, fe = "";
+function Gf(fe, N = Fd) {
+  if (isNaN(fe))
+    throw new yl(ea.EncodeTimeValueMalformed, `Time must be a number: ${fe}`);
+  if (fe > kd)
+    throw new yl(ea.EncodeTimeSizeExceeded, `Cannot encode a time larger than ${kd}: ${fe}`);
+  if (fe < 0)
+    throw new yl(ea.EncodeTimeNegative, `Time must be positive: ${fe}`);
+  if (Number.isInteger(fe) === !1)
+    throw new yl(ea.EncodeTimeValueMalformed, `Time must be an integer: ${fe}`);
+  let ne, me = "";
   for (let je = N; je > 0; je--)
-    ne = me % zc, fe = Bd.charAt(ne) + fe, me = (me - ne) / zc;
-  return fe;
+    ne = fe % zc, me = Bd.charAt(ne) + me, fe = (fe - ne) / zc;
+  return me;
 }
 function qf() {
   return typeof WorkerGlobalScope < "u" && self instanceof WorkerGlobalScope;
 }
-function Xh(me, N) {
-  const ne = Uf(), fe = Date.now();
-  return Gf(fe, Fd) + Zf(Nf, ne);
+function Xh(fe, N) {
+  const ne = Uf(), me = Date.now();
+  return Gf(me, Fd) + Zf(Nf, ne);
 }
 const Wf = {
   // center: [0, 0],
@@ -93,15 +93,15 @@ var Ac = { exports: {} };
  */
 var Yf = Ac.exports, Ld;
 function Kf() {
-  return Ld || (Ld = 1, function(me, N) {
-    (function(ne, fe) {
-      me.exports = fe();
+  return Ld || (Ld = 1, function(fe, N) {
+    (function(ne, me) {
+      fe.exports = me();
     })(Yf, function() {
-      var ne = {}, fe = {};
+      var ne = {}, me = {};
       function je(I, c, be) {
-        if (fe[I] = be, I === "index") {
-          var lt = "var sharedModule = {}; (" + fe.shared + ")(sharedModule); (" + fe.worker + ")(sharedModule);", ut = {};
-          return fe.shared(ut), fe.index(ne, ut), typeof window < "u" && ne.setWorkerUrl(window.URL.createObjectURL(new Blob([lt], { type: "text/javascript" }))), ne;
+        if (me[I] = be, I === "index") {
+          var lt = "var sharedModule = {}; (" + me.shared + ")(sharedModule); (" + me.worker + ")(sharedModule);", ut = {};
+          return me.shared(ut), me.index(ne, ut), typeof window < "u" && ne.setWorkerUrl(window.URL.createObjectURL(new Blob([lt], { type: "text/javascript" }))), ne;
         }
       }
       je("shared", ["exports"], function(I) {
@@ -21517,37 +21517,37 @@ var Bn = Kf(), ur = 63710088e-1, Jf = {
   radians: 1,
   yards: ur * 1.0936
 };
-function qh(me, N, ne = {}) {
-  const fe = { type: "Feature" };
-  return (ne.id === 0 || ne.id) && (fe.id = ne.id), ne.bbox && (fe.bbox = ne.bbox), fe.properties = N || {}, fe.geometry = me, fe;
+function qh(fe, N, ne = {}) {
+  const me = { type: "Feature" };
+  return (ne.id === 0 || ne.id) && (me.id = ne.id), ne.bbox && (me.bbox = ne.bbox), me.properties = N || {}, me.geometry = fe, me;
 }
-function Qf(me, N, ne = {}) {
-  if (me.length < 2)
+function Qf(fe, N, ne = {}) {
+  if (fe.length < 2)
     throw new Error("coordinates must be an array of two or more positions");
   return qh({
     type: "LineString",
-    coordinates: me
+    coordinates: fe
   }, N, ne);
 }
-function em(me, N = "kilometers") {
+function em(fe, N = "kilometers") {
   const ne = Jf[N];
   if (!ne)
     throw new Error(N + " units is invalid");
-  return me * ne;
+  return fe * ne;
 }
-function Ec(me) {
-  return me % 360 * Math.PI / 180;
+function Ec(fe) {
+  return fe % 360 * Math.PI / 180;
 }
-function Yh(me, N, ne) {
-  if (me !== null)
-    for (var fe, je, st, I, c, be, lt, ut = 0, ft = 0, Ve, ue = me.type, Ze = ue === "FeatureCollection", _t = ue === "Feature", fi = Ze ? me.features.length : 1, Ii = 0; Ii < fi; Ii++) {
+function Yh(fe, N, ne) {
+  if (fe !== null)
+    for (var me, je, st, I, c, be, lt, ut = 0, ft = 0, Ve, ue = fe.type, Ze = ue === "FeatureCollection", _t = ue === "Feature", fi = Ze ? fe.features.length : 1, Ii = 0; Ii < fi; Ii++) {
       lt = Ze ? (
         // @ts-expect-error: Known type conflict
-        me.features[Ii].geometry
+        fe.features[Ii].geometry
       ) : _t ? (
         // @ts-expect-error: Known type conflict
-        me.geometry
-      ) : me, Ve = lt ? lt.type === "GeometryCollection" : !1, c = Ve ? lt.geometries.length : 1;
+        fe.geometry
+      ) : fe, Ve = lt ? lt.type === "GeometryCollection" : !1, c = Ve ? lt.geometries.length : 1;
       for (var It = 0; It < c; It++) {
         var mt = 0, jt = 0;
         if (I = Ve ? lt.geometries[It] : lt, I !== null) {
@@ -21572,11 +21572,11 @@ function Yh(me, N, ne) {
               break;
             case "LineString":
             case "MultiPoint":
-              for (fe = 0; fe < be.length; fe++) {
+              for (me = 0; me < be.length; me++) {
                 if (
                   // @ts-expect-error: Known type conflict
                   N(
-                    be[fe],
+                    be[me],
                     ft,
                     Ii,
                     mt,
@@ -21590,12 +21590,12 @@ function Yh(me, N, ne) {
               break;
             case "Polygon":
             case "MultiLineString":
-              for (fe = 0; fe < be.length; fe++) {
-                for (je = 0; je < be[fe].length - ut; je++) {
+              for (me = 0; me < be.length; me++) {
+                for (je = 0; je < be[me].length - ut; je++) {
                   if (
                     // @ts-expect-error: Known type conflict
                     N(
-                      be[fe][je],
+                      be[me][je],
                       ft,
                       Ii,
                       mt,
@@ -21610,13 +21610,13 @@ function Yh(me, N, ne) {
               Ui === "Polygon" && mt++;
               break;
             case "MultiPolygon":
-              for (fe = 0; fe < be.length; fe++) {
-                for (jt = 0, je = 0; je < be[fe].length; je++) {
-                  for (st = 0; st < be[fe][je].length - ut; st++) {
+              for (me = 0; me < be.length; me++) {
+                for (jt = 0, je = 0; je < be[me].length; je++) {
+                  for (st = 0; st < be[me][je].length - ut; st++) {
                     if (
                       // @ts-expect-error: Known type conflict
                       N(
-                        be[fe][je][st],
+                        be[me][je][st],
                         ft,
                         Ii,
                         mt,
@@ -21632,10 +21632,10 @@ function Yh(me, N, ne) {
               }
               break;
             case "GeometryCollection":
-              for (fe = 0; fe < I.geometries.length; fe++)
+              for (me = 0; me < I.geometries.length; me++)
                 if (
                   // @ts-expect-error: Known type conflict
-                  Yh(I.geometries[fe], N) === !1
+                  Yh(I.geometries[me], N) === !1
                 )
                   return !1;
               break;
@@ -21646,33 +21646,33 @@ function Yh(me, N, ne) {
       }
     }
 }
-function tm(me, N) {
-  var ne, fe, je, st, I, c, be, lt, ut, ft, Ve = 0, ue = me.type === "FeatureCollection", Ze = me.type === "Feature", _t = ue ? me.features.length : 1;
+function tm(fe, N) {
+  var ne, me, je, st, I, c, be, lt, ut, ft, Ve = 0, ue = fe.type === "FeatureCollection", Ze = fe.type === "Feature", _t = ue ? fe.features.length : 1;
   for (ne = 0; ne < _t; ne++) {
     for (c = ue ? (
       // @ts-expect-error: Known type conflict
-      me.features[ne].geometry
+      fe.features[ne].geometry
     ) : Ze ? (
       // @ts-expect-error: Known type conflict
-      me.geometry
-    ) : me, lt = ue ? (
+      fe.geometry
+    ) : fe, lt = ue ? (
       // @ts-expect-error: Known type conflict
-      me.features[ne].properties
+      fe.features[ne].properties
     ) : Ze ? (
       // @ts-expect-error: Known type conflict
-      me.properties
+      fe.properties
     ) : {}, ut = ue ? (
       // @ts-expect-error: Known type conflict
-      me.features[ne].bbox
+      fe.features[ne].bbox
     ) : Ze ? (
       // @ts-expect-error: Known type conflict
-      me.bbox
+      fe.bbox
     ) : void 0, ft = ue ? (
       // @ts-expect-error: Known type conflict
-      me.features[ne].id
+      fe.features[ne].id
     ) : Ze ? (
       // @ts-expect-error: Known type conflict
-      me.id
+      fe.id
     ) : void 0, be = c ? c.type === "GeometryCollection" : !1, I = be ? c.geometries.length : 1, je = 0; je < I; je++) {
       if (st = be ? c.geometries[je] : c, st === null) {
         if (
@@ -21710,11 +21710,11 @@ function tm(me, N) {
           break;
         }
         case "GeometryCollection": {
-          for (fe = 0; fe < st.geometries.length; fe++)
+          for (me = 0; me < st.geometries.length; me++)
             if (
               // @ts-expect-error: Known type conflict
               N(
-                st.geometries[fe],
+                st.geometries[me],
                 Ve,
                 lt,
                 ut,
@@ -21731,8 +21731,8 @@ function tm(me, N) {
     Ve++;
   }
 }
-function im(me, N) {
-  tm(me, function(ne, fe, je, st, I) {
+function im(fe, N) {
+  tm(fe, function(ne, me, je, st, I) {
     var c = ne === null ? null : ne.type;
     switch (c) {
       case null:
@@ -21743,7 +21743,7 @@ function im(me, N) {
           // @ts-expect-error: Known type conflict
           N(
             qh(ne, je, { bbox: st, id: I }),
-            fe,
+            me,
             0
           ) === !1 ? !1 : void 0
         );
@@ -21772,14 +21772,14 @@ function im(me, N) {
       };
       if (
         // @ts-expect-error: Known type conflict
-        N(qh(ft, je), fe, lt) === !1
+        N(qh(ft, je), me, lt) === !1
       )
         return !1;
     }
   });
 }
-function rm(me, N) {
-  im(me, function(ne, fe, je) {
+function rm(fe, N) {
+  im(fe, function(ne, me, je) {
     var st = 0;
     if (ne.geometry) {
       var I = ne.geometry.type;
@@ -21792,9 +21792,9 @@ function rm(me, N) {
             function(ft, Ve, ue, Ze, _t) {
               if (
                 // @ts-expect-error: Known type conflict
-                c === void 0 || fe > be || Ze > lt || _t > ut
+                c === void 0 || me > be || Ze > lt || _t > ut
               ) {
-                c = ft, be = fe, lt = Ze, ut = _t, st = 0;
+                c = ft, be = me, lt = Ze, ut = _t, st = 0;
                 return;
               }
               var fi = Qf(
@@ -21807,7 +21807,7 @@ function rm(me, N) {
                 N(
                   // @ts-expect-error: Known type conflict
                   fi,
-                  fe,
+                  me,
                   je,
                   _t,
                   st
@@ -21823,13 +21823,13 @@ function rm(me, N) {
     }
   });
 }
-function nm(me, N, ne) {
-  var fe = ne, je = !1;
+function nm(fe, N, ne) {
+  var me = ne, je = !1;
   return rm(
-    me,
+    fe,
     function(st, I, c, be, lt) {
-      je === !1 && ne === void 0 ? fe = st : fe = N(
-        fe,
+      je === !1 && ne === void 0 ? me = st : me = N(
+        me,
         // @ts-expect-error: Known type conflict
         st,
         I,
@@ -21838,14 +21838,14 @@ function nm(me, N, ne) {
         lt
       ), je = !0;
     }
-  ), fe;
+  ), me;
 }
-function sm(me, N = {}) {
-  if (me.bbox != null && N.recompute !== !0)
-    return me.bbox;
+function sm(fe, N = {}) {
+  if (fe.bbox != null && N.recompute !== !0)
+    return fe.bbox;
   const ne = [1 / 0, 1 / 0, -1 / 0, -1 / 0];
-  return Yh(me, (fe) => {
-    ne[0] > fe[0] && (ne[0] = fe[0]), ne[1] > fe[1] && (ne[1] = fe[1]), ne[2] < fe[0] && (ne[2] = fe[0]), ne[3] < fe[1] && (ne[3] = fe[1]);
+  return Yh(fe, (me) => {
+    ne[0] > me[0] && (ne[0] = me[0]), ne[1] > me[1] && (ne[1] = me[1]), ne[2] < me[0] && (ne[2] = me[0]), ne[3] < me[1] && (ne[3] = me[1]);
   }), ne;
 }
 var jd = sm;
@@ -21914,7 +21914,7 @@ class ia extends am {
   }
   containsText(N = "") {
     let ne = 0;
-    return ne += Object.values(this.properties).some((fe) => fe.toString().toLowerCase().includes(N.toLowerCase())), ne > 0;
+    return ne += Object.values(this.properties).some((me) => me.toString().toLowerCase().includes(N.toLowerCase())), ne > 0;
   }
   zoomIn() {
     if (!this.mapLibreMap)
@@ -21996,10 +21996,10 @@ class ia extends am {
 }
 const Kh = "#b42714";
 function Nd() {
-  const me = "0123456789ABCDEF";
+  const fe = "0123456789ABCDEF";
   let N = "#";
   for (let ne = 0; ne < 6; ne++)
-    N += me[Math.floor(Math.random() * 16)];
+    N += fe[Math.floor(Math.random() * 16)];
   return N;
 }
 class Vd extends ia {
@@ -22057,31 +22057,31 @@ class Vd extends ia {
     N.paint["circle-stroke-color"] = Kh, N.paint["circle-stroke-width"] += 2;
   }
 }
-function Dd(me) {
-  if (!me)
+function Dd(fe) {
+  if (!fe)
     throw new Error("coord is required");
-  if (!Array.isArray(me)) {
-    if (me.type === "Feature" && me.geometry !== null && me.geometry.type === "Point")
-      return [...me.geometry.coordinates];
-    if (me.type === "Point")
-      return [...me.coordinates];
+  if (!Array.isArray(fe)) {
+    if (fe.type === "Feature" && fe.geometry !== null && fe.geometry.type === "Point")
+      return [...fe.geometry.coordinates];
+    if (fe.type === "Point")
+      return [...fe.coordinates];
   }
-  if (Array.isArray(me) && me.length >= 2 && !Array.isArray(me[0]) && !Array.isArray(me[1]))
-    return [...me];
+  if (Array.isArray(fe) && fe.length >= 2 && !Array.isArray(fe[0]) && !Array.isArray(fe[1]))
+    return [...fe];
   throw new Error("coord must be GeoJSON Point or an Array of numbers");
 }
-function om(me, N, ne = {}) {
-  var fe = Dd(me), je = Dd(N), st = Ec(je[1] - fe[1]), I = Ec(je[0] - fe[0]), c = Ec(fe[1]), be = Ec(je[1]), lt = Math.pow(Math.sin(st / 2), 2) + Math.pow(Math.sin(I / 2), 2) * Math.cos(c) * Math.cos(be);
+function om(fe, N, ne = {}) {
+  var me = Dd(fe), je = Dd(N), st = Ec(je[1] - me[1]), I = Ec(je[0] - me[0]), c = Ec(me[1]), be = Ec(je[1]), lt = Math.pow(Math.sin(st / 2), 2) + Math.pow(Math.sin(I / 2), 2) * Math.cos(c) * Math.cos(be);
   return em(
     2 * Math.atan2(Math.sqrt(lt), Math.sqrt(1 - lt)),
     ne.units
   );
 }
-function lm(me, N = {}) {
+function lm(fe, N = {}) {
   return nm(
-    me,
-    (ne, fe) => {
-      const je = fe.geometry.coordinates;
+    fe,
+    (ne, me) => {
+      const je = me.geometry.coordinates;
       return ne + om(je[0], je[1], N);
     },
     0
@@ -22132,17 +22132,17 @@ class Ud extends ia {
     const N = this.getLinePositions();
     if (N.length === 0)
       return "";
-    let ne = 0, fe = 0, je = N[0][2], st = N[0][2];
+    let ne = 0, me = 0, je = N[0][2], st = N[0][2];
     for (let I = 1; I < N.length; I++) {
       const c = N[I][2] - N[I - 1][2];
-      c > 0 ? ne += c : fe -= c, je = Math.max(je, N[I][2]), st = Math.min(st, N[I][2]);
+      c > 0 ? ne += c : me -= c, je = Math.max(je, N[I][2]), st = Math.min(st, N[I][2]);
     }
-    return "Elevation Gain: " + Math.round(ne * 10) / 10 + "m, Loss: " + Math.round(fe * 10) / 10 + "m, Max: " + Math.round(je * 10) / 10 + "m, Min: " + Math.round(st * 10) / 10 + "m";
+    return "Elevation Gain: " + Math.round(ne * 10) / 10 + "m, Loss: " + Math.round(me * 10) / 10 + "m, Max: " + Math.round(je * 10) / 10 + "m, Min: " + Math.round(st * 10) / 10 + "m";
   }
   getBounds() {
     const N = this.getLinePositions();
     return N.length ? N.reduce(
-      (ne, fe) => ne.extend({ lng: fe[0], lat: fe[1] }),
+      (ne, me) => ne.extend({ lng: me[0], lat: me[1] }),
       new Bn.LngLatBounds(
         { lng: N[0][0], lat: N[0][1] },
         { lng: N[0][0], lat: N[0][1] }
@@ -22159,12 +22159,12 @@ class Ud extends ia {
   }
   inBounds(N) {
     return this.getLinePositions().some(
-      (fe) => N.contains({ lng: fe[0], lat: fe[1] })
+      (me) => N.contains({ lng: me[0], lat: me[1] })
     );
   }
   zoomIn() {
     if (this.mapLibreMap.getZoom() < 16) {
-      const fe = this.getLinePositions(), je = fe.length ? fe[0] : [0, 0];
+      const me = this.getLinePositions(), je = me.length ? me[0] : [0, 0];
       this.mapLibreMap.flyTo({
         center: [je[0], je[1]],
         zoom: 16,
@@ -22174,7 +22174,7 @@ class Ud extends ia {
   }
   getLinePositions() {
     const N = this.geometry;
-    return N.type === "MultiLineString" ? N.coordinates.reduce((ne, fe) => ne.concat(fe), []) : N.coordinates || [];
+    return N.type === "MultiLineString" ? N.coordinates.reduce((ne, me) => ne.concat(me), []) : N.coordinates || [];
   }
   customizeHighlight(N) {
     N.paint["line-color"] = Kh, N.paint["line-width"] += 2;
@@ -22249,7 +22249,7 @@ class $d extends ia {
   getBounds() {
     const N = this.getPolygonPositions();
     return N.length ? N.reduce(
-      (ne, fe) => ne.extend({ lng: fe[0], lat: fe[1] }),
+      (ne, me) => ne.extend({ lng: me[0], lat: me[1] }),
       new Bn.LngLatBounds(
         { lng: N[0][0], lat: N[0][1] },
         { lng: N[0][0], lat: N[0][1] }
@@ -22270,7 +22270,7 @@ class $d extends ia {
   }
   getPolygonPositions() {
     const N = this.geometry;
-    return N.type === "MultiPolygon" ? N.coordinates.reduce((ne, fe) => (fe.forEach((je) => ne.push(...je)), ne), []) : N.coordinates ? N.coordinates.reduce((ne, fe) => ne.concat(fe), []) : [];
+    return N.type === "MultiPolygon" ? N.coordinates.reduce((ne, me) => (me.forEach((je) => ne.push(...je)), ne), []) : N.coordinates ? N.coordinates.reduce((ne, me) => ne.concat(me), []) : [];
   }
   flyTo() {
     const N = this.getBounds();
@@ -22316,8 +22316,8 @@ class Wh extends cm {
       zoom: null,
       ...this.properties.waymark
     }, this.overlays = /* @__PURE__ */ new Map(), this.features.forEach((ne) => {
-      const fe = Zd(ne);
-      this.overlays.set(fe.id, fe);
+      const me = Zd(ne);
+      this.overlays.set(me.id, me);
     }), this.mapLibreMap = null, this;
   }
   get overlaysArray() {
@@ -22373,8 +22373,8 @@ class Wh extends cm {
     }), this.mapLibreMap = null;
   }
 }
-function hm(me) {
-  const N = /* @__PURE__ */ new Map(), ne = /* @__PURE__ */ new Map(), fe = () => Array.from(N.values()), je = () => Array.from(ne.values()), st = (Ze) => {
+function hm(fe) {
+  const N = /* @__PURE__ */ new Map(), ne = /* @__PURE__ */ new Map(), me = () => Array.from(N.values()), je = () => Array.from(ne.values()), st = (Ze) => {
     if (!Ze || !Ze.type)
       throw new Error("Valid GeoJSON required");
     switch (Ze.type) {
@@ -22390,19 +22390,19 @@ function hm(me) {
   }, I = (Ze) => {
     if (!(Ze instanceof Wh))
       throw new Error("WaymarkMap instance required");
-    N.has(Ze.id) || (N.set(Ze.id, Ze), me.dispatchEvent("geojson-state-change"), me.dispatchEvent("geojson-map-added", { map: Ze }));
+    N.has(Ze.id) || (N.set(Ze.id, Ze), fe.dispatchEvent("geojson-state-change"), fe.dispatchEvent("geojson-map-added", { map: Ze }));
   }, c = (Ze) => {
     if (!(Ze instanceof Wh))
       throw new Error("WaymarkMap instance required");
-    N.has(Ze.id) && (N.delete(Ze.id), me.dispatchEvent("geojson-state-change"), me.dispatchEvent("geojson-map-removed", { map: Ze }));
+    N.has(Ze.id) && (N.delete(Ze.id), fe.dispatchEvent("geojson-state-change"), fe.dispatchEvent("geojson-map-removed", { map: Ze }));
   }, be = (Ze) => {
     if (!(Ze instanceof ia))
       throw new Error("WaymarkOverlay instance required");
-    ne.has(Ze.id) || (ne.set(Ze.id, Ze), me.dispatchEvent("geojson-state-change"), me.dispatchEvent("geojson-overlay-added", { overlay: Ze }));
+    ne.has(Ze.id) || (ne.set(Ze.id, Ze), fe.dispatchEvent("geojson-state-change"), fe.dispatchEvent("geojson-overlay-added", { overlay: Ze }));
   }, lt = (Ze) => {
     if (!(Ze instanceof ia))
       throw new Error("WaymarkOverlay instance required");
-    ne.has(Ze.id) && (ne.delete(Ze.id), me.dispatchEvent("geojson-state-change"), me.dispatchEvent("geojson-overlay-removed", { overlay: Ze }));
+    ne.has(Ze.id) && (ne.delete(Ze.id), fe.dispatchEvent("geojson-state-change"), fe.dispatchEvent("geojson-overlay-removed", { overlay: Ze }));
   }, ut = () => {
     const Ze = Array.from(ne.values());
     return {
@@ -22425,7 +22425,7 @@ function hm(me) {
     features: Ve,
     hasFeatures: () => Ve.length > 0,
     maps: N,
-    mapsArray: fe,
+    mapsArray: me,
     overlays: ne,
     overlaysArray: je,
     overlaysByType: ut,
@@ -22438,9 +22438,9 @@ function hm(me) {
     removeOverlay: lt
   };
 }
-function um(me) {
+function um(fe) {
   const N = {
-    mapLibreMap: me.mapLibreMap,
+    mapLibreMap: fe.mapLibreMap,
     view: {
       bearing: null,
       pitch: null,
@@ -22450,15 +22450,15 @@ function um(me) {
     }
   };
   function ne() {
-    const { overlays: fe, maps: je } = me.geoJSONStore;
+    const { overlays: me, maps: je } = fe.geoJSONStore;
     N.mapLibreMap.on("load", () => {
-      N.view.bounds = N.mapLibreMap.getBounds(), N.view.bearing = N.mapLibreMap.getBearing(), N.view.pitch = N.mapLibreMap.getPitch(), N.view.zoom = N.mapLibreMap.getZoom(), N.view.center = N.mapLibreMap.getCenter(), me.dispatchEvent("maplibre-map-ready");
+      N.view.bounds = N.mapLibreMap.getBounds(), N.view.bearing = N.mapLibreMap.getBearing(), N.view.pitch = N.mapLibreMap.getPitch(), N.view.zoom = N.mapLibreMap.getZoom(), N.view.center = N.mapLibreMap.getCenter(), fe.dispatchEvent("maplibre-map-ready");
     }), N.mapLibreMap.on("rotateend", () => {
-      N.view.bearing = N.mapLibreMap.getBearing();
+      N.view.bearing = N.mapLibreMap.getBearing(), fe.dispatchEvent("maplibre-map-view-change");
     }), N.mapLibreMap.on("pitchend", () => {
-      N.view.pitch = N.mapLibreMap.getPitch();
+      N.view.pitch = N.mapLibreMap.getPitch(), fe.dispatchEvent("maplibre-map-view-change");
     }), N.mapLibreMap.on("moveend", () => {
-      N.view.bounds = N.mapLibreMap.getBounds(), N.view.center = N.mapLibreMap.getCenter(), N.view.zoom = N.mapLibreMap.getZoom();
+      N.view.bounds = N.mapLibreMap.getBounds(), N.view.center = N.mapLibreMap.getCenter(), N.view.zoom = N.mapLibreMap.getZoom(), fe.dispatchEvent("maplibre-map-view-change");
     }), N.mapLibreMap.on("click", (st) => {
       const I = [
         [st.point.x - 10, st.point.y - 10],
@@ -22467,8 +22467,8 @@ function um(me) {
       let be = null;
       for (const lt of c) {
         const ut = lt.layer.id;
-        if (fe.has(ut)) {
-          be = fe.get(ut);
+        if (me.has(ut)) {
+          be = me.get(ut);
           break;
         }
         for (const ft of je.values())
@@ -22478,16 +22478,16 @@ function um(me) {
           }
         if (be) break;
       }
-      be ? me.setActiveOverlay(be) : me.setActiveOverlay();
+      be ? fe.setActiveOverlay(be) : fe.setActiveOverlay();
     });
   }
   return ne(), N;
 }
 const Hh = "waymark-event";
 class dm extends CustomEvent {
-  constructor(N, ne = {}, fe = {}) {
+  constructor(N, ne = {}, me = {}) {
     super(Hh, {
-      detail: { eventName: N, ...ne, ...fe }
+      detail: { eventName: N, ...ne, ...me }
     });
   }
 }
@@ -22535,12 +22535,12 @@ class pm {
   }
   // Event Handling
   dispatchEvent(N, ne = {}) {
-    const fe = new dm(N, ne, this);
-    this.container && this.container.dispatchEvent(fe);
+    const me = new dm(N, ne, this);
+    this.container && this.container.dispatchEvent(me);
   }
   onEvent(N, ne) {
-    this.container && this.container.addEventListener(Hh, (fe) => {
-      fe.detail && fe.detail.eventName === N && ne(fe);
+    this.container && this.container.addEventListener(Hh, (me) => {
+      me.detail && me.detail.eventName === N && ne(me);
     });
   }
   addEventHandling() {
@@ -22554,11 +22554,11 @@ class pm {
   }
   drawGeoJSON() {
     console.log("[Waymark][%s] Drawing GeoJSON", this.id);
-    const { mapsArray: N, overlaysArray: ne } = this.geoJSONStore, { mapLibreMap: fe } = this.mapLibreStore;
+    const { mapsArray: N, overlaysArray: ne } = this.geoJSONStore, { mapLibreMap: me } = this.mapLibreStore;
     N().forEach((je) => {
-      je.addTo(fe);
+      je.addTo(me);
     }), ne().forEach((je) => {
-      je.addTo(fe);
+      je.addTo(me);
     });
   }
   // Actions
@@ -22577,16 +22577,16 @@ class pm {
     this.activeOverlay = N, N.setActive(!0), N.flyTo(), N.openPopup(), this.dispatchEvent("state-active-overlay-set");
   }
   rotateMap(N = "cw", ne = 90) {
-    const { mapLibreMap: fe } = this.mapLibreStore;
-    if (fe.isRotating())
+    const { mapLibreMap: me } = this.mapLibreStore;
+    if (me.isRotating())
       return;
-    const je = fe.getBearing(), st = N === "cw" ? je + ne : je - ne;
-    fe.rotateTo(st, Xf);
+    const je = me.getBearing(), st = N === "cw" ? je + ne : je - ne;
+    me.rotateTo(st, Xf);
   }
   pitchMap(N = "down", ne = 15) {
-    const { mapLibreMap: fe } = this.mapLibreStore, je = fe.getPitch();
+    const { mapLibreMap: me } = this.mapLibreStore, je = me.getPitch();
     let st = N === "down" ? je + ne : je - ne;
-    st = Math.max(0, Math.min(60, st)), fe.easeTo(
+    st = Math.max(0, Math.min(60, st)), me.easeTo(
       {
         pitch: st,
         ...ao
@@ -22608,13 +22608,13 @@ class pm {
         pitch: 60,
         ...ao
       },
-      { easing: (fe) => fe * (2 - fe) }
+      { easing: (me) => me * (2 - me) }
     ) : ne.easeTo(
       {
         pitch: 0,
         ...ao
       },
-      { easing: (fe) => fe * (2 - fe) }
+      { easing: (me) => me * (2 - me) }
     );
   }
   toggle3D() {
@@ -22624,13 +22624,13 @@ class pm {
         pitch: 0,
         ...ao
       },
-      { easing: (fe) => fe * (2 - fe) }
+      { easing: (me) => me * (2 - me) }
     ) : N.easeTo(
       {
         pitch: 60,
         ...ao
       },
-      { easing: (fe) => fe * (2 - fe) }
+      { easing: (me) => me * (2 - me) }
     );
   }
   resetView() {
@@ -22638,37 +22638,37 @@ class pm {
     this.pointNorth(), this.set3D(!1), ne.fitBounds(N.value, ta);
   }
 }
-function mm(me = {}) {
+function mm(fe = {}) {
   try {
-    return new pm(me);
+    return new pm(fe);
   } catch (N) {
     console.error("[Waymark]", N);
   }
 }
-function fm(me) {
-  return new Wh(me);
+function fm(fe) {
+  return new Wh(fe);
 }
-function Zd(me) {
-  if (me.type)
-    switch (Rd(me)) {
+function Zd(fe) {
+  if (fe.type)
+    switch (Rd(fe)) {
       case "marker":
-        return new Vd(me);
+        return new Vd(fe);
       case "line":
-        return new Ud(me);
+        return new Ud(fe);
       case "shape":
-        return new $d(me);
+        return new $d(fe);
       default:
         throw new Error("Unsupported feature type for overlay creation");
     }
 }
-function gm(me) {
-  return new Vd(me);
+function gm(fe) {
+  return new Vd(fe);
 }
-function _m(me) {
-  return new Ud(me);
+function _m(fe) {
+  return new Ud(fe);
 }
-function ym(me) {
-  return new $d(me);
+function ym(fe) {
+  return new $d(fe);
 }
 export {
   dm as WaymarkEvent,
