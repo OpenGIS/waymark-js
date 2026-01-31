@@ -1,4 +1,4 @@
-import { ref, shallowRef } from "vue";
+import { ref } from "vue";
 import { mapOptions } from "@/helpers/MapLibre.js";
 import { Map } from "maplibre-gl";
 
@@ -6,7 +6,6 @@ export function createMapLibreStore(WaymarkInstance) {
 	// State
 	const store = {
 		mapLibreMap: null,
-		mapReady: shallowRef(false),
 		view: ref({
 			bearing: null,
 			pitch: null,
@@ -33,8 +32,6 @@ export function createMapLibreStore(WaymarkInstance) {
 
 		// When MapLibre has loaded
 		store.mapLibreMap.on("load", () => {
-			store.mapReady.value = true;
-
 			// Set Initial View
 			store.view.value.bounds = store.mapLibreMap.getBounds();
 			store.view.value.bearing = store.mapLibreMap.getBearing();
@@ -105,18 +102,6 @@ export function createMapLibreStore(WaymarkInstance) {
 			}
 		});
 	}
-
-	// watch(
-	// 	() => view.value,
-	// 	throttle((viewValue) => {
-	// 		if (!mapReady.value) return;
-	// 
-	// 		WaymarkInstance.dispatchEvent("maplibre-view-change", {
-	// 			view: viewValue,
-	// 		});
-	// 	}, 1000),
-	// 	{ deep: true },
-	// );
 
 	store.createMap = createMap;
 
