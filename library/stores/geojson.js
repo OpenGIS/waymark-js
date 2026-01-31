@@ -1,5 +1,3 @@
-import { ref, watch, computed, triggerRef, shallowRef } from "vue";
-import { throttle } from "lodash-es";
 import { LngLatBounds } from "maplibre-gl";
 import { createOverlay, createMap } from "@/helpers/Factory.js";
 import WaymarkMap from "@/classes/Map.js";
@@ -7,33 +5,16 @@ import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 
 export function createGeoJSONStore(WaymarkInstance) {
 	// State
-	const maps = shallowRef(new Map());
-	const overlays = shallowRef(new Map());
+	const maps = new Map();
+	const overlays = new Map();
 
-	const mapsArray = computed(() => {
-		return Array.from(maps.value.values());
-	});
+	const mapsArray = () => {
+		return Array.from(maps.values());
+	};
 
-	const overlaysArray = computed(() => {
-		return Array.from(overlays.value.values());
-	});
-
-	const toJSON = computed(() => {
-		return {
-			maps: mapsArray.value.map((map) => map.toJSON()),
-			overlays: overlaysArray.value.map((overlay) => overlay.toJSON()),
-		};
-	});
-
-	// Fire event every time toJSON changes
-	watch(
-		() => toJSON.value,
-		throttle((newValue) => {
-			WaymarkInstance.dispatchEvent("geojson-state-change", {
-				geoJSON: newValue,
-			});
-		}, 250),
-	);
+	const overlaysArray = () => {
+		return Array.from(overlays.values());
+	};
 
 	// Actions
 
@@ -71,19 +52,13 @@ export function createGeoJSONStore(WaymarkInstance) {
 		}
 
 		// Ensure not already added
-		if (maps.value.has(map.id)) {
+		if (maps.has(map.id)) {
 			return;
 		}
 
-		maps.value.set(map.id, map);
-		triggerRef(maps);
+		maps.set(map.id, map);
 
-		// Add overlays too
-		// map.overlays.forEach((overlay) => {
-		// 	addOverlay(overlay);
-		// });
-		// triggerRef(overlays);
-
+		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-map-added", { map });
 	};
 
@@ -94,19 +69,13 @@ export function createGeoJSONStore(WaymarkInstance) {
 		}
 
 		// Ensure already added
-		if (!maps.value.has(map.id)) {
+		if (!maps.has(map.id)) {
 			return;
 		}
 
-		maps.value.delete(map.id);
-		triggerRef(maps);
+		maps.delete(map.id);
 
-		// Remove overlays too
-		// map.overlays.forEach((overlay) => {
-		// 	removeOverlay(overlay);
-		// });
-		// triggerRef(overlays);
-
+		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-map-removed", { map });
 	};
 
@@ -117,13 +86,13 @@ export function createGeoJSONStore(WaymarkInstance) {
 		}
 
 		// Ensure not already added
-		if (overlays.value.has(overlay.id)) {
+		if (overlays.has(overlay.id)) {
 			return;
 		}
 
-		overlays.value.set(overlay.id, overlay);
-		triggerRef(overlays);
+		overlays.set(overlay.id, overlay);
 
+		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });
 	};
 
@@ -134,20 +103,20 @@ export function createGeoJSONStore(WaymarkInstance) {
 		}
 
 		// Ensure already added
-		if (!overlays.value.has(overlay.id)) {
+		if (!overlays.has(overlay.id)) {
 			return;
 		}
 
-		overlays.value.delete(overlay.id);
-		triggerRef(overlays);
+		overlays.delete(overlay.id);
 
+		WaymarkInstance.dispatchEvent("geojson-state-change");
 		WaymarkInstance.dispatchEvent("geojson-overlay-removed", { overlay });
 	};
 
 	// Getters
 
-	const overlaysByType = computed(() => {
-		const overlaysArray = Array.from(overlays.value.values());
+	const overlaysByType = () => {
+		const overlaysArray = Array.from(overlays.values());
 		return {
 			markers: overlaysArray.filter(
 				(overlay) => overlay.featureType === "marker",
@@ -157,37 +126,37 @@ export function createGeoJSONStore(WaymarkInstance) {
 				(overlay) => overlay.featureType === "shape",
 			),
 		};
-	});
+	};
 
-	const overlaysBounds = computed(() => {
+	const overlaysBounds = () => {
 		const bounds = new LngLatBounds();
 
-		if (overlays.value.size === 0) {
+		if (overlays.size === 0) {
 			return null;
 		}
 
-		overlays.value.forEach((overlay) => {
+		overlays.forEach((overlay) => {
 			bounds.extend(overlay.getBounds());
 		});
 
 		return bounds;
-	});
+	};
 
-	const features = computed(() => {
+	const features = () => {
 		if (
 			state.value &&
-			state.value.type === "FeatureCollection" &&
-			Array.isArray(state.value.features)
+			state.type === "FeatureCollection" &&
+			Array.isArray(state.features)
 		) {
-			return state.value.features;
+			return state.features;
 		}
 
 		return [];
-	});
+	};
 
-	const hasFeatures = computed(() => {
-		return features.value.length > 0;
-	});
+	const hasFeatures = () => {
+		return features.length > 0;
+	};
 
 	return {
 		// State

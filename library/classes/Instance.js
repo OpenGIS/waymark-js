@@ -70,11 +70,11 @@ export default class WaymarkInstance {
   }
 
   getAllMaps() {
-    return this.geoJSONStore.mapsArray.value;
+    return this.geoJSONStore.mapsArray;
   }
 
   getMapByID(mapID) {
-    return this.geoJSONStore.maps.value.get(mapID);
+    return this.geoJSONStore.maps.get(mapID);
   }
 
   addOverlay(waymarkOverlay) {
@@ -86,11 +86,11 @@ export default class WaymarkInstance {
   }
 
   getAllOverlays() {
-    return this.geoJSONStore.overlaysArray.value;
+    return this.geoJSONStore.overlaysArray;
   }
 
   getOverlayByID(overlayID) {
-    return this.geoJSONStore.overlays.value.get(overlayID);
+    return this.geoJSONStore.overlays.get(overlayID);
   }
 
   // Event Handling
@@ -147,13 +147,13 @@ export default class WaymarkInstance {
     const { map: mapLibreMap } = this.mapLibreStore;
 
     // Maps
-    mapsArray.value.forEach((waymarkMap) => {
+    mapsArray().forEach((waymarkMap) => {
       // Add (Idempotent)
       waymarkMap.addTo(mapLibreMap.value);
     });
 
     // Overlays
-    overlaysArray.value.forEach((waymarkOverlay) => {
+    overlaysArray().forEach((waymarkOverlay) => {
       // Add (Idempotent)
       waymarkOverlay.addTo(mapLibreMap.value);
     });
