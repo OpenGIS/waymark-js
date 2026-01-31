@@ -187,43 +187,37 @@
           // geoJSON: { type: "FeatureCollection", features: [] }
 
           // Callback function
-          onLoad: (WaymarkInstance) => {
-            // console.log("Waymark Instance loaded:", WaymarkInstance.id);
-          },
-        });
-
-        // Load this GeoJSON, which contains a single "pub" Marker
-        const map = instanceFour.addGeoJSON({
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              properties: {
-                waymark: {
-                  paint: {
-                    "circle-radius": 6,
-                    "circle-color": "blue",
-                    "circle-stroke-color": "red",
-                    "circle-stroke-width": 6,
+          onLoad: (thisInstance) => {
+            // Load this GeoJSON, which contains a single "pub" Marker
+            const map = thisInstance.addGeoJSON({
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  properties: {
+                    waymark: {
+                      paint: {
+                        "circle-radius": 6,
+                        "circle-color": "blue",
+                        "circle-stroke-color": "red",
+                        "circle-stroke-width": 6,
+                      },
+                    },
+                    type: "pub",
+                    title: "The Scarlet Ibis",
+                    description:
+                      "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
+                  },
+                  geometry: {
+                    type: "Point",
+                    coordinates: [-128.0094, 50.6539],
                   },
                 },
-                type: "pub",
-                title: "The Scarlet Ibis",
-                description:
-                  "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
-              },
-              geometry: {
-                type: "Point",
-                coordinates: [-128.0094, 50.6539],
-              },
-            },
-          ],
+              ],
+            });
+          },
         });
       }
-
-      // setTimeout(() => {
-      //   map.remove();
-      // }, 10000);
 
       // =================== FIVE ====================
 
@@ -268,13 +262,7 @@
               const lat = 37.753574 + Math.random() * 0.1;
               line.addCoordinate([lng, lat]);
 
-              // thisInstance.geoJSONStore.removeItem(map);
-              // thisInstance.geoJSONStore.addItem(map);
               thisInstance.geoJSONStore.updateItem(map);
-
-              thisInstance.dispatchEvent("dynamic-line-updated", {
-                line,
-              });
             }, 1000);
           },
         });
@@ -311,6 +299,7 @@
               const lng = -122.447303 + Math.random() * 0.1;
               const lat = 37.753574 + Math.random() * 0.1;
               line.addCoordinate([lng, lat]);
+              thisInstance.geoJSONStore.updateItem(line);
 
               // Add marker
               const marker = createMarker({
