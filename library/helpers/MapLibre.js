@@ -1,7 +1,7 @@
 /* 
   ======= Constants =======
 */
-export const mapOptions = {
+export const defaultMapOptions = {
   // center: [0, 0],
   // zoom: 0,
   maxZoom: 18,

@@ -1,10 +1,7 @@
-import { mapOptions } from "@/helpers/MapLibre.js";
-import { Map } from "maplibre-gl";
-
 export function createMapLibreStore(WaymarkInstance) {
 	// State
 	const store = {
-		mapLibreMap: null,
+		mapLibreMap: WaymarkInstance.mapLibreMap,
 		view: {
 			bearing: null,
 			pitch: null,
@@ -13,17 +10,6 @@ export function createMapLibreStore(WaymarkInstance) {
 			center: null,
 		},
 	};
-
-	// Actions
-	function createMap(divID = "") {
-		store.mapLibreMap = new Map({
-			container: divID,
-			...mapOptions,
-			...(WaymarkInstance.config.mapOptions || {}),
-		});
-
-		addListeners();
-	}
 
 	// Add Event Listeners
 	function addListeners() {
@@ -102,7 +88,7 @@ export function createMapLibreStore(WaymarkInstance) {
 		});
 	}
 
-	store.createMap = createMap;
+	addListeners();
 
 	return store;
 }

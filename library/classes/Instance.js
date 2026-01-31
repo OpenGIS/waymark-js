@@ -1,11 +1,11 @@
 import { ulid } from "ulid";
-import { createApp } from "vue";
 import { createGeoJSONStore } from "@/stores/geojson.js";
 import { createMapLibreStore } from "@/stores/maplibre.js";
-import InstanceComponent from "@/components/Instance.vue";
 import { WaymarkEvent, waymarkEventName } from "@/classes/Event.js";
-import WaymarkMap from "@/classes/Map.js";
-import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
+import { defaultMapOptions } from "@/helpers/MapLibre.js";
+import { Map } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import "@/assets/css/index.less";
 
 import {
   flyToOptions,
@@ -42,19 +42,15 @@ export default class WaymarkInstance {
     this.geoJSONStore = createGeoJSONStore(this);
 
     // Create MapLibre Store
+    this.mapLibreMap = new Map({
+      container: this.container,
+      ...defaultMapOptions,
+      ...(this.config.mapOptions || {}),
+    });
     this.mapLibreStore = createMapLibreStore(this);
 
     // Track active Overlay
     this.activeOverlay = null;
-
-    // Create Vue App for this instance
-    const app = createApp(InstanceComponent);
-
-    // Provide stores to app
-    app.provide("mapLibreStore", this.mapLibreStore);
-
-    // Mount to DOM
-    app.mount(this.container);
   }
 
   addGeoJSON(geoJSON) {
