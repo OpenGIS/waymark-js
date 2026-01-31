@@ -5,6 +5,7 @@ import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
 
 export function createGeoJSONStore(WaymarkInstance) {
 	// State
+	const items = new Map();
 	const maps = new Map();
 	const overlays = new Map();
 
@@ -27,90 +28,82 @@ export function createGeoJSONStore(WaymarkInstance) {
 			case "FeatureCollection":
 				//Create & Add Map
 				const map = createMap(json);
-				addMap(map);
+				addItem(map);
 
 				return map;
 
-				break;
 			case "Feature":
 				//Create & Add Overlay
 				const overlay = createOverlay(json);
-				addOverlay(overlay);
+				addItem(overlay);
 
 				return overlay;
-
-				break;
 			default:
 				throw new Error("Valid GeoJSON Feature or FeatureCollection required");
 		}
 	};
 
-	const addMap = (map) => {
-		// Ensure is WaymarkMap
-		if (!(map instanceof WaymarkMap)) {
-			throw new Error("WaymarkMap instance required");
+	const addItem = (item = {}) => {
+		if (!item.id) {
+			throw new Error("Item must have an ID");
 		}
 
-		// Ensure not already added
-		if (maps.has(map.id)) {
-			return;
+		if (items.has(item.id)) {
+			throw new Error(`Item with ID ${item.id} already exists`);
 		}
 
-		maps.set(map.id, map);
+		items.set(item.id, item);
 
-		WaymarkInstance.dispatchEvent("geojson-state-change");
-		WaymarkInstance.dispatchEvent("geojson-map-added", { map });
+		switch (true) {
+			case item instanceof WaymarkMap:
+				maps.set(item.id, item);
+
+				WaymarkInstance.dispatchEvent("geojson-state-change");
+				WaymarkInstance.dispatchEvent("geojson-map-added", { item });
+
+				return;
+			case item instanceof WaymarkOverlay:
+				overlays.set(item.id, item);
+				WaymarkInstance.dispatchEvent("geojson-state-change");
+				WaymarkInstance.dispatchEvent("geojson-overlay-added", { item });
+
+				break;
+			default:
+				throw new Error("WaymarkMap or WaymarkOverlay instance required");
+		}
 	};
 
-	const removeMap = (map) => {
-		// Ensure is WaymarkMap
-		if (!(map instanceof WaymarkMap)) {
-			throw new Error("WaymarkMap instance required");
+	const removeItem = (item = {}) => {
+		if (!item.id) {
+			throw new Error("Item must have an ID");
 		}
 
-		// Ensure already added
-		if (!maps.has(map.id)) {
-			return;
+		if (!items.has(item.id)) {
+			throw new Error("Item with this ID does not exist");
 		}
 
-		maps.delete(map.id);
+		items.delete(item.id);
 
-		WaymarkInstance.dispatchEvent("geojson-state-change");
-		WaymarkInstance.dispatchEvent("geojson-map-removed", { map });
-	};
+		switch (true) {
+			case item instanceof WaymarkMap:
+				maps.delete(item.id);
 
-	const addOverlay = (overlay) => {
-		// Ensure is WaymarkOverlay
-		if (!(overlay instanceof WaymarkOverlay)) {
-			throw new Error("WaymarkOverlay instance required");
+				WaymarkInstance.dispatchEvent("geojson-state-change");
+				WaymarkInstance.dispatchEvent("geojson-map-removed", { map: item });
+
+				return;
+			case item instanceof WaymarkOverlay:
+				overlays.delete(item.id);
+
+				WaymarkInstance.dispatchEvent("geojson-state-change");
+				WaymarkInstance.dispatchEvent("geojson-overlay-removed", {
+					overlay: item,
+				});
+
+				return;
+			default:
+				throw new Error("WaymarkMap or WaymarkOverlay instance required");
 		}
-
-		// Ensure not already added
-		if (overlays.has(overlay.id)) {
-			return;
-		}
-
-		overlays.set(overlay.id, overlay);
-
-		WaymarkInstance.dispatchEvent("geojson-state-change");
-		WaymarkInstance.dispatchEvent("geojson-overlay-added", { overlay });
-	};
-
-	const removeOverlay = (overlay) => {
-		// Ensure is WaymarkOverlay
-		if (!(overlay instanceof WaymarkOverlay)) {
-			throw new Error("WaymarkOverlay instance required");
-		}
-
-		// Ensure already added
-		if (!overlays.has(overlay.id)) {
-			return;
-		}
-
-		overlays.delete(overlay.id);
-
-		WaymarkInstance.dispatchEvent("geojson-state-change");
-		WaymarkInstance.dispatchEvent("geojson-overlay-removed", { overlay });
 	};
 
 	// Getters
@@ -171,9 +164,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 
 		// Actions
 		addGeoJSON,
-		addMap,
-		removeMap,
-		addOverlay,
-		removeOverlay,
+		addItem,
+		removeItem,
 	};
 }

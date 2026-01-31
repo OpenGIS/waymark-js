@@ -57,28 +57,12 @@ export default class WaymarkInstance {
     return this.geoJSONStore.addGeoJSON(geoJSON);
   }
 
-  addMap(waymarkMap) {
-    this.geoJSONStore.addMap(waymarkMap);
-  }
-
-  removeMap(waymarkMap) {
-    this.geoJSONStore.removeMap(waymarkMap);
-  }
-
   getAllMaps() {
     return this.geoJSONStore.mapsArray;
   }
 
   getMapByID(mapID) {
     return this.geoJSONStore.maps.get(mapID);
-  }
-
-  addOverlay(waymarkOverlay) {
-    this.geoJSONStore.addOverlay(waymarkOverlay);
-  }
-
-  removeOverlay(waymarkOverlay) {
-    this.geoJSONStore.removeOverlay(waymarkOverlay);
   }
 
   getAllOverlays() {
