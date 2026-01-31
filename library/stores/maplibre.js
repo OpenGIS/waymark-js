@@ -30,11 +30,15 @@ export function createMapLibreStore(WaymarkInstance) {
 		// Track Bearing
 		store.mapLibreMap.on("rotateend", () => {
 			store.view.bearing = store.mapLibreMap.getBearing();
+
+			WaymarkInstance.dispatchEvent("maplibre-map-view-change");
 		});
 
 		// Track Pitch
 		store.mapLibreMap.on("pitchend", () => {
 			store.view.pitch = store.mapLibreMap.getPitch();
+
+			WaymarkInstance.dispatchEvent("maplibre-map-view-change");
 		});
 
 		//Track map bounds
@@ -43,6 +47,8 @@ export function createMapLibreStore(WaymarkInstance) {
 			store.view.bounds = store.mapLibreMap.getBounds();
 			store.view.center = store.mapLibreMap.getCenter();
 			store.view.zoom = store.mapLibreMap.getZoom();
+
+			WaymarkInstance.dispatchEvent("maplibre-map-view-change");
 		});
 
 		// Lines & Shape click handling
