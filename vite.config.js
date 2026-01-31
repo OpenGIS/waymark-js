@@ -1,7 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
 import { resolve } from "path";
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
 
 export default defineConfig({
   base: "./",
@@ -13,8 +12,6 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./library", import.meta.url)),
     },
   },
-
-  plugins: [vue()],
 
   css: {
     preprocessorOptions: {
