@@ -1,4 +1,3 @@
-import { ref } from "vue";
 import { mapOptions } from "@/helpers/MapLibre.js";
 import { Map } from "maplibre-gl";
 
@@ -6,13 +5,13 @@ export function createMapLibreStore(WaymarkInstance) {
 	// State
 	const store = {
 		mapLibreMap: null,
-		view: ref({
+		view: {
 			bearing: null,
 			pitch: null,
 			bounds: null,
 			zoom: null,
 			center: null,
-		}),
+		},
 	};
 
 	// Actions
@@ -33,31 +32,31 @@ export function createMapLibreStore(WaymarkInstance) {
 		// When MapLibre has loaded
 		store.mapLibreMap.on("load", () => {
 			// Set Initial View
-			store.view.value.bounds = store.mapLibreMap.getBounds();
-			store.view.value.bearing = store.mapLibreMap.getBearing();
-			store.view.value.pitch = store.mapLibreMap.getPitch();
-			store.view.value.zoom = store.mapLibreMap.getZoom();
-			store.view.value.center = store.mapLibreMap.getCenter();
+			store.view.bounds = store.mapLibreMap.getBounds();
+			store.view.bearing = store.mapLibreMap.getBearing();
+			store.view.pitch = store.mapLibreMap.getPitch();
+			store.view.zoom = store.mapLibreMap.getZoom();
+			store.view.center = store.mapLibreMap.getCenter();
 
 			WaymarkInstance.dispatchEvent("maplibre-map-ready");
 		});
 
 		// Track Bearing
 		store.mapLibreMap.on("rotateend", () => {
-			store.view.value.bearing = store.mapLibreMap.getBearing();
+			store.view.bearing = store.mapLibreMap.getBearing();
 		});
 
 		// Track Pitch
 		store.mapLibreMap.on("pitchend", () => {
-			store.view.value.pitch = store.mapLibreMap.getPitch();
+			store.view.pitch = store.mapLibreMap.getPitch();
 		});
 
 		//Track map bounds
 		store.mapLibreMap.on("moveend", () => {
 			//Set Max bounds
-			store.view.value.bounds = store.mapLibreMap.getBounds();
-			store.view.value.center = store.mapLibreMap.getCenter();
-			store.view.value.zoom = store.mapLibreMap.getZoom();
+			store.view.bounds = store.mapLibreMap.getBounds();
+			store.view.center = store.mapLibreMap.getCenter();
+			store.view.zoom = store.mapLibreMap.getZoom();
 		});
 
 		// Lines & Shape click handling

@@ -148,7 +148,6 @@ export default class WaymarkInstance {
     const { mapsArray, overlaysArray } = this.geoJSONStore;
     const { mapLibreMap } = this.mapLibreStore;
 
-
     // Maps
     mapsArray().forEach((waymarkMap) => {
       // Add (Idempotent)
@@ -274,7 +273,7 @@ export default class WaymarkInstance {
   toggle3D() {
     const { mapLibreMap, view } = this.mapLibreStore;
 
-    if (view.value.pitch > 0) {
+    if (view.pitch > 0) {
       // Reset to 2D
       mapLibreMap.easeTo(
         {
