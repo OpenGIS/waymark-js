@@ -268,6 +268,9 @@
               const lat = 37.753574 + Math.random() * 0.1;
               line.addCoordinate([lng, lat]);
 
+              // thisInstance.removeMap(map);
+              thisInstance.addMap(map);
+
               thisInstance.dispatchEvent("dynamic-line-updated", {
                 line,
               });
