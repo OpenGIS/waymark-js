@@ -55,10 +55,6 @@ export default class WaymarkInstance {
     this.activeOverlay = null;
   }
 
-  addGeoJSON(geoJSON) {
-    return this.geoJSONStore.addGeoJSON(geoJSON);
-  }
-
   getAllMaps() {
     return this.geoJSONStore.mapsArray;
   }
@@ -150,9 +146,6 @@ export default class WaymarkInstance {
           throw new Error("geojson-item-updated event missing item detail");
         }
 
-        console.log("geojson-item-updated event received", event.detail.item);
-        debugger;
-
         switch (true) {
           case event.detail.item instanceof WaymarkMap:
           case event.detail.item instanceof WaymarkOverlay:
@@ -168,7 +161,7 @@ export default class WaymarkInstance {
 
       // Initial
       if (this.config.geoJSON) {
-        this.addGeoJSON(this.config.geoJSON);
+        this.geoJSONStore.addItem(this.config.geoJSON);
       }
 
       // Call onLoad callback

@@ -19,7 +19,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 
 	// Actions
 
-	const addGeoJSON = (geoJSON) => {
+	const addItem = (geoJSON = {}) => {
 		if (!geoJSON || !geoJSON.type) {
 			throw new Error("Valid GeoJSON required");
 		}
@@ -28,22 +28,36 @@ export function createGeoJSONStore(WaymarkInstance) {
 			throw new Error("GeoJSON with this ID already exists");
 		}
 
-		let item;
-		switch (geoJSON.type) {
-			case "FeatureCollection":
-				// Map
-				item = createMap(geoJSON);
-				maps.set(item.id, item);
+		let item = null;
 
-				break;
-			case "Feature":
-				// Overlay
-				item = createOverlay(geoJSON);
-				overlays.set(item.id, item);
+		// Map
+		if (geoJSON instanceof WaymarkMap) {
+			item = geoJSON;
+			maps.set(item.id, item);
+			// Overlay
+		} else if (geoJSON instanceof WaymarkOverlay) {
+			item = geoJSON;
+			overlays.set(item.id, item);
+			// Raw GeoJSON
+		} else {
+			switch (geoJSON.type) {
+				case "FeatureCollection":
+					// Map
+					item = createMap(geoJSON);
+					maps.set(item.id, item);
 
-				break;
-			default:
-				throw new Error("Valid GeoJSON Feature or FeatureCollection required");
+					break;
+				case "Feature":
+					// Overlay
+					item = createOverlay(geoJSON);
+					overlays.set(item.id, item);
+
+					break;
+				default:
+					throw new Error(
+						"Valid GeoJSON Feature or FeatureCollection required",
+					);
+			}
 		}
 
 		items.set(item.id, item);
@@ -161,8 +175,7 @@ export function createGeoJSONStore(WaymarkInstance) {
 		overlaysBounds,
 
 		// Actions
-		addGeoJSON,
-		// addItem,
+		addItem,
 		updateItem,
 		removeItem,
 	};

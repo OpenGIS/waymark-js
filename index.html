@@ -42,10 +42,10 @@
       } from "./library/entry.js";
 
       const doOne = true;
-      const doTwo = false;
-      const doThree = false;
-      const doFour = false;
-      const doFive = false;
+      const doTwo = true;
+      const doThree = true;
+      const doFour = true;
+      const doFive = true;
       const doSix = true;
 
       // ==================== ONE ====================
@@ -67,7 +67,7 @@
             urls.forEach(async (url) => {
               fetch(url).then(async (res) => {
                 const geoJSON = await res.json();
-                WaymarkInstance.addGeoJSON(geoJSON);
+                WaymarkInstance.geoJSONStore.addItem(geoJSON);
               });
             });
           },
@@ -145,7 +145,7 @@
           debug: false,
           onLoad: (WaymarkInstance) => {
             localMaps.forEach((geoJSON) => {
-              WaymarkInstance.addGeoJSON(geoJSON);
+              WaymarkInstance.geoJSONStore.addItem(geoJSON);
             });
           },
         });
@@ -160,7 +160,7 @@
           reader.onload = (e) => {
             const geoJSON = JSON.parse(e.target.result);
 
-            instanceThree.addGeoJSON(geoJSON);
+            instanceThree.geoJSONStore.addItem(geoJSON);
 
             // Add to local storage
             localMaps.push(geoJSON);
@@ -191,7 +191,7 @@
           // Callback function
           onLoad: (thisInstance) => {
             // Load this GeoJSON, which contains a single "pub" Marker
-            const map = thisInstance.addGeoJSON({
+            const map = thisInstance.geoJSONStore.addItem({
               type: "FeatureCollection",
               features: [
                 {
@@ -294,7 +294,7 @@
                 },
               },
             });
-            thisInstance.geoJSONStore.addGeoJSON(line);
+            thisInstance.geoJSONStore.addItem(line);
 
             // Add random point every second
             setInterval(() => {
@@ -320,7 +320,7 @@
                   },
                 },
               });
-              thisInstance.geoJSONStore.addGeoJSON(marker);
+              thisInstance.geoJSONStore.addItem(marker);
 
               thisInstance.dispatchEvent("dynamic-line-updated", {
                 line,
