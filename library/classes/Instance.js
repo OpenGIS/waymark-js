@@ -1,12 +1,12 @@
 import { ulid } from "ulid";
+import { Map } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { createGeoJSONStore } from "@/stores/geojson.js";
 import { createMapLibreStore } from "@/stores/maplibre.js";
 import { WaymarkEvent, waymarkEventName } from "@/classes/Event.js";
 import { defaultMapOptions } from "@/helpers/MapLibre.js";
-import { Map } from "maplibre-gl";
 import WaymarkMap from "@/classes/Map.js";
 import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
-import "maplibre-gl/dist/maplibre-gl.css";
 import "@/assets/css/index.less";
 
 import {
@@ -149,6 +149,9 @@ export default class WaymarkInstance {
         if (!event.detail?.item) {
           throw new Error("geojson-item-updated event missing item detail");
         }
+
+        console.log("geojson-item-updated event received", event.detail.item);
+        debugger;
 
         switch (true) {
           case event.detail.item instanceof WaymarkMap:
