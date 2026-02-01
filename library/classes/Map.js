@@ -37,10 +37,6 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         return Array.from(this.overlays.values());
     }
 
-    getOverlayByID(overlayID) {
-        return this.overlays.get(overlayID) || null;
-    }
-
     toJSON() {
         const json = super.toJSON();
 

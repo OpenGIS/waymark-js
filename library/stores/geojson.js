@@ -19,6 +19,10 @@ export function createGeoJSONStore(WaymarkInstance) {
 
 	// Actions
 
+	const getItem = (itemID) => {
+		return items.get(itemID) || null;
+	};
+
 	const addItem = (geoJSON = {}) => {
 		if (!geoJSON || !geoJSON.type) {
 			throw new Error("Valid GeoJSON required");
@@ -34,6 +38,12 @@ export function createGeoJSONStore(WaymarkInstance) {
 		if (geoJSON instanceof WaymarkMap) {
 			item = geoJSON;
 			maps.set(item.id, item);
+
+			// Add overlays
+			item.overlays.forEach((overlay) => {
+				items.set(overlay.id, overlay);
+			});
+
 			// Overlay
 		} else if (geoJSON instanceof WaymarkOverlay) {
 			item = geoJSON;
@@ -45,6 +55,11 @@ export function createGeoJSONStore(WaymarkInstance) {
 					// Map
 					item = createMap(geoJSON);
 					maps.set(item.id, item);
+
+					// Add overlays
+					item.overlays.forEach((overlay) => {
+						items.set(overlay.id, overlay);
+					});
 
 					break;
 				case "Feature":
@@ -133,48 +148,16 @@ export function createGeoJSONStore(WaymarkInstance) {
 		};
 	};
 
-	const overlaysBounds = () => {
-		const bounds = new LngLatBounds();
-
-		if (overlays.size === 0) {
-			return null;
-		}
-
-		overlays.forEach((overlay) => {
-			bounds.extend(overlay.getBounds());
-		});
-
-		return bounds;
-	};
-
-	const features = () => {
-		if (
-			state.value &&
-			state.type === "FeatureCollection" &&
-			Array.isArray(state.features)
-		) {
-			return state.features;
-		}
-
-		return [];
-	};
-
-	const hasFeatures = () => {
-		return features.length > 0;
-	};
-
 	return {
 		// State
-		features,
-		hasFeatures,
 		maps,
 		mapsArray,
 		overlays,
 		overlaysArray,
 		overlaysByType,
-		overlaysBounds,
 
 		// Actions
+		getItem,
 		addItem,
 		updateItem,
 		removeItem,

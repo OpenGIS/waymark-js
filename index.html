@@ -198,6 +198,10 @@
                   type: "Feature",
                   properties: {
                     waymark: {
+                      title: "The Scarlet Ibis",
+                      description:
+                        "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
+
                       paint: {
                         "circle-radius": 6,
                         "circle-color": "blue",
@@ -205,10 +209,6 @@
                         "circle-stroke-width": 6,
                       },
                     },
-                    type: "pub",
-                    title: "The Scarlet Ibis",
-                    description:
-                      "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
                   },
                   geometry: {
                     type: "Point",
@@ -255,8 +255,8 @@
             ],
           },
           onLoad: (thisInstance) => {
-            const map = thisInstance.getMapByID("instance-five-map");
-            const line = map.getOverlayByID("instance-five-line");
+            const line =
+              thisInstance.geoJSONStore.getItem("instance-five-line");
 
             // Add random point every second
             setInterval(() => {
@@ -264,7 +264,7 @@
               const lat = 37.753574 + Math.random() * 0.1;
               line.addCoordinate([lng, lat]);
 
-              thisInstance.geoJSONStore.updateItem(map);
+              thisInstance.geoJSONStore.updateItem(line);
             }, 1000);
           },
         });
