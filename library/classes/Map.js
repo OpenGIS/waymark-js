@@ -11,15 +11,6 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
 
         this.id = this.id || ulid();
 
-        // Waymark defaults
-        this.properties.waymark = {
-            title: "",
-            description: "",
-            center: null,
-            zoom: null,
-            ...this.properties.waymark,
-        };
-
         // Create overlays
         this.overlays = new Map();
         this.features.forEach((feature) => {
@@ -66,16 +57,12 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         this.overlays.set(overlay.id, overlay);
     }
 
-    removeOverlay(overlay) {
-        if (!(overlay instanceof WaymarkOverlay)) {
-            throw new Error("WaymarkOverlay instance required");
+    removeOverlay(overlayID) {
+        if (!this.overlays.has(overlayID)) {
+            throw new Error("Overlay not found in this map");
         }
 
-        if (!this.overlays.has(overlay.id)) {
-            return;
-        }
-
-        this.overlays.delete(overlay.id);
+        this.overlays.delete(overlayID);
     }
 
     getBounds() {
