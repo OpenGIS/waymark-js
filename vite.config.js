@@ -42,6 +42,11 @@ export default defineConfig({
     globals: true,
   },
 
+  // Specify port 1234
+  server: {
+    port: 1234,
+  },
+
   // server: {
   //   open: "/index.html",
   //   allowedHosts: ["joe-dev.local"],
