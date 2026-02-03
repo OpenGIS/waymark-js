@@ -40,6 +40,7 @@
         createInstance,
         createLine,
         createMarker,
+        createMap,
       } from "./library/entry.js";
 
       const doOne = false;
@@ -233,34 +234,40 @@
             center: [-122.447303, 37.753574],
             zoom: 10,
           },
-          geoJSON: {
-            id: "instance-five-map",
-            type: "FeatureCollection",
-            features: [
-              {
-                id: "instance-five-line",
-                type: "Feature",
-                properties: {
-                  waymark: {
-                    paint: {
-                      "line-color": "blue",
-                      "line-width": 4,
-                    },
-                  },
-                },
-                geometry: {
-                  type: "LineString",
-                  coordinates: [],
-                },
-              },
-            ],
-          },
           onLoad: (thisInstance) => {
             console.log("Waymark Instance Five Loaded");
 
             thisInstance.onEvent("geojson-item-added", (event) => {
               console.log("GeoJSON Item Added:", event.detail.item);
             });
+
+            // Create Map
+
+            const map = createMap({
+              id: "instance-five-map",
+              type: "FeatureCollection",
+              features: [
+                {
+                  id: "instance-five-line",
+                  type: "Feature",
+                  properties: {
+                    waymark: {
+                      paint: {
+                        "line-color": "blue",
+                        "line-width": 4,
+                      },
+                    },
+                  },
+                  geometry: {
+                    type: "LineString",
+                    coordinates: [],
+                  },
+                },
+              ],
+            });
+            thisInstance.geoJSONStore.addItem(map);
+
+            // Create Line
 
             const line =
               thisInstance.geoJSONStore.getItem("instance-five-line");
