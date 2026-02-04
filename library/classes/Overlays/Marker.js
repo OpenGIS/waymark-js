@@ -53,6 +53,7 @@ export default class WaymarkMarker extends WaymarkOverlay {
           "icon-image": imageId,
           "icon-size": 1, // We assume the image is already sized correctly or user handles scale via width/height logic if we were resizing
           "icon-allow-overlap": true,
+          "icon-rotate": icon.rotation || 0,
         },
       });
     };
