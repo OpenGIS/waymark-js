@@ -122,11 +122,11 @@ export default class WaymarkOverlay extends GeoJSONFeature {
   }
 
   getTitle() {
-    return this.properties.waymark?.title || "";
+    return this.properties.waymark?.title || null;
   }
 
   getDescription() {
-    return this.properties.waymark?.description || "";
+    return this.properties.waymark?.description || null;
   }
 
   containsText(text = "") {
