@@ -237,8 +237,8 @@
           onLoad: (thisInstance) => {
             console.log("Waymark Instance Five Loaded");
 
-            thisInstance.onEvent("geojson-item-added", (event) => {
-              console.log("GeoJSON Item Added:", event.detail.item);
+            thisInstance.onEvent("geojson-item-updated", (event) => {
+              console.log("GeoJSON Item Updated:", event.detail.item.toJSON());
             });
 
             // Create Map

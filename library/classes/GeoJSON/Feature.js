@@ -14,12 +14,18 @@ export default class GeoJSONFeature {
   }
 
   get bbox() {
-    return this.geometry && this.geometry.type
-      ? bbox({
-          type: "Feature",
-          geometry: this.geometry,
-        })
-      : null;
+    if (
+      !this.geometry ||
+      !this.geometry.type ||
+      !this.geometry.coordinates.length
+    ) {
+      return null;
+    }
+
+    return bbox({
+      type: "Feature",
+      geometry: this.geometry,
+    });
   }
 
   toJSON() {

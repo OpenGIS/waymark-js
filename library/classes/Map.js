@@ -54,6 +54,10 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
             return;
         }
 
+        // Add to features array
+        this.features.push(overlay.toJSON());
+
+        // Add to overlays map
         this.overlays.set(overlay.id, overlay);
     }
 
