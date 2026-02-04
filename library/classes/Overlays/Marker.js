@@ -10,6 +10,79 @@ export default class WaymarkMarker extends WaymarkOverlay {
     super(feature);
   }
 
+  addTo(map) {
+    super.addTo(map);
+
+    const waymarkIcon = this.properties.waymark?.icon;
+
+    if (waymarkIcon) {
+      this.addIcon(waymarkIcon);
+    }
+  }
+
+  remove() {
+    if (this.mapLibreMap) {
+      if (this.mapLibreMap.getLayer(`${this.id}-icon`)) {
+        this.mapLibreMap.removeLayer(`${this.id}-icon`);
+      }
+
+      if (this.mapLibreMap.hasImage(`${this.id}-icon-img`)) {
+        this.mapLibreMap.removeImage(`${this.id}-icon-img`);
+      }
+    }
+
+    super.remove();
+  }
+
+  addIcon(icon) {
+    if (!this.mapLibreMap) return;
+
+    const imageId = `${this.id}-icon-img`;
+    const layerId = `${this.id}-icon`;
+
+    // Helper to add layer once image is loaded
+    const addLayer = () => {
+      if (!this.mapLibreMap) return;
+      if (this.mapLibreMap.getLayer(layerId)) return;
+
+      this.mapLibreMap.addLayer({
+        id: layerId,
+        type: "symbol",
+        source: this.id,
+        layout: {
+          "icon-image": imageId,
+          "icon-size": 1, // We assume the image is already sized correctly or user handles scale via width/height logic if we were resizing
+          "icon-allow-overlap": true,
+        },
+      });
+    };
+
+    if (icon.url) {
+      this.mapLibreMap.loadImage(icon.url, (error, image) => {
+        if (error) {
+          console.error("Error loading icon:", error);
+          return;
+        }
+        if (!this.mapLibreMap) return;
+        if (!this.mapLibreMap.hasImage(imageId)) {
+          this.mapLibreMap.addImage(imageId, image);
+        }
+        addLayer();
+      });
+    } else if (icon.svg) {
+      const img = new Image(icon.width || 32, icon.height || 32);
+      img.onload = () => {
+        if (!this.mapLibreMap) return;
+        if (!this.mapLibreMap.hasImage(imageId)) {
+          this.mapLibreMap.addImage(imageId, img);
+        }
+        addLayer();
+      };
+      // Encode SVG to handle special characters
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(icon.svg);
+    }
+  }
+
   // GeoJson point
   toStyle() {
     const waymarkPaint = this.properties.waymark?.paint || {};
