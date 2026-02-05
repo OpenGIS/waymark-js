@@ -22121,10 +22121,7 @@ function lm(me, N = {}) {
 }
 class Ud extends Bn {
   constructor(N = {}) {
-    N.geometry = N.geometry || {
-      type: "LineString",
-      coordinates: []
-    }, super(N);
+    N.geometry.type = N.geometry?.type || "LineString", super(N);
   }
   toStyle() {
     const N = this.properties.waymark?.paint || {};
@@ -22213,10 +22210,7 @@ class Ud extends Bn {
 }
 class $d extends Bn {
   constructor(N = {}) {
-    N.geometry = N.geometry || {
-      type: "Polygon",
-      coordinates: []
-    }, super(N), this.strokeLayer = null;
+    N.geometry.type = N.geometry?.type || "Polygon", super(N), this.strokeLayer = null;
   }
   addTo(N) {
     super.addTo(N), this.strokeLayer || (this.mapLibreMap.addLayer(this.strokeStyle()), this.strokeLayer = this.mapLibreMap.getLayer(`${this.id}-stroke`));

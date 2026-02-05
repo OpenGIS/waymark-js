@@ -80,7 +80,8 @@ export default class WaymarkMarker extends WaymarkOverlay {
         addLayer();
       };
       // Encode SVG to handle special characters
-      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(icon.svg);
+      img.src =
+        "data:image/svg+xml;charset=utf-8," + encodeURIComponent(icon.svg);
     }
   }
 
