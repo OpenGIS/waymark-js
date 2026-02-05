@@ -21853,7 +21853,7 @@ function sm(me, N = {}) {
 var jd = sm;
 class am {
   constructor(N = {}) {
-    return this.type = N.type || "Feature", this.id = N.id || null, this.properties = N.properties || {}, this.geometry = N.geometry || {}, this.geometry.type = N.geometry.type || null, this.geometry.coordinates = N.geometry.coordinates || [], this;
+    return this.type = N.type || "Feature", this.id = N.id || null, this.properties = N.properties || {}, this.geometry = N.geometry || {}, this.geometry.type = this.geometry.type || null, this.geometry.coordinates = this.geometry.coordinates || [], this;
   }
   get bbox() {
     return !this.geometry || !this.geometry.type || !this.geometry.coordinates.length ? null : jd({
@@ -22001,7 +22001,14 @@ function Nd() {
 }
 class Vd extends Bn {
   constructor(N = {}) {
-    N.geometry.type = "Point", super(N);
+    const ne = {
+      ...N,
+      geometry: {
+        ...N.geometry || {},
+        type: "Point"
+      }
+    };
+    super(ne);
   }
   addTo(N) {
     super.addTo(N);

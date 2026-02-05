@@ -5,9 +5,16 @@ import { waymarkPrimaryColour, getRandomHexColour } from "@/helpers/Common.js";
 
 export default class WaymarkMarker extends WaymarkOverlay {
   constructor(feature = {}) {
-    feature.geometry.type = "Point";
+    // Merge defaults ensuring geometry.type is "Point"
+    const safeFeature = {
+      ...feature,
+      geometry: {
+        ...(feature.geometry || {}),
+        type: "Point",
+      },
+    };
 
-    super(feature);
+    super(safeFeature);
   }
 
   addTo(map) {

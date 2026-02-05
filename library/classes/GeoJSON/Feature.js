@@ -6,8 +6,8 @@ export default class GeoJSONFeature {
     this.id = feature.id || null;
     this.properties = feature.properties || {};
     this.geometry = feature.geometry || {};
-    this.geometry.type = feature.geometry.type || null;
-    this.geometry.coordinates = feature.geometry.coordinates || [];
+    this.geometry.type = this.geometry.type || null;
+    this.geometry.coordinates = this.geometry.coordinates || [];
 
     return this;
   }
