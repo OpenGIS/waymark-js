@@ -21853,7 +21853,7 @@ function sm(me, N = {}) {
 var jd = sm;
 class am {
   constructor(N = {}) {
-    return this.type = N.type || "Feature", this.id = N.id || null, this.properties = N.properties || {}, this.geometry = N.geometry || {}, this.geometry.type = this.geometry.type || null, this.geometry.coordinates = this.geometry.coordinates || [], this;
+    this.type = N.type || "Feature", this.id = N.id || null, this.properties = N.properties || {}, this.geometry = N.geometry || {}, this.geometry.type = this.geometry.type || null, this.geometry.coordinates = this.geometry.coordinates || [];
   }
   get bbox() {
     return !this.geometry || !this.geometry.type || !this.geometry.coordinates.length ? null : jd({
@@ -22319,7 +22319,7 @@ class $d extends Bn {
 }
 class cm {
   constructor(N = {}) {
-    return this.type = "FeatureCollection", this.id = N.id || null, this.properties = N.properties || {}, this.features = Array.isArray(N.features) ? N.features : [], this;
+    this.type = "FeatureCollection", this.id = N.id || null, this.properties = N.properties || {}, this.features = Array.isArray(N.features) ? N.features : [];
   }
   get bbox() {
     return this.features.length > 0 ? jd({

@@ -8,8 +8,6 @@ export default class GeoJSONFeature {
     this.geometry = feature.geometry || {};
     this.geometry.type = this.geometry.type || null;
     this.geometry.coordinates = this.geometry.coordinates || [];
-
-    return this;
   }
 
   get bbox() {

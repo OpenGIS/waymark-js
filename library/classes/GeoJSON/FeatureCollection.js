@@ -8,8 +8,6 @@ export default class GeoJSONFeatureCollection {
     this.features = Array.isArray(featureCollection.features)
       ? featureCollection.features
       : [];
-
-    return this;
   }
 
   get bbox() {
