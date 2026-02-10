@@ -129,7 +129,7 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
 
         // Zoom to geojson this.bbox
         if (this.getBounds()) {
-            this.mapLibreMap.fitBounds(this.getBounds(), fitBoundsOptions);
+            // this.mapLibreMap.fitBounds(this.getBounds(), fitBoundsOptions);
         }
     }
 

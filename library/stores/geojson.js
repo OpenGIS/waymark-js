@@ -115,6 +115,10 @@ export function createGeoJSONStore(WaymarkInstance) {
 		return item;
 	};
 
+	const hasItem = (itemID) => {
+		return items.has(itemID);
+	};
+
 	const updateItem = (item = {}) => {
 		if (!item.id) {
 			throw new Error("Item must have an ID");
@@ -155,6 +159,8 @@ export function createGeoJSONStore(WaymarkInstance) {
 		overlays,
 		overlaysArray,
 		overlaysByType,
+
+		hasItem,
 
 		// Actions
 		getItem,

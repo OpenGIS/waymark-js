@@ -17,6 +17,10 @@ export default class WaymarkMarker extends WaymarkOverlay {
     super(safeFeature);
   }
 
+  get bbox() {
+    return null; // Markers don't have a bounding box
+  }
+
   addTo(map) {
     super.addTo(map);
 
@@ -50,19 +54,29 @@ export default class WaymarkMarker extends WaymarkOverlay {
     // Helper to add layer once image is loaded
     const addLayer = () => {
       if (!this.mapLibreMap) return;
-      if (this.mapLibreMap.getLayer(layerId)) return;
 
-      this.mapLibreMap.addLayer({
-        id: layerId,
-        type: "symbol",
-        source: this.id,
-        layout: {
-          "icon-image": imageId,
-          "icon-size": 1, // We assume the image is already sized correctly or user handles scale via width/height logic if we were resizing
-          "icon-allow-overlap": true,
-          "icon-rotate": icon.rotation || 0,
-        },
-      });
+      // If it does not exist
+      if (!this.mapLibreMap.getLayer(layerId)) {
+        this.mapLibreMap.addLayer({
+          id: layerId,
+          type: "symbol",
+          source: this.id,
+          layout: {
+            "icon-image": imageId,
+            "icon-size": 1, // We assume the image is already sized correctly or user handles scale via width/height logic if we were resizing
+            "icon-allow-overlap": true,
+            "icon-rotate": icon.rotation || 0,
+          },
+        });
+        // Update
+      } else {
+        this.mapLibreMap.setLayoutProperty(layerId, "icon-image", imageId);
+        this.mapLibreMap.setLayoutProperty(
+          layerId,
+          "icon-rotate",
+          icon.rotation || 0,
+        );
+      }
     };
 
     if (icon.url) {
