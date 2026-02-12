@@ -98,7 +98,7 @@ Add a container element for the Instance:
 
 ### JavaScript
 
-Create a Waymark Instance with your configuration, then load some GeoJSON data:
+Create a Waymark Instance with your configuration, showing some GeoJSON data:
 
 ```javascript
 import { createInstance } from "@ogis/waymark-js";
@@ -166,7 +166,7 @@ const instance = createInstance({
   // This function is called when the Instance has finished loading
   // and is passed the Instance as an argument
   onLoad: (thisInstance) => {
-    // Get the Waymark JS Overlay for the "pub-marker" Feature
+    //Get the Waymark JS Overlay for the "pub-marker" Feature
     const pubMarker = thisInstance.geoJSONStore.getItem("pub-marker");
 
     // Get the MapLibre GL JS Map

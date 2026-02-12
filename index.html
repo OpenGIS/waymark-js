@@ -41,14 +41,17 @@
         createMap,
       } from "./library/entry.js";
 
-      const doOne = false;
-      const doTwo = false;
-      const doThree = false;
+      const doOne = true;
+      const doTwo = true;
+      const doThree = true;
       const doFour = true;
-      const doFive = false;
-      const doSix = false;
+      const doFive = true;
+      const doSix = true;
 
       // ==================== DOCS ====================
+
+      import { createInstance } from "@ogis/waymark-js";
+      import "@ogis/waymark-js/dist/waymark-js.css";
 
       const instance = createInstance({
         // Will console.log() all Waymark JS Events
@@ -114,8 +117,10 @@
         onLoad: (thisInstance) => {
           //Get the Waymark JS Overlay for the "pub-marker" Feature
           const pubMarker = thisInstance.geoJSONStore.getItem("pub-marker");
+
           // Get the MapLibre GL JS Map
           const map = thisInstance.mapLibreStore.mapLibreMap;
+
           // Set the map view to fit the Marker (instantly)
           map.setCenter(pubMarker.geometry.coordinates);
           map.setZoom(12);

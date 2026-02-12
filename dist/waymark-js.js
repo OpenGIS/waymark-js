@@ -22582,7 +22582,11 @@ class dm {
       onLoad: null,
       debug: !1
     };
-    this.config = { ...J, ...j }, this.id = this.config.id, this.container = document.getElementById(this.id), this.container || (this.container = document.createElement("div"), this.container.id = this.id, document.body.appendChild(this.container)), this.container.classList.add("waymark-instance"), this.addEventHandling(), this.geoJSONStore = cm(this), this.mapLibreMap = new Bn.Map({
+    if (this.config = { ...J, ...j }, this.id = this.config.id, this.container = document.getElementById(this.id), this.container && this.container.classList.contains("waymark-instance"))
+      throw new Error(
+        `Container with id ${this.id} already has a WaymarkInstance attached`
+      );
+    this.container || (this.container = document.createElement("div"), this.container.id = this.id, document.body.appendChild(this.container)), this.container.classList.add("waymark-instance"), this.addEventHandling(), this.geoJSONStore = cm(this), this.mapLibreMap = new Bn.Map({
       container: this.container,
       ...Wf,
       ...this.config.mapOptions || {}

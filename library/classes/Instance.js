@@ -31,6 +31,18 @@ export default class WaymarkInstance {
 
     // Get the container div
     this.container = document.getElementById(this.id);
+
+    // Ensure is not already a WaymarkInstance attached to this container
+    if (
+      this.container &&
+      this.container.classList.contains("waymark-instance")
+    ) {
+      throw new Error(
+        `Container with id ${this.id} already has a WaymarkInstance attached`,
+      );
+    }
+
+    // Create if not exists
     if (!this.container) {
       // Create one, append to body
       this.container = document.createElement("div");
