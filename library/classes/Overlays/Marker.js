@@ -1,5 +1,5 @@
 import WaymarkOverlay from "@/classes/Overlays/Overlay.js";
-import { LngLatBounds } from "maplibre-gl";
+import { LngLatBounds, Marker } from "maplibre-gl";
 import { flyToOptions } from "@/helpers/MapLibre.js";
 import { waymarkPrimaryColour, getRandomHexColour } from "@/helpers/Common.js";
 
@@ -32,6 +32,11 @@ export default class WaymarkMarker extends WaymarkOverlay {
   }
 
   remove() {
+    if (this.htmlMarker) {
+      this.htmlMarker.remove();
+      this.htmlMarker = null;
+    }
+
     if (this.mapLibreMap) {
       if (this.mapLibreMap.getLayer(`${this.id}-icon`)) {
         this.mapLibreMap.removeLayer(`${this.id}-icon`);
@@ -47,6 +52,55 @@ export default class WaymarkMarker extends WaymarkOverlay {
 
   addIcon(icon) {
     if (!this.mapLibreMap) return;
+
+    if (icon.html) {
+      if (this.mapLibreMap.getLayer(`${this.id}-icon`)) {
+        this.mapLibreMap.removeLayer(`${this.id}-icon`);
+      }
+
+      if (!this.htmlMarker) {
+        const el = document.createElement("div");
+        el.innerHTML = icon.html;
+
+        el.addEventListener("mouseenter", () => {
+          this.mapLibreMap.getCanvas().style.cursor = "pointer";
+
+          if (this.active) {
+            return;
+          }
+
+          this.showHighlight();
+        });
+
+        el.addEventListener("mouseleave", () => {
+          this.mapLibreMap.getCanvas().style.cursor = "";
+
+          if (this.active) {
+            return;
+          }
+
+          this.hideHighlight();
+        });
+
+        this.htmlMarker = new Marker({
+          element: el,
+          anchor: "center",
+        })
+          .setLngLat(this.geometry.coordinates)
+          .addTo(this.mapLibreMap);
+      } else {
+        const el = this.htmlMarker.getElement();
+        if (el.innerHTML !== icon.html) {
+          el.innerHTML = icon.html;
+        }
+        this.htmlMarker.setLngLat(this.geometry.coordinates);
+      }
+
+      return;
+    } else if (this.htmlMarker) {
+      this.htmlMarker.remove();
+      this.htmlMarker = null;
+    }
 
     const imageId = `${this.id}-icon-img`;
     const layerId = `${this.id}-icon`;

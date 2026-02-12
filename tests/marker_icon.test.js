@@ -2,6 +2,29 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from "vitest";
+import { Marker } from "maplibre-gl";
+
+// Mock maplibre-gl before importing the class under test
+vi.mock("maplibre-gl", async () => {
+  const actual = await vi.importActual("maplibre-gl");
+  return {
+    ...actual,
+    Marker: vi.fn().mockImplementation(function (options) {
+      const element =
+        options && options.element
+          ? options.element
+          : document.createElement("div");
+      return {
+        setLngLat: vi.fn().mockReturnThis(),
+        addTo: vi.fn().mockReturnThis(),
+        remove: vi.fn(),
+        getElement: vi.fn().mockReturnValue(element),
+        getMap: vi.fn(),
+      };
+    }),
+  };
+});
+
 import WaymarkMarker from "../library/classes/Overlays/Marker.js";
 
 describe("WaymarkMarker Icon Support", () => {
@@ -154,5 +177,63 @@ describe("WaymarkMarker Icon Support", () => {
         type: "symbol",
       })
     );
+  });
+
+  it("should handle HTML icons", () => {
+    const htmlContent = '<div class="custom-icon"></div>';
+    const iconConfig = {
+      html: htmlContent,
+    };
+
+    const marker = new WaymarkMarker({
+      geometry: {
+        type: "Point",
+        coordinates: [10, 20],
+      },
+      properties: {
+        waymark: {
+          icon: iconConfig,
+        },
+      },
+    });
+
+    const mapMock = {
+      addSource: vi.fn(),
+      getSource: vi.fn().mockReturnValue({ setData: vi.fn() }),
+      addLayer: vi.fn(),
+      getLayer: vi.fn(),
+      hasImage: vi.fn(),
+      addImage: vi.fn(),
+      removeLayer: vi.fn(),
+      removeImage: vi.fn(),
+      removeSource: vi.fn(),
+      on: vi.fn(),
+      getCanvas: () => ({ style: {} }),
+      setLayoutProperty: vi.fn(),
+      getLayoutProperty: vi.fn(),
+    };
+
+    marker.addTo(mapMock);
+
+    // Verify Marker was instantiated
+    expect(Marker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        element: expect.any(HTMLElement),
+        anchor: "center",
+      })
+    );
+
+    // Verify element content
+    const mockMarkerInstance = Marker.mock.results[0].value;
+    const element = mockMarkerInstance.getElement();
+    expect(element.innerHTML).toBe(htmlContent);
+
+    // Verify positioning and addition to map
+    expect(mockMarkerInstance.setLngLat).toHaveBeenCalledWith([10, 20]);
+    expect(mockMarkerInstance.addTo).toHaveBeenCalledWith(mapMock);
+    
+    // Verify cleanup
+    marker.remove();
+    expect(mockMarkerInstance.remove).toHaveBeenCalled();
   });
 });
