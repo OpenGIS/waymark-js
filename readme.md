@@ -47,6 +47,7 @@ To use via CDN, include the following in your HTML:
 </script>
 ```
 
+<!--
 #### UMD
 
 When you can't rely on native ES modules, you can load the bundled UMD build via a classic `<script>` tag. The bundle exposes a `WaymarkJS` global with the same `Instance` class that the package exports.
@@ -79,6 +80,7 @@ When you can't rely on native ES modules, you can load the bundled UMD build via
 ```
 
 If you're self-hosting the assets, replace the CDN URLs with your local `waymark-js.css` and `waymark-js.umd.cjs` paths.
+-->
 
 ## Usage
 
@@ -91,7 +93,8 @@ Add a container element for the Instance:
 ```
 
 > [!NOTE]
-> The element that contains the Instance must have a **height** set, either inline or via CSS.
+> Instance element must have a **height** in order to be visible.
+> If there isn't a DOM element with the given id, Waymark JS will create one for you and append it to the body (with 100% width and height).
 
 ### JavaScript
 
@@ -101,51 +104,78 @@ Create a Waymark Instance with your configuration, then load some GeoJSON data:
 import { createInstance } from "@ogis/waymark-js";
 import "@ogis/waymark-js/dist/waymark-js.css";
 
-// Create a Waymark Instance with this configuration
 const instance = createInstance({
+  // Will console.log() all Waymark JS Events
+  // debug: true,
+
+  // Unique ID repesenting the DOM element to load the Instance into
+  // Is added to the DOM if it doesn't exist
   id: "waymark-instance",
-  // Passed directly to MapLibre GL JS
+
+  // MapLibre GL JS Options
   // See [MapLibre Map Options](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/)
   mapOptions: {
     zoom: 12,
   },
 
   // Can pass GeoJSON here
-  // geoJSON: { type: "FeatureCollection", features: [] }
+  geoJSON: {
+    type: "FeatureCollection",
+    features: [
+      {
+        // Set an ID here so you can access the Overlay
+        id: "pub-marker",
+        type: "Feature",
+        properties: {
+          // Waymark Properties
+          waymark: {
+            // The Title & Descrption will display when the Marker is clicked
+            title: "The Scarlet Ibis",
+            description:
+              "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
 
-  // Callback function
-  onLoad: (WaymarkInstance) => {
-    console.log("Waymark Instance loaded:", WaymarkInstance.id);
-  },
-});
+            // MapLibre GL JS Layer Paint Properties
+            paint: {
+              "circle-radius": 20,
+              "circle-color": "white",
+              "circle-stroke-color": "brown",
+              "circle-stroke-width": 6,
+            },
 
-// Load this GeoJSON, which contains a single "pub" Marker
-instance.addGeoJSON({
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      properties: {
-        // Waymark Object used to provide custom paint
-        waymark: {
-          paint: {
-            "circle-radius": 6,
-            "circle-color": "blue",
-            "circle-stroke-color": "red",
-            "circle-stroke-width": 6,
+            // Marker Icons
+            icon: {
+              // <img /> and <i /> tags work well here
+              html: `<div style="font-size:32px">🍺</div>`,
+
+              // Inline SVG supported
+              // svg: `<svg />`
+
+              // Image URLs supported
+              // url: "https://...pint.png
+            },
           },
         },
-        type: "pub",
-        title: "The Scarlet Ibis",
-        description:
-          "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
+        geometry: {
+          type: "Point",
+          coordinates: [-128.0094, 50.6539],
+        },
       },
-      geometry: {
-        type: "Point",
-        coordinates: [-128.0094, 50.6539],
-      },
-    },
-  ],
+    ],
+  },
+
+  // This function is called when the Instance has finished loading
+  // and is passed the Instance as an argument
+  onLoad: (thisInstance) => {
+    // Get the Waymark JS Overlay for the "pub-marker" Feature
+    const pubMarker = thisInstance.geoJSONStore.getItem("pub-marker");
+
+    // Get the MapLibre GL JS Map
+    const map = thisInstance.mapLibreStore.mapLibreMap;
+
+    // Set the map view to fit the Marker (instantly)
+    map.setCenter(pubMarker.geometry.coordinates);
+    map.setZoom(12);
+  },
 });
 ```
 

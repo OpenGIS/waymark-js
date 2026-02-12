@@ -41,12 +41,86 @@
         createMap,
       } from "./library/entry.js";
 
-      const doOne = true;
-      const doTwo = true;
-      const doThree = true;
+      const doOne = false;
+      const doTwo = false;
+      const doThree = false;
       const doFour = true;
-      const doFive = true;
-      const doSix = true;
+      const doFive = false;
+      const doSix = false;
+
+      // ==================== DOCS ====================
+
+      const instance = createInstance({
+        // Will console.log() all Waymark JS Events
+        // debug: true,
+
+        // Unique ID repesenting the DOM element to load the Instance into
+        // Is added to the DOM if it doesn't exist
+        id: "waymark-instance",
+
+        // MapLibre GL JS Options
+        // See [MapLibre Map Options](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/)
+        mapOptions: {
+          zoom: 12,
+        },
+
+        // Can pass GeoJSON here
+        geoJSON: {
+          type: "FeatureCollection",
+          features: [
+            {
+              // Set an ID here so you can access the Overlay
+              id: "pub-marker",
+              type: "Feature",
+              properties: {
+                // Waymark Properties
+                waymark: {
+                  // The Title & Descrption will display when the Marker is clicked
+                  title: "The Scarlet Ibis",
+                  description:
+                    "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
+
+                  // MapLibre GL JS Layer Paint Properties
+                  paint: {
+                    "circle-radius": 20,
+                    "circle-color": "white",
+                    "circle-stroke-color": "brown",
+                    "circle-stroke-width": 6,
+                  },
+
+                  // Marker Icons
+                  icon: {
+                    // <img /> and <i /> tags work well here
+                    html: `<div style="font-size:32px">🍺</div>`,
+
+                    // Inline SVG supported
+                    // svg: `<svg />`
+
+                    // Image URLs supported
+                    // url: "https://...pint.png
+                  },
+                },
+              },
+              geometry: {
+                type: "Point",
+                coordinates: [-128.0094, 50.6539],
+              },
+            },
+          ],
+        },
+
+        // This function is called when the Instance has finished loading
+        // and is passed the Instance as an argument
+        onLoad: (thisInstance) => {
+          //Get the Waymark JS Overlay for the "pub-marker" Feature
+          const pubMarker = thisInstance.geoJSONStore.getItem("pub-marker");
+          // Get the MapLibre GL JS Map
+          const map = thisInstance.mapLibreStore.mapLibreMap;
+          // Set the map view to fit the Marker (instantly)
+          map.setCenter(pubMarker.geometry.coordinates);
+          map.setZoom(12);
+        },
+      });
 
       // ==================== ONE ====================
 

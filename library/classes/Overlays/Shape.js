@@ -5,9 +5,15 @@ import { waymarkPrimaryColour } from "@/helpers/Common.js";
 
 export default class WaymarkShape extends WaymarkOverlay {
   constructor(feature = {}) {
-    feature.geometry.type = feature.geometry?.type || "Polygon";
+    const safeFeature = {
+      ...feature,
+      geometry: {
+        ...(feature.geometry || {}),
+        type: feature.geometry?.type || "Polygon",
+      },
+    };
 
-    super(feature);
+    super(safeFeature);
 
     this.strokeLayer = null;
   }
