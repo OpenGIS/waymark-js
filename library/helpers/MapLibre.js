@@ -6,7 +6,9 @@ export const defaultMapOptions = {
   // zoom: 0,
   maxZoom: 18,
   style: "https://tiles.openfreemap.org/styles/bright",
-  attributionControl: false,
+  attributionControl: {
+    compact: true,
+  },
 };
 
 export const fitBoundsOptions = {
