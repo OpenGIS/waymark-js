@@ -174,8 +174,8 @@ export default class WaymarkOverlay extends GeoJSONFeature {
     }
 
     if (this.getDescription()) {
-      const descEl = document.createElement("p");
-      descEl.textContent = this.getDescription();
+      const descEl = document.createElement("div");
+      descEl.innerHTML = this.getDescription();
       popupContent.appendChild(descEl);
     }
 

@@ -21929,8 +21929,8 @@ class Fn extends sm {
       J.textContent = this.getTitle(), j.appendChild(J);
     }
     if (this.getDescription()) {
-      const J = document.createElement("p");
-      J.textContent = this.getDescription(), j.appendChild(J);
+      const J = document.createElement("div");
+      J.innerHTML = this.getDescription(), j.appendChild(J);
     }
     return new Bn.Popup({}).setDOMContent(j);
   }
