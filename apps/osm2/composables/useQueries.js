@@ -2,7 +2,7 @@ import { ref, watch } from "https://esm.sh/vue@3";
 
 const STORAGE_KEY = "osm2-highlight-queries";
 const STORAGE_VERSION_KEY = "osm2-queries-version";
-const CURRENT_VERSION = 7; // Increment this to invalidate old stored queries
+const CURRENT_VERSION = 8; // Increment this to invalidate old stored queries
 
 const SOURCE_LAYERS = [
   "transportation",
@@ -204,7 +204,7 @@ function defaultQueries() {
         { key: "subclass", operator: "equals", value: "wilderness_hut" },
       ],
     },
-    // 10. Cafes & Restaurants
+    // 10. Food & Drink
     {
       id: generateId(),
       name: "Food & Drink",
@@ -214,14 +214,33 @@ function defaultQueries() {
       lineDash: null,
       sourceLayer: "poi",
       combinator: "OR",
-      icon: "☕",
+      icon: "🍽",
       conditions: [
         { key: "subclass", operator: "equals", value: "cafe" },
         { key: "subclass", operator: "equals", value: "restaurant" },
         { key: "subclass", operator: "equals", value: "fast_food" },
+        { key: "subclass", operator: "equals", value: "coffee" },
+        { key: "class", operator: "equals", value: "beer" },
       ],
     },
-    // 11. Waterfalls
+    // 11. Shops (Convenience/Grocery)
+    {
+      id: generateId(),
+      name: "Shops",
+      enabled: true,
+      colour: "#8e44ad", // Purple
+      lineWidth: 0,
+      lineDash: null,
+      sourceLayer: "poi",
+      combinator: "OR",
+      icon: "🛒",
+      conditions: [
+        { key: "subclass", operator: "equals", value: "convenience" },
+        { key: "subclass", operator: "equals", value: "supermarket" },
+        { key: "subclass", operator: "equals", value: "grocery" },
+      ],
+    },
+    // 12. Waterfalls
     {
       id: generateId(),
       name: "Waterfalls",
@@ -236,7 +255,7 @@ function defaultQueries() {
         { key: "subclass", operator: "equals", value: "waterfall" },
       ],
     },
-    // 12. Tourism Information
+    // 13. Tourism Information
     {
       id: generateId(),
       name: "Information",

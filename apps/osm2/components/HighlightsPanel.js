@@ -11,6 +11,7 @@ export default defineComponent({
   emits: ["addQuery", "removeQuery", "duplicateQuery", "updateQuery", "toggleDebug", "setQueries"],
   setup(props, { emit }) {
     const fileInput = ref(null);
+    const showWelcome = ref(true);
 
     const handleImportClick = () => {
       fileInput.value.click();
@@ -100,6 +101,30 @@ export default defineComponent({
             }, "+ Query"),
           ]),
         ]),
+
+        // Welcome Message (Collapsible)
+        showWelcome.value
+          ? h("div", { class: "welcome-message" }, [
+              h("div", { class: "welcome-header" }, [
+                h("strong", "About OSM Highlights"),
+                h("button", {
+                  class: "btn-close",
+                  title: "Dismiss",
+                  onClick: () => (showWelcome.value = false),
+                }, "×"),
+              ]),
+              h("p", [
+                "Explore ",
+                h("a", { href: "https://www.openstreetmap.org", target: "_blank", style: "color: #2563eb; text-decoration: none;" }, "OpenStreetMap"),
+                " data using dynamic style queries. Vector tiles powered by ",
+                h("a", { href: "https://openfreemap.org", target: "_blank", style: "color: #2563eb; text-decoration: none;" }, "OpenFreeMap"),
+                ".",
+              ]),
+              h("p", { style: "font-size: 0.9em; opacity: 0.8; margin-top: 4px;" },
+                "Highlight features by tag, class, or type to create custom thematic maps."
+              ),
+            ])
+          : null,
 
         // Body
         h("div", { class: "panel-body" },
