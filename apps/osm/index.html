@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 368 368'%3E%3Cg transform='translate(0,368) scale(0.1,-0.1)'%0Afill='%23b42714'%3E%3Cpath d='M343 3186 c-89 -29 -178 -108 -215 -194 -80 -181 21 -408 208 -468%0Al51 -17 238 -781 c131 -430 241 -787 243 -793 3 -10 -21 -13 -99 -14 -57 0%0A-126 -4 -152 -7 l-48 -7 298 -217 c163 -119 299 -216 300 -214 6 6 252 690%0A249 693 -1 2 -59 -33 -129 -77 -70 -43 -128 -76 -130 -72 -2 4 -111 359 -242%0A790 l-239 782 32 33 c17 17 43 59 59 92 23 50 27 74 28 140 0 71 -4 88 -33%0A147 -37 75 -96 133 -170 169 -58 28 -186 36 -249 15z'/%3E%3Cpath d='M1580 2987 l-294 -212 64 -6 c36 -4 105 -7 153 -8 87 -1 88 -1 81%0A-23 -3 -13 -74 -236 -156 -496 l-150 -473 55 -199 c30 -110 62 -206 70 -215%0A19 -18 41 -19 54 -2 5 6 101 303 214 659 112 356 207 648 210 648 3 0 57 -33%0A120 -73 63 -40 120 -76 126 -81 7 -4 -17 78 -53 181 -36 103 -91 261 -122 351%0A-31 89 -61 162 -67 161 -5 0 -143 -96 -305 -212z'/%3E%3Cpath d='M3040 2987 l-294 -212 64 -6 c36 -4 105 -7 153 -8 87 -1 88 -1 81%0A-23 -3 -13 -74 -236 -156 -496 l-150 -473 55 -199 c30 -110 62 -206 70 -215%0A19 -18 41 -19 54 -2 5 6 101 303 214 659 112 356 207 648 210 648 3 0 57 -33%0A120 -73 63 -40 120 -76 126 -81 7 -4 -17 78 -53 181 -36 103 -91 261 -122 351%0A-31 89 -61 162 -67 161 -5 0 -143 -96 -305 -212z'/%3E%3Cpath d='M2161 2342 c-14 -11 -40 -80 -81 -207 -33 -104 -60 -197 -60 -205 0%0A-8 61 -235 135 -504 74 -270 135 -491 135 -493 0 -1 -68 -4 -152 -5 l-152 -3%0A284 -219 c157 -121 290 -223 295 -227 7 -5 58 113 144 332 73 187 131 342 129%0A344 -2 3 -61 -29 -130 -69 l-126 -73 -47 166 c-25 91 -108 390 -183 664 -94%0A338 -143 502 -154 508 -11 6 -23 3 -37 -9z'/%3E%3C/g%3E%3C/svg%3E%0A"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no"
+    />
+
+    <title>Waymark JS</title>
+
+    <style>
+      body,
+      html {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Container -->
+    <div id="waymark-instance" style="height: 100%"></div>
+
+    <!-- Debug Panel -->
+    <div
+      id="debug-panel"
+      style="
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 300px;
+        max-height: 80vh;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 10px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 12px;
+        z-index: 1000;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      "
+    >
+      <h3 style="margin-top: 0">Tile Debugger</h3>
+      <label
+        style="
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          margin-bottom: 8px;
+        "
+      >
+        <input id="view-filter-toggle" type="checkbox" checked />
+        <span>Only show tiles in view</span>
+      </label>
+      <div id="filters" style="margin-bottom: 10px">
+        <div style="font-weight: bold; margin-bottom: 4px">
+          Geometry Filters
+        </div>
+        <div
+          id="geom-filters"
+          style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px"
+        ></div>
+        <div style="font-weight: bold; margin-bottom: 4px">Title Filter</div>
+        <input
+          id="title-filter"
+          type="text"
+          placeholder="Filter by title…"
+          style="
+            width: 100%;
+            box-sizing: border-box;
+            padding: 4px 6px;
+            font-size: 11px;
+            font-family: monospace;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+          "
+        />
+        <div style="font-weight: bold; margin-bottom: 4px">Layer Filters</div>
+        <div
+          id="layer-filters"
+          style="display: flex; flex-direction: column; gap: 4px"
+        >
+          No layers seen yet.
+        </div>
+      </div>
+      <div id="tile-list">Waiting for tiles...</div>
+    </div>
+
+    <!-- Load Waymark JS -->
+    <script type="module">
+      import { createInstance } from "../../library/entry.js";
+      // Use specific versions known to work together
+      import Pbf from "https://esm.sh/pbf@3.2.1";
+      import { VectorTile } from "https://esm.sh/@mapbox/vector-tile@1.3.1";
+      // Reactive state for tile requests
+      const tileRequests = new Map();
+      const debugPanelList = document.getElementById("tile-list");
+      const layerFiltersEl = document.getElementById("layer-filters");
+      const geomFiltersEl = document.getElementById("geom-filters");
+      const titleFilterEl = document.getElementById("title-filter");
+      const viewFilterToggle = document.getElementById("view-filter-toggle");
+
+      let filterToView = true;
+
+      const lon2tile = (lon, z) =>
+        Math.floor(((lon + 180) / 360) * Math.pow(2, z));
+      const lat2tile = (lat, z) => {
+        const rad = (lat * Math.PI) / 180;
+        return Math.floor(
+          ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) *
+            Math.pow(2, z),
+        );
+      };
+
+      const tile2lon = (x, z) => (x / Math.pow(2, z)) * 360 - 180;
+      const tile2lat = (y, z) => {
+        const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z);
+        return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+      };
+
+      const geometryTypes = [
+        "Point",
+        "MultiPoint",
+        "LineString",
+        "MultiLineString",
+        "Polygon",
+        "MultiPolygon",
+      ];
+
+      const enabledGeometry = new Set(geometryTypes);
+      const availableLayers = new Set();
+      const enabledLayers = new Set();
+
+      function renderGeometryFilters() {
+        geomFiltersEl.innerHTML = "";
+        geometryTypes.forEach((type) => {
+          const wrapper = document.createElement("label");
+          wrapper.style.display = "inline-flex";
+          wrapper.style.alignItems = "center";
+          wrapper.style.gap = "4px";
+          wrapper.style.fontSize = "11px";
+
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.checked = enabledGeometry.has(type);
+          input.addEventListener("change", () => {
+            if (input.checked) {
+              enabledGeometry.add(type);
+            } else {
+              enabledGeometry.delete(type);
+            }
+          });
+
+          const label = document.createElement("span");
+          label.textContent = type;
+
+          wrapper.appendChild(input);
+          wrapper.appendChild(label);
+          geomFiltersEl.appendChild(wrapper);
+        });
+      }
+
+      function renderLayerFilters() {
+        if (availableLayers.size === 0) {
+          layerFiltersEl.textContent = "No layers seen yet.";
+          return;
+        }
+
+        layerFiltersEl.innerHTML = "";
+        Array.from(availableLayers)
+          .sort()
+          .forEach((layerName) => {
+            const wrapper = document.createElement("label");
+            wrapper.style.display = "flex";
+            wrapper.style.alignItems = "center";
+            wrapper.style.gap = "6px";
+            wrapper.style.fontSize = "11px";
+
+            const input = document.createElement("input");
+            input.type = "checkbox";
+            input.checked = enabledLayers.has(layerName);
+            input.addEventListener("change", () => {
+              if (input.checked) {
+                enabledLayers.add(layerName);
+              } else {
+                enabledLayers.delete(layerName);
+              }
+            });
+
+            const label = document.createElement("span");
+            label.textContent = layerName;
+
+            wrapper.appendChild(input);
+            wrapper.appendChild(label);
+            layerFiltersEl.appendChild(wrapper);
+          });
+      }
+
+      function ensureLayerKnown(layerName) {
+        if (!availableLayers.has(layerName)) {
+          availableLayers.add(layerName);
+          enabledLayers.add(layerName);
+          renderLayerFilters();
+        }
+      }
+
+      function geometryAllowed(geometry) {
+        if (!geometry || !geometry.type) return false;
+        if (!enabledGeometry.has(geometry.type)) return false;
+        if (geometry.coordinates === undefined || geometry.coordinates === null)
+          return false;
+        
+        // Basic emptiness guard
+        const coords = geometry.coordinates;
+        if (Array.isArray(coords) && coords.length === 0) return false;
+        
+        // Deep check for NaNs or Infinities or unexpected coordinate structures
+        // Polygons should be array of arrays of coords
+        const isValid = (c) => {
+            if (Array.isArray(c)) {
+              if (c.length === 0) return true; // Empty rings are technically valid but useless
+              return c.every(isValid);
+            }
+            return typeof c === 'number' && isFinite(c) && !isNaN(c);
+        };
+        if (!isValid(coords)) return false;
+        
+        // Check for single-point LineStrings or Polygons which are invalid
+        if (geometry.type === 'LineString' && coords.length < 2) return false;
+        if (geometry.type === 'Polygon' && coords.length > 0 && coords[0].length < 4) return false; // Outer ring < 4 points (closed triangle + 1)
+        
+        return true;
+      }
+
+      const escapeHtml = (value) =>
+        String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+
+      function buildDescriptionTable(properties = {}) {
+        const entries = Object.entries(properties).filter(
+          ([key]) => key !== "name", // name is elevated to title
+        );
+        if (!entries.length) return "";
+        const rows = entries
+          .map(
+            ([key, val]) =>
+              `<tr><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #ddd;white-space:nowrap;">${escapeHtml(key)}</th><td style="padding:4px 6px;border-bottom:1px solid #ddd;">${escapeHtml(val)}</td></tr>`,
+          )
+          .join("");
+        return `<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;">${rows}</table></div>`;
+      }
+
+      renderGeometryFilters();
+
+      viewFilterToggle.addEventListener("change", () => {
+        filterToView = viewFilterToggle.checked;
+        updateDebugPanel();
+      });
+
+      function parseTileCoords(url) {
+        // Handle various URL formats for Z/X/Y
+        // Standard OSM/Mapbox: /z/x/y.pbf or /z/x/y.vector.pbf
+        const match = url.match(/\/(\d+)\/(\d+)\/(\d+)(?:\.vector)?\.pbf/);
+        if (!match) return null;
+        
+        // Check if the order is possibly different or if there are other numbers
+        // But standard is z/x/y
+        return {
+          z: Number(match[1]),
+          x: Number(match[2]),
+          y: Number(match[3]),
+        };
+      }
+
+      function getVisibleTileBounds() {
+        const map = window.waymarkInstance?.mapLibreStore?.mapLibreMap;
+        if (!map?.getBounds) return null;
+
+        const z = Math.floor(map.getZoom());
+        const bounds = map.getBounds();
+        const minX = lon2tile(bounds.getWest(), z);
+        const maxX = lon2tile(bounds.getEast(), z);
+        const minY = lat2tile(bounds.getNorth(), z);
+        const maxY = lat2tile(bounds.getSouth(), z);
+
+        return { z, minX, maxX, minY, maxY };
+      }
+
+      function tileInView(tile, bounds) {
+        if (!bounds) return true;
+        if (tile.z !== bounds.z) return false;
+
+        const tilesAtZoom = Math.pow(2, bounds.z);
+        const inX =
+          bounds.maxX >= bounds.minX
+            ? tile.x >= bounds.minX && tile.x <= bounds.maxX
+            : tile.x >= bounds.minX || tile.x <= bounds.maxX; // dateline wrap
+
+        const inY = tile.y >= bounds.minY && tile.y <= bounds.maxY;
+
+        return inX && inY && tile.x >= 0 && tile.x < tilesAtZoom;
+      }
+
+      // Expose loadTileData to global scope for onclick handlers
+      window.loadTileData = async (url) => {
+        try {
+          console.log("Fetching tile:", url);
+
+          // 1. Extract Z/X/Y
+          const match = url.match(/\/(\d+)\/(\d+)\/(\d+)(?:\.vector)?\.pbf/);
+          if (!match) {
+            console.error("Could not parse tile coordinates from URL:", url);
+            return;
+          }
+          const [_, z, x, y] = match.map(Number);
+          console.log(`Loading tile z:${z} x:${x} y:${y}`);
+
+          // 2. Fetch with force-cache to leverage browser cache
+          const response = await fetch(url, { cache: "force-cache" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const buffer = await response.arrayBuffer();
+
+          // 3. Parse
+          const tile = new VectorTile(new Pbf(buffer));
+          const features = [];
+
+          // 4. Iterate Layers
+          for (const layerName in tile.layers) {
+            const layer = tile.layers[layerName];
+            ensureLayerKnown(layerName);
+
+            if (!enabledLayers.has(layerName)) {
+              continue;
+            }
+
+            for (let i = 0; i < layer.length; i++) {
+              const feature = layer.feature(i);
+              // 5. Convert to GeoJSON
+              let geojson = feature.toGeoJSON(x, y, z);
+
+              // Ensure ID is a string, prefixed with tile coords + layer for uniqueness
+              if (geojson.id !== undefined && geojson.id !== null) {
+                geojson.id = `osm-${z}-${x}-${y}-${layerName}-${geojson.id}`;
+              } else {
+                geojson.id = `osm-${z}-${x}-${y}-${layerName}-${Math.random().toString(36).substr(2, 9)}`;
+              }
+
+              // Add properties for styling/debugging
+              geojson.properties = {
+                ...geojson.properties,
+                _layer: layerName,
+                _tile: `${z}/${x}/${y}`,
+              };
+              if (!geojson.properties.title && geojson.properties.name) {
+                geojson.properties.title = geojson.properties.name;
+              }
+
+              const descriptionTable = buildDescriptionTable(geojson.properties);
+              if (!geojson.properties.waymark) {
+                geojson.properties.waymark = {};
+              }
+              geojson.properties.waymark.description = descriptionTable;
+              geojson.properties.waymark.title =
+                geojson.properties.title || `Feature ${geojson.id || ""}`;
+
+              if (geometryAllowed(geojson.geometry)) {
+                const titleQuery = titleFilterEl.value.trim().toLowerCase();
+                if (titleQuery) {
+                  const featureTitle = (geojson.properties.title || "").toLowerCase();
+                  if (!featureTitle.includes(titleQuery)) continue;
+                }
+                features.push(geojson);
+              }
+            }
+          }
+
+          console.log(`Parsed ${features.length} features from tile`);
+
+          // 6. Load into Waymark
+          const fc = { type: "FeatureCollection", features };
+          
+          if (window.waymarkInstance) {
+            // v3 API: Clear by overwriting or removing items? 
+            // In v3, typically we add items to the store. 
+            // If we want to replace, we might need to remove old ones first.
+            // For now, let's just add them. If we need to clear, we might need to track IDs.
+            // Simplified approach: Just add for now.
+            // Note: v3 doesn't have a simple 'clearGeoJSON()' on the instance level usually exposed like v2.
+            // But we can iterate the store.
+            
+            // Basic clearing attempt (if supported by store API, otherwise skipped)
+            // window.waymarkInstance.geoJSONStore.clear(); // Hypothetical
+            
+            // Add new features
+            // v3 `geoJSONStore.addItem` takes a GeoJSON object (Feature or FeatureCollection).
+            window.waymarkInstance.geoJSONStore.addItem(fc);
+
+            console.log(
+              `Loaded ${features.length} features from tile ${z}/${x}/${y}`,
+            );
+          } else {
+            console.error(
+              "Waymark instance not found on window.waymarkInstance",
+            );
+          }
+        } catch (e) {
+          console.error("Error loading tile data:", e);
+          alert("Error loading tile data. Check console.");
+        }
+      };
+
+      // Tile Highlighting
+      window.highlightTile = (z, x, y) => {
+        const map = window.waymarkInstance?.mapLibreStore?.mapLibreMap;
+        if (!map) return;
+
+        // Calculate bounds (lat/lon)
+        // tile2lat returns latitude for the top edge of the tile (y)
+        // tile2lat(y+1) returns latitude for the bottom edge
+        const north = tile2lat(y, z);
+        const south = tile2lat(y + 1, z);
+        const west = tile2lon(x, z);
+        const east = tile2lon(x + 1, z);
+
+        const geojson = {
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "Polygon",
+            coordinates: [[
+              [west, north],
+              [east, north],
+              [east, south],
+              [west, south],
+              [west, north]
+            ]]
+          }
+        };
+
+        const sourceId = "tile-debug-bound";
+        const layerId = "tile-debug-bound-line";
+
+        if (!map.getSource(sourceId)) {
+          map.addSource(sourceId, {
+            type: "geojson",
+            data: geojson
+          });
+          map.addLayer({
+            id: layerId,
+            type: "line",
+            source: sourceId,
+            paint: {
+              "line-color": "#ff0000",
+              "line-width": 3
+            }
+          });
+        } else {
+          map.getSource(sourceId).setData(geojson);
+        }
+
+        // Fit bounds - DISABLED to avoid feedback loops on hover
+        /*
+        map.fitBounds([
+          [west, south], // SW: minX, minY
+          [east, north]  // NE: maxX, maxY
+        ], { padding: 50, duration: 500 }); // duration for smooth transition
+        */
+      };
+
+      window.clearHighlight = () => {
+        const map = window.waymarkInstance?.mapLibreStore?.mapLibreMap;
+        if (!map) return;
+        
+        const sourceId = "tile-debug-bound";
+        const layerId = "tile-debug-bound-line";
+
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+      };
+
+      function updateDebugPanel() {
+        const bounds = filterToView ? getVisibleTileBounds() : null;
+        const tiles = Array.from(tileRequests.values());
+        const filteredTiles = bounds
+          ? tiles.filter((t) => tileInView(t, bounds))
+          : tiles;
+
+        if (filteredTiles.length === 0) {
+          debugPanelList.innerHTML = bounds
+            ? "No tiles in current view."
+            : "No tiles loaded yet.";
+          return;
+        }
+
+        const listHtml = filteredTiles
+          .slice()
+          .reverse()
+          .map(({ url, z, x, y }) => {
+            const label =
+              z !== undefined ? `Tile ${z}/${x}/${y}` : url.split("/").pop();
+
+            return `<div 
+                style="margin-bottom: 6px; word-break: break-all; border-bottom: 1px solid #eee; padding-bottom: 6px; display: flex; align-items: flex-start; justify-content: space-between;"
+                onmouseenter="window.highlightTile(${z}, ${x}, ${y})"
+                onmouseleave="window.clearHighlight()"
+              >
+                <div style="flex-grow: 1; margin-right: 10px;">
+                  <div style="font-weight: bold; color: #333;">${label}</div>
+                  <a href="${url}" target="_blank" style="text-decoration: none; color: #0066cc; font-size: 10px; display: block; margin-top: 2px;">${url}</a>
+                </div>
+                <button onclick="loadTileData('${url}')" style="font-size: 10px; padding: 2px 6px; cursor: pointer;">Load</button>
+              </div>`;
+          })
+          .join("");
+        debugPanelList.innerHTML = listHtml;
+      }
+
+      // Initialize Waymark v3
+      const startWaymark = (center = [-122.4194, 37.7749], zoom = 12) => {
+        createInstance({
+          id: "waymark-instance",
+          mapOptions: {
+            center,
+            zoom,
+            transformRequest: (url, resourceType) => {
+                // Filter for OpenFreeMap PBF tiles
+                if (
+                  resourceType === "Tile" &&
+                  url.includes("openfreemap") &&
+                  url.endsWith(".pbf")
+                ) {
+                  const coords = parseTileCoords(url);
+                  tileRequests.set(url, { url, ...coords });
+                  // Keep list size manageable
+                  if (tileRequests.size > 50) {
+                    const first = tileRequests.keys().next().value;
+                    tileRequests.delete(first);
+                  }
+                  requestAnimationFrame(updateDebugPanel);
+                }
+                return { url };
+            }
+          },
+          onLoad: (instance) => {
+              window.waymarkInstance = instance;
+              const map = instance.mapLibreStore.mapLibreMap;
+              
+              map.on("moveend", updateDebugPanel);
+              map.on("zoomend", updateDebugPanel);
+              
+              console.log("Waymark v3 instance loaded", instance);
+          }
+        });
+      };
+
+      // Request geolocation
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log(`User location: ${latitude}, ${longitude}`);
+            startWaymark([longitude, latitude], 14);
+          },
+          (error) => {
+            console.warn("Geolocation denied or failed:", error);
+            startWaymark(); // Fallback to default
+          },
+          { timeout: 5000 }
+        );
+      } else {
+        console.warn("Geolocation not supported");
+        startWaymark();
+      }
+    </script>
+  </body>
+</html>

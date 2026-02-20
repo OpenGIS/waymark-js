@@ -183,18 +183,17 @@ export default class WaymarkOverlay extends GeoJSONFeature {
     return new Popup({}).setDOMContent(popupContent);
   }
 
-  openPopup() {
+  openPopup(lngLat) {
     if (!this.mapLibreMap || !this.popup) {
       return;
     }
 
     console.log("Opening popup for overlay:", this.id);
 
-    //Add to center of bounds
-    const bounds = this.getBounds();
-    const center = bounds.getCenter();
+    // Use click location if provided, otherwise fall back to bounds center
+    const position = lngLat || this.getBounds().getCenter();
 
-    this.popup.setLngLat([center.lng, center.lat]).addTo(this.mapLibreMap);
+    this.popup.setLngLat([position.lng, position.lat]).addTo(this.mapLibreMap);
   }
 
   show() {

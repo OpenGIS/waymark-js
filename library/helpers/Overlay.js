@@ -8,6 +8,7 @@ export function getFeatureType(feature = {}) {
 
   switch (feature.geometry.type) {
     case "Point":
+    case "MultiPoint":
       return "marker";
     case "LineString":
     case "MultiLineString":
@@ -16,6 +17,6 @@ export function getFeatureType(feature = {}) {
     case "MultiPolygon":
       return "shape";
     default:
-      return "shape";
+      return null;
   }
 }

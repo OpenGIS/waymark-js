@@ -14,9 +14,21 @@ export default class WaymarkMap extends GeoJSONFeatureCollection {
         // Create overlays
         this.overlays = new Map();
         this.features.forEach((feature) => {
-            // Create
-            const overlay = createOverlay(feature);
-            this.overlays.set(overlay.id, overlay);
+            // Expand MultiPoint into individual Point features
+            if (feature.geometry?.type === "MultiPoint") {
+                (feature.geometry.coordinates || []).forEach((coord) => {
+                    const pointFeature = {
+                        ...feature,
+                        id: undefined, // let each overlay get a unique ID
+                        geometry: { type: "Point", coordinates: coord },
+                    };
+                    const overlay = createOverlay(pointFeature);
+                    if (overlay) this.overlays.set(overlay.id, overlay);
+                });
+            } else {
+                const overlay = createOverlay(feature);
+                if (overlay) this.overlays.set(overlay.id, overlay);
+            }
         });
 
         this.mapLibreMap = null;

@@ -184,7 +184,7 @@ export default class WaymarkInstance {
   }
 
   // Actions
-  setActiveOverlay(overlay = null) {
+  setActiveOverlay(overlay = null, { lngLat } = {}) {
     if (!overlay) {
       // Remove highlight
       if (this.activeOverlay) {
@@ -219,7 +219,7 @@ export default class WaymarkInstance {
     this.activeOverlay = overlay;
     overlay.setActive(true);
     overlay.flyTo();
-    overlay.openPopup();
+    overlay.openPopup(lngLat);
 
     this.dispatchEvent("state-active-overlay-set");
   }

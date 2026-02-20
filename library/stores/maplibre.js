@@ -86,7 +86,7 @@ export function createMapLibreStore(WaymarkInstance) {
 			}
 
 			if (match) {
-				WaymarkInstance.setActiveOverlay(match);
+				WaymarkInstance.setActiveOverlay(match, { lngLat: e.lngLat });
 			} else {
 				// Remove active overlay
 				WaymarkInstance.setActiveOverlay();

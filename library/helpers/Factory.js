@@ -30,7 +30,8 @@ export function createOverlay(feature) {
     case "shape":
       return new WaymarkShape(feature);
     default:
-      throw new Error("Unsupported feature type for overlay creation");
+      console.warn("[Waymark] Unsupported geometry type:", feature.geometry.type);
+      return null;
   }
 }
 
