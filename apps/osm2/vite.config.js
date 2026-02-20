@@ -5,21 +5,21 @@ import { defineConfig } from "vite";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  root: "apps/osm2",
+  root: __dirname,
   base: "./",
 
   resolve: {
     alias: {
-      "@": fileURLToPath(new URL("./library", import.meta.url)),
+      "@": fileURLToPath(new URL("../../library", import.meta.url)),
     },
   },
 
   build: {
-    outDir: resolve(__dirname, "dist-osm2"),
+    outDir: resolve(__dirname, "../../dist-osm2"),
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, "apps/osm2/index.html"),
+        main: resolve(__dirname, "index.html"),
       },
     },
   },
