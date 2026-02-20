@@ -28,6 +28,7 @@
   },
   "scripts": {
     "build": "vite build",
+    "build:osm2": "vite build --config vite.config.osm2.js",
     "dev": "concurrently \"vite --host\" \"npm run test:watch\"",
     "test": "vitest run",
     "test:watch": "vitest watch"
