@@ -1,6 +1,6 @@
 {
   "name": "@ogis/waymark-js",
-  "version": "3.0.1-alpha",
+  "version": "3.0.2",
   "type": "module",
   "license": "GPL-2.0-only",
   "repository": {
@@ -27,6 +27,7 @@
     "./dist/waymark-js.css": "./dist/waymark-js.css"
   },
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "vite build",
     "build:osm2": "vite build --config apps/osm2/vite.config.js",
     "dev": "concurrently \"vite --host\" \"npm run test:watch\"",
