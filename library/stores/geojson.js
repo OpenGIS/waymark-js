@@ -17,6 +17,20 @@ export function createGeoJSONStore(WaymarkInstance) {
 		return Array.from(overlays.values());
 	};
 
+	const getBounds = () => {
+		const bounds = new LngLatBounds();
+
+		items.forEach((item) => {
+			// Use Waymark .bbox property
+			if (item.bbox) {
+				bounds.extend([item.bbox[0], item.bbox[1]]);
+				bounds.extend([item.bbox[2], item.bbox[3]]);
+			}
+		});
+
+		return bounds;
+	};
+
 	// Actions
 
 	const getItem = (itemID) => {
@@ -159,10 +173,11 @@ export function createGeoJSONStore(WaymarkInstance) {
 		overlays,
 		overlaysArray,
 		overlaysByType,
-
+		getBounds,
 		hasItem,
 
 		// Actions
+
 		getItem,
 		addItem,
 		updateItem,
