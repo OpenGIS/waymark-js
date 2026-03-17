@@ -7,6 +7,8 @@ Adding _meaning_ to GeoJSON.
 
 Waymark JS is a JavaScript library for rendering GeoJSON data on a [OpenStreetMap](https://www.openstreetmap.org/) vector basemap.
 
+**[View the Demo](https://opengis.github.io/Waymark-JS/)**
+
 Built on the shoulders of giants:
 
 - [MapLibre GL JS](https://maplibre.org/) for map rendering
