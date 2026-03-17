@@ -24,7 +24,7 @@ export default defineConfig({
 
   build: {
     outDir: resolve(__dirname, "dist"),
-    emptyOutDir: false,
+    emptyOutDir: true,
     lib: {
       entry: resolve(__dirname, "library/entry.js"),
       name: "WaymarkJS",
@@ -45,6 +45,7 @@ export default defineConfig({
   // Specify port 1234
   server: {
     port: 1234,
+    open: "/dev.html",
   },
 
   // server: {
