@@ -23,7 +23,7 @@ export default defineNuxtConfig({
   ],
 
   app: {
-    baseURL: "/js/",
+    baseURL: "/waymark-js/",
     head: {
       script: [
         {
@@ -40,7 +40,7 @@ export default defineNuxtConfig({
         },
       ],
       link: [
-        { rel: "icon", type: "image/svg", href: "/js/assets/icon/waymark.svg" },
+        { rel: "icon", type: "image/svg", href: "/waymark-js/assets/icon/waymark.svg" },
       ],
     },
   },
