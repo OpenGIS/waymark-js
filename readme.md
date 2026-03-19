@@ -12,7 +12,7 @@ Powered by [Leaflet JS](https://leafletjs.com/) with [OpenStreetMap](https://www
 
 ## Documentation / Demo
 
-Demo and and documentation [waymark.dev/js](https://www.waymark.dev/js)
+Demo and and documentation [here](https://www.ogis.org/waymark-js/).
 
 ## Installation
 
@@ -123,7 +123,7 @@ The following example will display an empty Map Editor on the page, set to an in
 ```
 
 > [!TIP]
-> View the full documentation and examples at [waymark.dev/js](https://www.waymark.dev/js)
+> View the full documentation and examples [here](https://www.ogis.org/waymark-js/).
 
 ## Development
 
