@@ -58,7 +58,7 @@ describe("1. Start Here", () => {
               description:
                 "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
               image_large_url:
-                "https://www.ogis.org/waymark-js/assets/geo/pub.jpeg",
+                "https://www.ogis.org/waymark-js/assets/img/pub.jpeg",
             },
             geometry: {
               type: "Point",
