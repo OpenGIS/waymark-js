@@ -1,20 +1,21 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 
-describe('1. Start Here', () => {
+describe("1. Start Here", () => {
   let viewer;
 
   beforeEach(() => {
     // Setup the DOM as per the Quick Start example
-    document.body.innerHTML = '<div id="waymark-map" style="height: 500px; width: 500px;"></div>';
-    
+    document.body.innerHTML =
+      '<div id="waymark-map" style="height: 500px; width: 500px;"></div>';
+
     // Mock clientHeight/clientWidth for Leaflet
-    const container = document.getElementById('waymark-map');
-    Object.defineProperty(container, 'clientWidth', { value: 500 });
-    Object.defineProperty(container, 'clientHeight', { value: 500 });
+    const container = document.getElementById("waymark-map");
+    Object.defineProperty(container, "clientWidth", { value: 500 });
+    Object.defineProperty(container, "clientHeight", { value: 500 });
   });
 
-  describe('Quick Start', () => {
-    it('should initialize a map with custom marker and load GeoJSON', () => {
+  describe("Quick Start", () => {
+    it("should initialize a map with custom marker and load GeoJSON", () => {
       // Create viewer Instance
       viewer = window.Waymark_Map_Factory.viewer();
 
@@ -23,7 +24,7 @@ describe('1. Start Here', () => {
         map_options: {
           // Initial Map Zoom
           map_init_zoom: 16,
-          map_div_id: 'waymark-map', // Explicitly set ID for test environment safety
+          map_div_id: "waymark-map", // Explicitly set ID for test environment safety
 
           // Our Pub Icon
           marker_types: [
@@ -38,12 +39,12 @@ describe('1. Start Here', () => {
       });
 
       // Verify map is initialized
-      const mapContainer = document.getElementById('waymark-map');
-      expect(mapContainer.classList.contains('leaflet-container')).toBe(true);
-      
+      const mapContainer = document.getElementById("waymark-map");
+      expect(mapContainer.classList.contains("leaflet-container")).toBe(true);
+
       // Verify init_done() was called (which adds this class)
       // This ensures the map is fully initialized and visible
-      expect(mapContainer.classList.contains('waymark-is-viewer')).toBe(true);
+      expect(mapContainer.classList.contains("waymark-is-viewer")).toBe(true);
 
       // Load GeoJSON
       viewer.load_json({
@@ -56,7 +57,8 @@ describe('1. Start Here', () => {
               title: "The Scarlet Ibis",
               description:
                 "Great pub, great food! Especially after a Long Ride 🚴🍔🍟🍺🍺💤",
-              image_large_url: "https://www.waymark.dev/assets/geo/pub.jpeg",
+              image_large_url:
+                "https://www.ogis.org/waymark-js/assets/geo/pub.jpeg",
             },
             geometry: {
               type: "Point",
@@ -69,7 +71,7 @@ describe('1. Start Here', () => {
       // Verify marker is added to the map
       // We can check if a marker icon with the expected class exists
       // Note: Waymark likely adds classes based on the icon type
-      const markers = document.querySelectorAll('.leaflet-marker-icon');
+      const markers = document.querySelectorAll(".leaflet-marker-icon");
       expect(markers.length).toBeGreaterThan(0);
     });
   });
