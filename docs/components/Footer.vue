@@ -6,7 +6,7 @@ import { version } from "../../package.json";
   <footer>
     <div class="left">
       <!-- WordPress -->
-      <a href="https://www.waymark.dev/"
+      <a href="https://www.ogis.org/waymark-wp/"
         >&laquo;
         <Icon
           width="20"
@@ -22,7 +22,7 @@ import { version } from "../../package.json";
       v{{ version }}
 
       <!-- GitHub -->
-      <a href="https://github.com/OpenGIS/Waymark-JS">
+      <a href="https://github.com/opengis/waymark-js">
         <Icon name="github" color="#555" width="30" height="30" />
       </a>
 
