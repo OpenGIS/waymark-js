@@ -8369,7 +8369,7 @@ function Waymark_Map() {
 		Waymark_L.control
 			.attribution({
 				prefix:
-					'<a href="https://www.ogis.org/waymark-wp/" target="_blank" title="Make Meaningful Maps">Waymark</a>',
+					'<a href="https://www.ogis.org/waymark-js/" target="_blank" title="Make Meaningful Maps">Waymark</a>',
 			})
 			.addTo(Waymark.map);
 
