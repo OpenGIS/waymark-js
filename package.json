@@ -3,7 +3,7 @@
   "version": "1.2.0",
   "description": "An Interactive Geographical Information Editor for the Web.",
   "author": "Joe Hawes",
-  "homepage": "https://www.waymark.dev/js/",
+  "homepage": "https://www.ogis.org/waymark-js/",
   "license": "GPL-2",
   "main": "Gruntfile.js",
   "scripts": {
