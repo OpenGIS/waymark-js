@@ -1,8 +1,5 @@
-import { Map, setWorkerUrl } from 'maplibre-gl'
-import workerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker?url'
+import { Map } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-
-setWorkerUrl(workerUrl)
 
 export class Waymark {
   /**

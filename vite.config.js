@@ -9,4 +9,9 @@ export default defineConfig({
       formats: ['es'],
     },
   },
+  test: {
+    environment: 'jsdom',
+    include: ['tests/docs/**/*.test.js'],
+    setupFiles: ['tests/setup.js'],
+  },
 })

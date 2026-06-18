@@ -1,4 +1,6 @@
-import { Waymark } from "./index.js";
-import "./style.scss";
+import { Waymark } from './index.js'
 
-const waymark = new Waymark("map");
+const waymark = new Waymark('map')
+
+// Expose instance for browser tests and debugging
+window.waymark = waymark
