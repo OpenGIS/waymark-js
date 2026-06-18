@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const DOCS_DIR = path.join(ROOT, "docs", "content");
+const DOCS_DIR = path.join(ROOT, "docs");
 const OUTPUT = path.join(ROOT, "SKILL.md");
 
 // Strip Nuxt Content frontmatter (--- ... ---) from the top of a file
