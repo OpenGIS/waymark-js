@@ -1,4 +1,4 @@
-import { Waymark } from './index.js'
+import { Waymark } from './entry.js'
 
 const waymark = new Waymark('map')
 

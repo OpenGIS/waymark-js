@@ -4,7 +4,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(import.meta.dirname, 'src/index.js'),
+      entry: resolve(import.meta.dirname, 'src/entry.js'),
       fileName: 'waymark',
       formats: ['es'],
     },
