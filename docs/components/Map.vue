@@ -9,7 +9,11 @@ const props = defineProps({
 const demoURL = computed(() => {
   // Use prop if available
   if (props.mapPath) {
-    return props.mapPath;
+    if (props.mapPath.startsWith("http://") || props.mapPath.startsWith("https://")) {
+      return props.mapPath;
+    }
+    const cleanPath = props.mapPath.startsWith("/") ? props.mapPath.slice(1) : props.mapPath;
+    return config.app.baseURL + cleanPath;
   }
 
   let url = config.app.baseURL;
