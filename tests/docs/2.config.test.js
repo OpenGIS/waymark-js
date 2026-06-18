@@ -1,0 +1,210 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+// Mock maplibre-gl — WebGL is unavailable in JSDOM
+vi.mock('maplibre-gl', () => {
+  const MockMap = vi.fn(function (options) {
+    this._options = options
+    this.on = vi.fn()
+    this.remove = vi.fn()
+  })
+  return { Map: MockMap }
+})
+
+// Suppress CSS import from Waymark.js
+vi.mock('maplibre-gl/dist/maplibre-gl.css', () => ({}))
+
+import { Waymark } from '../../src/Waymark.js'
+import { Map } from 'maplibre-gl'
+
+describe('2. Config', () => {
+  beforeEach(() => {
+    document.body.innerHTML =
+      '<div id="map" style="width: 500px; height: 400px;"></div>'
+    vi.clearAllMocks()
+  })
+
+  // ------------------------------------------------------------------ //
+  // Defaults
+  // ------------------------------------------------------------------ //
+
+  describe('Defaults', () => {
+    it('default center is [0, 0]', () => {
+      new Waymark('map')
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({ center: [0, 0] }),
+      )
+    })
+
+    it('default zoom is 2', () => {
+      new Waymark('map')
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({ zoom: 2 }),
+      )
+    })
+
+    it('default basemap is the OpenFreeMap Liberty vector style URL', () => {
+      new Waymark('map')
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({
+          style: 'https://tiles.openfreemap.org/styles/bright',
+        }),
+      )
+    })
+  })
+
+  // ------------------------------------------------------------------ //
+  // config.map
+  // ------------------------------------------------------------------ //
+
+  describe('config.map', () => {
+    it('forwards custom center to MapLibre', () => {
+      new Waymark('map', { map: { center: [-0.1276, 51.5074] } })
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({ center: [-0.1276, 51.5074] }),
+      )
+    })
+
+    it('forwards custom zoom to MapLibre', () => {
+      new Waymark('map', { map: { zoom: 10 } })
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({ zoom: 10 }),
+      )
+    })
+
+    it('consumer basemaps array replaces defaults entirely', () => {
+      new Waymark('map', {
+        map: {
+          basemaps: [
+            {
+              type: 'raster',
+              tiles: ['https://tile.example.com/{z}/{x}/{y}.png'],
+            },
+          ],
+        },
+      })
+      const [callArg] = Map.mock.calls[0]
+      // Should be an inline style object, not the default vector URL
+      expect(callArg.style).toBeTypeOf('object')
+      expect(callArg.style).not.toBe('https://tiles.openfreemap.org/styles/bright')
+    })
+  })
+
+  // ------------------------------------------------------------------ //
+  // Basemaps — Vector
+  // ------------------------------------------------------------------ //
+
+  describe('Basemaps — Vector', () => {
+    it('passes the style URL directly to MapLibre', () => {
+      new Waymark('map', {
+        map: {
+          basemaps: [
+            { name: 'My Tiles', type: 'vector', style: 'https://my.tiles/style.json' },
+          ],
+        },
+      })
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({ style: 'https://my.tiles/style.json' }),
+      )
+    })
+
+    it('name property has no effect on the MapLibre style value', () => {
+      new Waymark('map', {
+        map: {
+          basemaps: [
+            { name: 'Display Name', type: 'vector', style: 'https://my.tiles/style.json' },
+          ],
+        },
+      })
+      const [callArg] = Map.mock.calls[0]
+      // Style must be the bare URL string, not an object containing name
+      expect(callArg.style).toBe('https://my.tiles/style.json')
+    })
+  })
+
+  // ------------------------------------------------------------------ //
+  // Basemaps — Raster
+  // ------------------------------------------------------------------ //
+
+  describe('Basemaps — Raster', () => {
+    const rasterBasemap = {
+      type: 'raster',
+      tiles: ['https://tile.example.com/{z}/{x}/{y}.png'],
+      tileSize: 512,
+      attribution: '© Example',
+    }
+
+    function getRasterStyle(basemap = rasterBasemap) {
+      new Waymark('map', { map: { basemaps: [basemap] } })
+      const [callArg] = Map.mock.calls[0]
+      return callArg.style
+    }
+
+    it('MapLibre is called with an object (not a string) as style', () => {
+      const style = getRasterStyle()
+      expect(style).toBeTypeOf('object')
+    })
+
+    it('constructed style object has version: 8', () => {
+      const style = getRasterStyle()
+      expect(style.version).toBe(8)
+    })
+
+    it('constructed style has a sources.basemap entry with type: raster', () => {
+      const style = getRasterStyle()
+      expect(style.sources.basemap).toBeDefined()
+      expect(style.sources.basemap.type).toBe('raster')
+    })
+
+    it('constructed style sources.basemap.tiles matches the provided tiles array', () => {
+      const style = getRasterStyle()
+      expect(style.sources.basemap.tiles).toEqual([
+        'https://tile.example.com/{z}/{x}/{y}.png',
+      ])
+    })
+
+    it('constructed style has a layers array with one basemap entry', () => {
+      const style = getRasterStyle()
+      expect(style.layers).toHaveLength(1)
+      expect(style.layers[0]).toEqual({ id: 'basemap', type: 'raster', source: 'basemap' })
+    })
+
+    it('tileSize defaults to 256 when not specified', () => {
+      const style = getRasterStyle({ type: 'raster', tiles: ['https://t.example/{z}/{x}/{y}.png'] })
+      expect(style.sources.basemap.tileSize).toBe(256)
+    })
+
+    it('attribution defaults to empty string when not specified', () => {
+      const style = getRasterStyle({ type: 'raster', tiles: ['https://t.example/{z}/{x}/{y}.png'] })
+      expect(style.sources.basemap.attribution).toBe('')
+    })
+
+    it('preserves custom tileSize and attribution when specified', () => {
+      const style = getRasterStyle(rasterBasemap)
+      expect(style.sources.basemap.tileSize).toBe(512)
+      expect(style.sources.basemap.attribution).toBe('© Example')
+    })
+
+    it('passes maxZoom to the raster source as maxzoom (lowercase)', () => {
+      new Waymark('map', {
+        map: {
+          basemaps: [
+            {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              maxZoom: 19,
+            },
+          ],
+        },
+      })
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({
+          style: expect.objectContaining({
+            sources: expect.objectContaining({
+              basemap: expect.objectContaining({ maxzoom: 19 }),
+            }),
+          }),
+        }),
+      )
+    })
+  })
+})

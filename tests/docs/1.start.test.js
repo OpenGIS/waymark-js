@@ -46,11 +46,11 @@ describe('1. Start Here', () => {
   // ------------------------------------------------------------------ //
 
   describe('Constructor defaults', () => {
-    it('defaults to the demotiles style', () => {
+    it('defaults to the OpenFreeMap Liberty style', () => {
       new Waymark('map')
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({
-          style: 'https://demotiles.maplibre.org/style.json',
+          style: 'https://tiles.openfreemap.org/styles/bright',
         }),
       )
     })
@@ -75,22 +75,26 @@ describe('1. Start Here', () => {
   // ------------------------------------------------------------------ //
 
   describe('Options', () => {
-    it('accepts a custom style URL', () => {
-      new Waymark('map', { style: 'https://custom.tiles.json' })
+    it('accepts a custom vector basemap via config.map.basemaps', () => {
+      new Waymark('map', {
+        map: {
+          basemaps: [{ name: 'Custom', type: 'vector', style: 'https://custom.tiles.json' }],
+        },
+      })
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({ style: 'https://custom.tiles.json' }),
       )
     })
 
     it('accepts a custom center', () => {
-      new Waymark('map', { center: [-0.1276, 51.5074] })
+      new Waymark('map', { map: { center: [-0.1276, 51.5074] } })
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({ center: [-0.1276, 51.5074] }),
       )
     })
 
     it('accepts a custom zoom', () => {
-      new Waymark('map', { zoom: 10 })
+      new Waymark('map', { map: { zoom: 10 } })
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({ zoom: 10 }),
       )

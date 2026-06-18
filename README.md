@@ -39,13 +39,17 @@ Outputs `dist/waymark.js` (ESM) and `dist/waymark.css`. Configured in [`vite.con
 import { Waymark } from './dist/waymark.js'
 
 const waymark = new Waymark('map', {
-  center: [-0.1276, 51.5074], // [lng, lat]
-  zoom: 10,
+  map: {
+    center: [-0.1276, 51.5074], // [lng, lat]
+    zoom: 10,
+  },
 })
 
 // Access the MapLibre GL Map directly
 waymark.map.on('load', () => console.log('ready'))
 ```
+
+Config is namespaced — all map settings live under `config.map`. See [docs/2.config.md](docs/2.config.md) for the full config reference, including basemap options.
 
 ## Key dependencies
 
@@ -57,3 +61,4 @@ waymark.map.on('load', () => console.log('ready'))
 ## Further reading
 
 - [Start here](docs/1.index.md) — constructor API and options reference
+- [Config reference](docs/2.config.md) — full `config.map` and basemap options
