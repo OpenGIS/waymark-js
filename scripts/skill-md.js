@@ -7,10 +7,10 @@
  * Usage: node scripts/skill-md.js
  */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
 
-const ROOT = path.resolve(__dirname, "..");
+const ROOT = path.resolve(import.meta.dirname, "..");
 const DOCS_DIR = path.join(ROOT, "docs");
 const OUTPUT = path.join(ROOT, "SKILL.md");
 
