@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test.describe('1. Start Here', () => {
+test.describe('2. Instances', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
   })

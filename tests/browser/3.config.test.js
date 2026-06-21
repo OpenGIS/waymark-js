@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test.describe('2. Config', () => {
+test.describe('3. Config', () => {
   // ------------------------------------------------------------------ //
   // Basemaps — Vector
   // ------------------------------------------------------------------ //

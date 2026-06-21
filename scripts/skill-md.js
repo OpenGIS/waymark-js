@@ -1,8 +1,10 @@
 /**
- * Generates SKILL.md at the project root.
+ * Generates the project skill file for agents.
  *
  * Assembles a skill file for use with opencode, combining static context
  * about Waymark JS with the full content of each documentation page.
+ *
+ * Output path is fixed: .agents/skills/waymark-js/SKILL.md
  *
  * Usage: node scripts/skill-md.js
  */
@@ -12,14 +14,14 @@ import path from "path";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const DOCS_DIR = path.join(ROOT, "docs");
-const OUTPUT = path.join(ROOT, "SKILL.md");
+const OUTPUT = path.join(ROOT, ".agents", "skills", "waymark-js", "SKILL.md");
 
 // Strip Nuxt Content frontmatter (--- ... ---) from the top of a file
 function stripFrontmatter(content) {
     return content.replace(/^---[\s\S]*?---\n?/, "").trimStart();
 }
 
-// Read doc files in filename order (1.index.md, 2.map.md, …)
+// Read doc files in filename order (1.development.md, 2.instances.md, …)
 const docFiles = fs
     .readdirSync(DOCS_DIR)
     .filter((f) => f.endsWith(".md"))
@@ -34,23 +36,24 @@ const docSections = docFiles
 
 const skill = `---
 name: waymark-js
-description: Waymark JS library reference. Use when working on Waymark JS source code, writing features, fixing bugs, or answering questions about the API, options, Viewer, Editor, or Map configuration.
+description: Waymark JS reference. Use when working on source, docs, tests, or API/config behaviour for the MapLibre-based library.
 ---
 
 # Waymark JS
 
-Waymark JS is a JavaScript library for creating and sharing geographical information, built on [Leaflet JS](https://leafletjs.com/). It supports a read-only Viewer mode and an interactive Editor mode. Data is stored as GeoJSON, with GPX and KML import support. No API key required.
+Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple \`Waymark\` class, supports vector/raster basemap config, and gives direct access to the underlying MapLibre instance.
 
 **Key facts:**
-- Entry point: \`window.Waymark_Map_Factory.viewer()\` / \`window.Waymark_Map_Factory.editor()\`
-- Source: \`src/\` — built with Grunt into \`dist/\`
-- Tests: \`npm test\` (see \`tests/readme.md\`)
-- Docs site source: \`docs/\` (Nuxt Content)
+- Entry point: \`import { Waymark } from './dist/waymark.js'\`
+- Source: \`src/\` — built with Vite into \`dist/\`
+- Tests: \`npm test\` and \`npm run test:browser\` (workflow in \`docs/1.development.md\`)
+- Docs source: \`docs/\` (also generates this skill file)
 
 ---
 
 ${docSections}
 `;
 
+fs.mkdirSync(path.dirname(OUTPUT), { recursive: true });
 fs.writeFileSync(OUTPUT, skill, "utf8");
 console.log(`Written: ${path.relative(ROOT, OUTPUT)}`);

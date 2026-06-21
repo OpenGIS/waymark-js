@@ -1,6 +1,134 @@
 ---
-git_hash: ""
-modified: "2026-06-18"
+name: waymark-js
+description: Waymark JS reference. Use when working on source, docs, tests, or API/config behaviour for the MapLibre-based library.
+---
+
+# Waymark JS
+
+Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple `Waymark` class, supports vector/raster basemap config, and gives direct access to the underlying MapLibre instance.
+
+**Key facts:**
+- Entry point: `import { Waymark } from './dist/waymark.js'`
+- Source: `src/` — built with Vite into `dist/`
+- Tests: `npm test` and `npm run test:browser` (workflow in `docs/1.development.md`)
+- Docs source: `docs/` (also generates this skill file)
+
+---
+
+# Development
+
+> Contributor guide for working on the Waymark JS library itself.
+
+## Local workflow
+
+1. Install dependencies: `npm install`
+2. Start dev server: `npm run dev`
+3. Build library output: `npm run build`
+
+`npm run build` also runs `node scripts/skill-md.js`, which regenerates `.agents/skills/waymark-js/SKILL.md` from the current `docs/*.md` files.
+
+> [!NOTE]
+> If you change docs content, run `npm run build` before shipping so the generated skill file stays in sync.
+
+The dev app is `index.html` and loads `src/dev.js`, which creates a default `new Waymark('map')` instance and exposes `window.Waymark` and `window.waymark` for browser tests and debugging.
+
+## Testing
+
+Tests protect the public docs and API behaviour:
+
+- `tests/docs/` (Vitest + jsdom) verifies documented constructor/config behaviour without WebGL.
+- `tests/browser/` (Playwright) smoke-tests the real browser setup and checks the dev page behaviour from `src/dev.js`.
+
+Run:
+
+```bash
+npm test
+npm run test:browser
+```
+
+### Docs ↔ tests sync pattern
+
+Treat docs and tests as one contract. When you change one, change the other in the same slice.
+
+| Docs page | Unit tests | Browser tests |
+| --- | --- | --- |
+| `docs/2.instances.md` | `tests/docs/2.instances.test.js` | `tests/browser/2.instances.test.js` |
+| `docs/3.config.md` | `tests/docs/3.config.test.js` | `tests/browser/3.config.test.js` |
+
+Sync checklist:
+
+1. Update docs section wording/examples.
+2. Update matching test `describe` blocks and assertions.
+3. Run `npm test` and `npm run test:browser`.
+4. Confirm no stale filenames or headings remain.
+
+
+---
+
+# Instances
+
+> Create Waymark instances and access the underlying MapLibre map.
+
+## Quick start
+
+Waymark wraps [MapLibre GL](https://maplibre.org/) into a simple class. Point it at a DOM element and it will render an interactive map.
+
+```html
+<!-- Map container -->
+<div id="map" style="width: 100%; height: 400px;"></div>
+
+<script type="module">
+  import { Waymark } from './dist/waymark.js'
+
+  const waymark = new Waymark('map')
+</script>
+```
+
+Default map values come from config defaults (`center: [0, 0]`, `zoom: 2`, OpenFreeMap Bright basemap).
+
+## Constructor
+
+`new Waymark(containerId, options)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `containerId` | `string` | Yes | The `id` of the DOM element to mount into |
+| `options` | `object` | No | Config object (see [docs/3.config.md](3.config.md)) |
+
+### Example with options
+
+```js
+const waymark = new Waymark('map', {
+  map: {
+    center: [-0.1276, 51.5074], // London
+    zoom: 10,
+    basemaps: [
+      {
+        type: 'vector',
+        style: 'https://tiles.openfreemap.org/styles/bright',
+      },
+    ],
+  },
+})
+```
+
+## Accessing the MapLibre instance
+
+The `.map` getter returns the underlying [`maplibre-gl` Map](https://maplibre.org/maplibre-gl-js/docs/API/classes/Map/) instance directly.
+
+```js
+const waymark = new Waymark('map')
+
+// Use the full MapLibre GL API
+waymark.map.on('load', () => {
+  console.log('Map loaded')
+})
+```
+
+- Source: [`src/Waymark.js`](../src/Waymark.js)
+- Entry point: [`src/entry.js`](../src/entry.js)
+
+
 ---
 
 # Config
@@ -12,7 +140,7 @@ modified: "2026-06-18"
 The second argument to the Waymark constructor is an optional config object. Config is namespaced — all map settings live under `config.map`. Other namespaces will be added as the library grows.
 
 ```js
-new Waymark(containerId, (config = {}));
+new Waymark(containerId, config)
 ```
 
 Full default config:
@@ -39,7 +167,7 @@ const DEFAULT_CONFIG = {
 | ---------- | ------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `center`   | `[number, number]` | `[0, 0]`            | Initial map centre as `[lng, lat]`                                                                                        |
 | `zoom`     | `number`           | `2`                 | Initial zoom level                                                                                                        |
-| `basemaps` | `array`            | OpenFreeMap Liberty | Array of basemap descriptors. The first entry is used as the active basemap. Replaces the default entirely when provided. |
+| `basemaps` | `array`            | OpenFreeMap Bright | Array of basemap descriptors. The first entry is used as the active basemap. Replaces the default entirely when provided. |
 
 ## config.map.basemaps
 
@@ -103,3 +231,4 @@ const waymark = new Waymark("map", {
 ---
 
 - Source: [`src/Waymark.js`](../src/Waymark.js)
+

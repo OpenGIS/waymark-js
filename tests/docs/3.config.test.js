@@ -16,7 +16,7 @@ vi.mock('maplibre-gl/dist/maplibre-gl.css', () => ({}))
 import { Waymark } from '../../src/Waymark.js'
 import { Map } from 'maplibre-gl'
 
-describe('2. Config', () => {
+describe('3. Config', () => {
   beforeEach(() => {
     document.body.innerHTML =
       '<div id="map" style="width: 500px; height: 400px;"></div>'
