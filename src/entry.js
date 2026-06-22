@@ -1,6 +1,6 @@
-import { setWorkerUrl } from 'maplibre-gl'
-import workerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker?url'
+import { setWorkerUrl } from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-csp-worker?url";
 
-setWorkerUrl(workerUrl)
+setWorkerUrl(workerUrl);
 
-export { createInstance } from './api/createInstance.js'
+export { createInstance } from "./api/createInstance.js";

@@ -1,5 +1,5 @@
 function createRandomContainerId() {
-  return `waymark-${Math.random().toString(36).slice(2, 10)}`
+    return `waymark-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 /**
@@ -9,18 +9,18 @@ function createRandomContainerId() {
  * @returns {string}
  */
 export function ensureContainer(id) {
-  if (id) {
-    if (!document.getElementById(id)) {
-      throw new Error(`Waymark container "${id}" was not found.`)
+    if (id) {
+        if (!document.getElementById(id)) {
+            throw new Error(`Waymark container "${id}" was not found.`);
+        }
+
+        return id;
     }
 
-    return id
-  }
+    const generatedId = createRandomContainerId();
+    const container = document.createElement("div");
+    container.id = generatedId;
+    document.body.appendChild(container);
 
-  const generatedId = createRandomContainerId()
-  const container = document.createElement('div')
-  container.id = generatedId
-  document.body.appendChild(container)
-
-  return generatedId
+    return generatedId;
 }

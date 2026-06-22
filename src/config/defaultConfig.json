@@ -1,13 +1,15 @@
 {
-  "map": {
-    "center": [0, 0],
-    "zoom": 2,
-    "basemaps": [
-      {
-        "name": "OpenFreeMap Bright",
-        "type": "vector",
-        "style": "https://tiles.openfreemap.org/styles/bright"
-      }
-    ]
-  }
+    "map": {
+        "options": {
+            "center": [0, 0],
+            "zoom": 2
+        },
+        "basemaps": [
+            {
+                "name": "OpenFreeMap Bright",
+                "type": "vector",
+                "style": "https://tiles.openfreemap.org/styles/bright"
+            }
+        ]
+    }
 }

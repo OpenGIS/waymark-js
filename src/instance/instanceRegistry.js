@@ -1,10 +1,10 @@
-const instanceRegistry = new Map()
+const instanceRegistry = new Map();
 
 /**
  * @param {string} id
  */
 export function getInstance(id) {
-  return instanceRegistry.get(id)
+    return instanceRegistry.get(id);
 }
 
 /**
@@ -12,9 +12,9 @@ export function getInstance(id) {
  * @param {object} instance
  */
 export function setInstance(id, instance) {
-  instanceRegistry.set(id, instance)
+    instanceRegistry.set(id, instance);
 }
 
 export function clearInstanceRegistry() {
-  instanceRegistry.clear()
+    instanceRegistry.clear();
 }

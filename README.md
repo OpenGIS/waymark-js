@@ -10,6 +10,8 @@ No API key is required for the default setup.
 npm install
 npm run dev
 npm run build # also refreshes .agents/skills/waymark-js/SKILL.md from docs/
+npm run format
+npm run format:check
 npm test
 npm run test:browser
 ```
@@ -19,20 +21,24 @@ npm run test:browser
 ```html
 <div id="map" style="height: 400px"></div>
 <script type="module">
-  import { createInstance } from './dist/waymark.js'
+    import { createInstance } from "./dist/waymark.js";
 
-  const instance = createInstance('map', {
-    map: {
-      center: [-0.1276, 51.5074],
-      zoom: 10,
-    },
-  })
+    const instance = createInstance("map", {
+        map: {
+            options: {
+                center: [-0.1276, 51.5074],
+                zoom: 10,
+            },
+        },
+    });
 
-  instance.map.on('load', () => {
-    console.log('Map ready')
-  })
+    instance.map.on("load", () => {
+        console.log("Map ready");
+    });
 </script>
 ```
+
+`map.options` is passed through to the MapLibre `new Map(options)` constructor.
 
 ## Documentation
 
