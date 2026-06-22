@@ -1,7 +1,7 @@
-import { Waymark } from './entry.js'
+import { createInstance } from './entry.js'
 
-const waymark = new Waymark('map')
+const waymarkInstance = createInstance('map')
 
 // Expose for browser tests and debugging
-window.Waymark = Waymark
-window.waymark = waymark
+window.createWaymarkInstance = createInstance
+window.waymarkInstance = waymarkInstance

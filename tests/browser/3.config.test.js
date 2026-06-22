@@ -40,7 +40,7 @@ test.describe('3. Config', () => {
         div.style.width = '500px'
         div.style.height = '400px'
         document.body.appendChild(div)
-        new window.Waymark('map-raster-test', {
+        window.createWaymarkInstance('map-raster-test', {
           map: {
             basemaps: [
               {
@@ -69,7 +69,7 @@ test.describe('3. Config', () => {
         div.style.width = '500px'
         div.style.height = '400px'
         document.body.appendChild(div)
-        new window.Waymark('map-raster-test', {
+        window.createWaymarkInstance('map-raster-test', {
           map: {
             basemaps: [
               {

@@ -19,16 +19,16 @@ npm run test:browser
 ```html
 <div id="map" style="height: 400px"></div>
 <script type="module">
-  import { Waymark } from './dist/waymark.js'
+  import { createInstance } from './dist/waymark.js'
 
-  const waymark = new Waymark('map', {
+  const instance = createInstance('map', {
     map: {
       center: [-0.1276, 51.5074],
       zoom: 10,
     },
   })
 
-  waymark.map.on('load', () => {
+  instance.map.on('load', () => {
     console.log('Map ready')
   })
 </script>

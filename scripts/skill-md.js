@@ -41,10 +41,10 @@ description: Waymark JS reference. Use when working on source, docs, tests, or A
 
 # Waymark JS
 
-Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple \`Waymark\` class, supports vector/raster basemap config, and gives direct access to the underlying MapLibre instance.
+Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple \`createInstance(...)\` API, supports vector/raster basemap config, and gives direct access to the underlying MapLibre instance.
 
 **Key facts:**
-- Entry point: \`import { Waymark } from './dist/waymark.js'\`
+- Entry point: \`import { createInstance } from './dist/waymark.js'\`
 - Source: \`src/\` — built with Vite into \`dist/\`
 - Tests: \`npm test\` and \`npm run test:browser\` (workflow in \`docs/1.development.md\`)
 - Docs source: \`docs/\` (also generates this skill file)

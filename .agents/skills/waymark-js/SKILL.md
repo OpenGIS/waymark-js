@@ -5,10 +5,10 @@ description: Waymark JS reference. Use when working on source, docs, tests, or A
 
 # Waymark JS
 
-Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple `Waymark` class, supports vector/raster basemap config, and gives direct access to the underlying MapLibre instance.
+Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple `createInstance(...)` API, supports vector/raster basemap config, and gives direct access to the underlying MapLibre instance.
 
 **Key facts:**
-- Entry point: `import { Waymark } from './dist/waymark.js'`
+- Entry point: `import { createInstance } from './dist/waymark.js'`
 - Source: `src/` — built with Vite into `dist/`
 - Tests: `npm test` and `npm run test:browser` (workflow in `docs/1.development.md`)
 - Docs source: `docs/` (also generates this skill file)
@@ -30,13 +30,18 @@ Waymark JS is a small JavaScript map library built on [MapLibre GL](https://mapl
 > [!NOTE]
 > If you change docs content, run `npm run build` before shipping so the generated skill file stays in sync.
 
-The dev app is `index.html` and loads `src/dev.js`, which creates a default `new Waymark('map')` instance and exposes `window.Waymark` and `window.waymark` for browser tests and debugging.
+The dev app is `index.html` and loads `src/dev.js`, which creates a default `createInstance('map')` instance and exposes `window.createWaymarkInstance` and `window.waymarkInstance` for browser tests and debugging.
+
+## Runtime notes
+
+- Waymark now mounts a minimal Vue app shell per instance (`src/instance/ui/instanceApp.js`), so `vue` is a runtime dependency.
+- `window.createWaymarkInstance` and `window.waymarkInstance` are development globals from `src/dev.js` only (not part of the library export surface).
 
 ## Testing
 
 Tests protect the public docs and API behaviour:
 
-- `tests/docs/` (Vitest + jsdom) verifies documented constructor/config behaviour without WebGL.
+- `tests/docs/` (Vitest + jsdom) verifies documented factory/config behaviour without WebGL.
 - `tests/browser/` (Playwright) smoke-tests the real browser setup and checks the dev page behaviour from `src/dev.js`.
 
 Run:
@@ -69,36 +74,41 @@ Sync checklist:
 
 > Create Waymark instances and access the underlying MapLibre map.
 
-## Quick start
+## Quick Start
 
-Waymark wraps [MapLibre GL](https://maplibre.org/) into a simple class. Point it at a DOM element and it will render an interactive map.
+Waymark wraps [MapLibre GL](https://maplibre.org/) into a simple instance factory. Point it at a DOM element and it will render an interactive map.
 
 ```html
 <!-- Map container -->
 <div id="map" style="width: 100%; height: 400px;"></div>
 
 <script type="module">
-  import { Waymark } from './dist/waymark.js'
+  import { createInstance } from './dist/waymark.js'
 
-  const waymark = new Waymark('map')
+  const instance = createInstance('map')
 </script>
 ```
 
+## Factory defaults
+
 Default map values come from config defaults (`center: [0, 0]`, `zoom: 2`, OpenFreeMap Bright basemap).
 
-## Constructor
+## Factory signature
 
-`new Waymark(containerId, options)`
+`createInstance(id?, config?, geojson?)`
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `containerId` | `string` | Yes | The `id` of the DOM element to mount into |
-| `options` | `object` | No | Config object (see [docs/3.config.md](3.config.md)) |
+| `id` | `string` | No | The `id` of the DOM element to mount into. A random container is created when omitted. Throws if a provided `id` does not exist in the DOM. |
+| `config` | `object` | No | Config object (see [docs/3.config.md](3.config.md)) |
+| `geojson` | `object` | No | Initial GeoJSON overlay rendered on map load. |
+
+## Factory options
 
 ### Example with options
 
 ```js
-const waymark = new Waymark('map', {
+const instance = createInstance('map', {
   map: {
     center: [-0.1276, 51.5074], // London
     zoom: 10,
@@ -114,39 +124,85 @@ const waymark = new Waymark('map', {
 
 ## Accessing the MapLibre instance
 
-The `.map` getter returns the underlying [`maplibre-gl` Map](https://maplibre.org/maplibre-gl-js/docs/API/classes/Map/) instance directly.
+The `map` property in the returned instance object is the underlying [`maplibre-gl` Map](https://maplibre.org/maplibre-gl-js/docs/API/classes/Map/) instance.
 
 ```js
-const waymark = new Waymark('map')
+const instance = createInstance('map')
 
 // Use the full MapLibre GL API
-waymark.map.on('load', () => {
+instance.map.on('load', () => {
   console.log('Map loaded')
 })
 ```
 
-- Source: [`src/Waymark.js`](../src/Waymark.js)
-- Entry point: [`src/entry.js`](../src/entry.js)
+## Instance registry behaviour
+
+`createInstance()` is instance-first and ID-scoped. If an instance already exists for the same container ID, Waymark returns the existing `{ id, map }` rather than creating a second map.
+
+## Initial GeoJSON on instance creation
+
+`createInstance(id?, config?, geojson?)` accepts an optional third argument. When `geojson` is provided, Waymark adds a GeoJSON source and line layer for that instance (on load, or immediately if the map is already loaded).
+
+```js
+const geojson = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [-0.13, 51.5],
+          [-0.12, 51.51],
+        ],
+      },
+      properties: {},
+    },
+  ],
+}
+
+const instance = createInstance('map', undefined, geojson)
+```
+
+GeoJSON source and layer IDs are scoped by instance ID to avoid collisions between multiple maps on the same page.
+
+- Sources:
+  - [`src/api/createInstance.js`](../src/api/createInstance.js)
+  - [`src/instance/instanceGeojson.js`](../src/instance/instanceGeojson.js)
+  - [`src/entry.js`](../src/entry.js)
 
 
 ---
 
 # Config
 
-> Configuration reference for the Waymark constructor's second argument.
+> Configuration reference for `createInstance(id?, config?, geojson?)`.
 
-## Config
+## createInstance signature
 
-The second argument to the Waymark constructor is an optional config object. Config is namespaced — all map settings live under `config.map`. Other namespaces will be added as the library grows.
+`createInstance(id?, config?, geojson?)`
+
+- `id` (`string`, optional): DOM element ID to mount into.
+- `config` (`object`, optional): configuration object.
+- `geojson` (`object`, optional): initial GeoJSON data to render after map load.
+
+When `geojson` is provided, Waymark creates an instance-scoped GeoJSON source and line layer during initial load.
 
 ```js
-new Waymark(containerId, config)
+createInstance('map', undefined, {
+  type: 'FeatureCollection',
+  features: [],
+})
 ```
 
-Full default config:
+All map settings live under `config.map`. Other namespaces may be added as the library grows.
+
+## Default config source and merge behaviour
+
+Default values come from `src/config/defaultConfig.json`:
 
 ```js
-const DEFAULT_CONFIG = {
+{
   map: {
     center: [0, 0],
     zoom: 2,
@@ -158,8 +214,23 @@ const DEFAULT_CONFIG = {
       },
     ],
   },
-};
+}
 ```
+
+Waymark resolves config with a deep merge:
+
+- Base: `defaultConfig.json`
+- Override: consumer `config`
+- Objects merge recursively by key
+- Arrays are replaced entirely (never merged by index)
+
+This means `config.map.basemaps` replaces the default basemap list as a whole.
+
+## Defaults
+
+- `center`: `[0, 0]`
+- `zoom`: `2`
+- `basemaps[0]`: OpenFreeMap Bright vector style URL (`https://tiles.openfreemap.org/styles/bright`)
 
 ## config.map
 
@@ -182,7 +253,7 @@ Basemaps define the background map tiles. Waymark supports two types — `vector
 | `style`  | `string`   | Yes      | MapLibre style JSON URL   |
 
 ```js
-const waymark = new Waymark("map", {
+createInstance('map', {
   map: {
     basemaps: [
       {
@@ -192,7 +263,7 @@ const waymark = new Waymark("map", {
       },
     ],
   },
-});
+})
 ```
 
 > [!NOTE]
@@ -210,7 +281,7 @@ const waymark = new Waymark("map", {
 | `maxZoom`     | `number`   | No       | —       | Maximum zoom level for the tile source                             |
 
 ```js
-const waymark = new Waymark("map", {
+createInstance('map', {
   map: {
     basemaps: [
       {
@@ -222,13 +293,19 @@ const waymark = new Waymark("map", {
       },
     ],
   },
-});
+})
 ```
 
 > [!NOTE]
 > OpenStreetMap tiles are free but subject to a [usage policy](https://operations.osmfoundation.org/policies/tiles/). For production use, consider a dedicated tile provider or self-hosting.
 
+> [!NOTE]
+> `maxZoom` in your config is passed to the generated raster source as MapLibre style field `maxzoom`.
+
 ---
 
-- Source: [`src/Waymark.js`](../src/Waymark.js)
+- Sources:
+  - [`src/config/defaultConfig.json`](../src/config/defaultConfig.json)
+  - [`src/instance/resolveConfig.js`](../src/instance/resolveConfig.js)
+  - [`src/utils/deepMerge.js`](../src/utils/deepMerge.js)
 

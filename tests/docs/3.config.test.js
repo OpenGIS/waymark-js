@@ -10,10 +10,14 @@ vi.mock('maplibre-gl', () => {
   return { Map: MockMap }
 })
 
-// Suppress CSS import from Waymark.js
+// Suppress CSS import from instanceMap.js
 vi.mock('maplibre-gl/dist/maplibre-gl.css', () => ({}))
 
-import { Waymark } from '../../src/Waymark.js'
+import { createInstance } from '../../src/api/createInstance.js'
+import defaultConfig from '../../src/config/defaultConfig.json'
+import { clearInstanceRegistry } from '../../src/instance/instanceRegistry.js'
+import { resolveConfig } from '../../src/instance/resolveConfig.js'
+import { deepMerge } from '../../src/utils/deepMerge.js'
 import { Map } from 'maplibre-gl'
 
 describe('3. Config', () => {
@@ -21,29 +25,97 @@ describe('3. Config', () => {
     document.body.innerHTML =
       '<div id="map" style="width: 500px; height: 400px;"></div>'
     vi.clearAllMocks()
+    clearInstanceRegistry()
   })
 
   // ------------------------------------------------------------------ //
   // Defaults
   // ------------------------------------------------------------------ //
 
+  describe('Default config source and merge behaviour', () => {
+    it('uses JSON defaults as the config source', () => {
+      expect(resolveConfig()).toEqual(defaultConfig)
+    })
+
+    it('deeply merges nested objects', () => {
+      const merged = deepMerge(
+        {
+          map: {
+            camera: {
+              padding: { top: 0, right: 0, bottom: 0, left: 0 },
+              bearing: 0,
+            },
+          },
+        },
+        {
+          map: {
+            camera: {
+              padding: { top: 24 },
+            },
+          },
+        },
+      )
+
+      expect(merged).toEqual({
+        map: {
+          camera: {
+            padding: { top: 24, right: 0, bottom: 0, left: 0 },
+            bearing: 0,
+          },
+        },
+      })
+    })
+
+    it('replaces arrays rather than merging by index', () => {
+      const merged = deepMerge(
+        {
+          map: {
+            basemaps: [
+              {
+                type: 'vector',
+                style: 'https://tiles.openfreemap.org/styles/bright',
+              },
+            ],
+          },
+        },
+        {
+          map: {
+            basemaps: [
+              {
+                type: 'raster',
+                tiles: ['https://tile.example.com/{z}/{x}/{y}.png'],
+              },
+            ],
+          },
+        },
+      )
+
+      expect(merged.map.basemaps).toEqual([
+        {
+          type: 'raster',
+          tiles: ['https://tile.example.com/{z}/{x}/{y}.png'],
+        },
+      ])
+    })
+  })
+
   describe('Defaults', () => {
     it('default center is [0, 0]', () => {
-      new Waymark('map')
+      createInstance('map')
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({ center: [0, 0] }),
       )
     })
 
     it('default zoom is 2', () => {
-      new Waymark('map')
+      createInstance('map')
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({ zoom: 2 }),
       )
     })
 
-    it('default basemap is the OpenFreeMap Liberty vector style URL', () => {
-      new Waymark('map')
+    it('default basemap is the OpenFreeMap Bright vector style URL', () => {
+      createInstance('map')
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({
           style: 'https://tiles.openfreemap.org/styles/bright',
@@ -58,21 +130,21 @@ describe('3. Config', () => {
 
   describe('config.map', () => {
     it('forwards custom center to MapLibre', () => {
-      new Waymark('map', { map: { center: [-0.1276, 51.5074] } })
+      createInstance('map', { map: { center: [-0.1276, 51.5074] } })
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({ center: [-0.1276, 51.5074] }),
       )
     })
 
     it('forwards custom zoom to MapLibre', () => {
-      new Waymark('map', { map: { zoom: 10 } })
+      createInstance('map', { map: { zoom: 10 } })
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({ zoom: 10 }),
       )
     })
 
     it('consumer basemaps array replaces defaults entirely', () => {
-      new Waymark('map', {
+      createInstance('map', {
         map: {
           basemaps: [
             {
@@ -95,7 +167,7 @@ describe('3. Config', () => {
 
   describe('Basemaps — Vector', () => {
     it('passes the style URL directly to MapLibre', () => {
-      new Waymark('map', {
+      createInstance('map', {
         map: {
           basemaps: [
             { name: 'My Tiles', type: 'vector', style: 'https://my.tiles/style.json' },
@@ -108,7 +180,7 @@ describe('3. Config', () => {
     })
 
     it('name property has no effect on the MapLibre style value', () => {
-      new Waymark('map', {
+      createInstance('map', {
         map: {
           basemaps: [
             { name: 'Display Name', type: 'vector', style: 'https://my.tiles/style.json' },
@@ -134,7 +206,7 @@ describe('3. Config', () => {
     }
 
     function getRasterStyle(basemap = rasterBasemap) {
-      new Waymark('map', { map: { basemaps: [basemap] } })
+      createInstance('map', { map: { basemaps: [basemap] } })
       const [callArg] = Map.mock.calls[0]
       return callArg.style
     }
@@ -185,7 +257,7 @@ describe('3. Config', () => {
     })
 
     it('passes maxZoom to the raster source as maxzoom (lowercase)', () => {
-      new Waymark('map', {
+      createInstance('map', {
         map: {
           basemaps: [
             {
