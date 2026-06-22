@@ -5,7 +5,7 @@ description: Waymark JS reference. Use when working on source, docs, tests, or A
 
 # Waymark JS
 
-Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple `createInstance(...)` API, supports vector/raster basemap config, and gives direct access to the underlying MapLibre instance.
+Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple `createInstance(...)` API, forwards map configuration through `config.map.options`, and gives direct access to the underlying MapLibre instance.
 
 **Key facts:**
 
@@ -25,6 +25,9 @@ Waymark JS is a small JavaScript map library built on [MapLibre GL](https://mapl
 1. Install dependencies: `npm install`
 2. Start dev server: `npm run dev`
 3. Build library output: `npm run build`
+4. Format files: `npm run format`
+
+Formatting is enforced with Prettier (`.prettierrc.json`) using two-space indentation (`tabWidth: 2`) and spaces instead of tabs (`useTabs: false`).
 
 `npm run build` also runs `node scripts/skill-md.js`, which regenerates `.agents/skills/waymark-js/SKILL.md` from the current `docs/*.md` files.
 
@@ -48,6 +51,7 @@ Tests protect the public docs and API behaviour:
 Run:
 
 ```bash
+npm run format:check
 npm test
 npm run test:browser
 ```
@@ -91,7 +95,7 @@ Waymark wraps [MapLibre GL](https://maplibre.org/) into a simple instance factor
 
 ## Factory defaults
 
-Default map values come from config defaults (`map.options.center: [0, 0]`, `map.options.zoom: 2`, OpenFreeMap Bright basemap).
+Default map values come from config defaults (`map.options.center: [0, 0]`, `map.options.zoom: 2`, `map.options.style: https://tiles.openfreemap.org/styles/bright`).
 
 ## Factory signature
 
@@ -114,20 +118,13 @@ const instance = createInstance("map", {
       center: [-0.1276, 51.5074], // London
       zoom: 10,
       bearing: 15,
+      style: "https://tiles.openfreemap.org/styles/bright",
     },
-    basemaps: [
-      {
-        type: "vector",
-        style: "https://tiles.openfreemap.org/styles/bright",
-      },
-    ],
   },
 });
 ```
 
 `map.options` is forwarded directly to the MapLibre constructor (`new Map(options)`).
-
-If both `map.options.style` and `map.basemaps` are set, `map.options.style` takes precedence.
 
 ## Accessing the MapLibre instance
 
@@ -213,14 +210,8 @@ Default values come from `src/config/defaultConfig.json`:
     options: {
       center: [0, 0],
       zoom: 2,
+      style: "https://tiles.openfreemap.org/styles/bright",
     },
-    basemaps: [
-      {
-        name: "OpenFreeMap Bright",
-        type: "vector",
-        style: "https://tiles.openfreemap.org/styles/bright",
-      },
-    ],
   },
 }
 ```
@@ -232,34 +223,21 @@ Waymark resolves config with a deep merge:
 - Objects merge recursively by key
 - Arrays are replaced entirely (never merged by index)
 
-This means `config.map.basemaps` replaces the default basemap list as a whole.
-
 `config.map.options` is passed through to the MapLibre constructor (`new Map(options)`), with Waymark setting:
 
 - `container` from `createInstance(id)`
-- `style` from the precedence rules below
-
-## Style precedence
-
-Waymark resolves the map style in this order:
-
-1. `config.map.options.style` (if provided)
-2. Style derived from `config.map.basemaps[0]`
-
-So `map.options.style` always overrides a basemap-derived style.
 
 ## Defaults
 
 - `map.options.center`: `[0, 0]`
 - `map.options.zoom`: `2`
-- `basemaps[0]`: OpenFreeMap Bright vector style URL (`https://tiles.openfreemap.org/styles/bright`)
+- `map.options.style`: OpenFreeMap Bright style URL (`https://tiles.openfreemap.org/styles/bright`)
 
 ## config.map
 
-| Option     | Type     | Default                       | Description                                                                                                                            |
-| ---------- | -------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `options`  | `object` | `{ center: [0, 0], zoom: 2 }` | MapLibre constructor options. Forwarded to `new Map(options)` (except Waymark-controlled `container` and resolved `style`).            |
-| `basemaps` | `array`  | OpenFreeMap Bright            | Array of basemap descriptors. The first entry is used as the active basemap style source. Replaces the default entirely when provided. |
+| Option    | Type     | Default                                                                             | Description                                                                                            |
+| --------- | -------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `options` | `object` | `{ center: [0, 0], zoom: 2, style: "https://tiles.openfreemap.org/styles/bright" }` | MapLibre constructor options. Forwarded to `new Map(options)` (except Waymark-controlled `container`). |
 
 ## config.map.options
 
@@ -271,11 +249,11 @@ Use this object for MapLibre map constructor options.
 
 Common options:
 
-| Property | Type               | Default                        | Description                                   |
-| -------- | ------------------ | ------------------------------ | --------------------------------------------- |
-| `center` | `[number, number]` | `[0, 0]`                       | Initial map centre as `[lng, lat]`            |
-| `zoom`   | `number`           | `2`                            | Initial zoom level                            |
-| `style`  | `string \| object` | Derived from `map.basemaps[0]` | Overrides basemap-derived style when provided |
+| Property | Type               | Default                                       | Description                                      |
+| -------- | ------------------ | --------------------------------------------- | ------------------------------------------------ |
+| `center` | `[number, number]` | `[0, 0]`                                      | Initial map centre as `[lng, lat]`               |
+| `zoom`   | `number`           | `2`                                           | Initial zoom level                               |
+| `style`  | `string \| object` | `https://tiles.openfreemap.org/styles/bright` | MapLibre style URL or inline style specification |
 
 ```js
 createInstance("map", {
@@ -285,72 +263,11 @@ createInstance("map", {
       zoom: 10,
       bearing: 15,
       pitch: 45,
+      style: "https://tiles.openfreemap.org/styles/bright",
     },
   },
 });
 ```
-
-## config.map.basemaps
-
-Basemaps define the background map tiles. Waymark supports two types — `vector` and `raster`. The first basemap in the array is the active one. Providing your own `basemaps` array replaces the default entirely.
-
-### Vector basemaps
-
-| Property | Type       | Required | Description               |
-| -------- | ---------- | -------- | ------------------------- |
-| `name`   | `string`   | No       | Display name (for UI use) |
-| `type`   | `'vector'` | Yes      | Basemap type              |
-| `style`  | `string`   | Yes      | MapLibre style JSON URL   |
-
-```js
-createInstance("map", {
-  map: {
-    basemaps: [
-      {
-        name: "OpenFreeMap Bright",
-        type: "vector",
-        style: "https://tiles.openfreemap.org/styles/bright",
-      },
-    ],
-  },
-});
-```
-
-> [!NOTE]
-> Vector basemaps require a full MapLibre style JSON URL. Many providers offer these — [OpenFreeMap](https://openfreemap.org/) (free, no key), [MapTiler](https://www.maptiler.com/), and [Mapbox](https://www.mapbox.com/) among others. Some providers require an API key embedded in the style URL.
-
-### Raster basemaps
-
-| Property      | Type       | Required | Default | Description                                                        |
-| ------------- | ---------- | -------- | ------- | ------------------------------------------------------------------ |
-| `name`        | `string`   | No       | —       | Display name (for UI use)                                          |
-| `type`        | `'raster'` | Yes      | —       | Basemap type                                                       |
-| `tiles`       | `string[]` | Yes      | —       | Array of XYZ tile URL templates (`{z}`, `{x}`, `{y}` placeholders) |
-| `attribution` | `string`   | No       | `''`    | Attribution text shown on the map                                  |
-| `tileSize`    | `number`   | No       | `256`   | Tile size in pixels                                                |
-| `maxZoom`     | `number`   | No       | —       | Maximum zoom level for the tile source                             |
-
-```js
-createInstance("map", {
-  map: {
-    basemaps: [
-      {
-        name: "OpenStreetMap",
-        type: "raster",
-        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-        attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      },
-    ],
-  },
-});
-```
-
-> [!NOTE]
-> OpenStreetMap tiles are free but subject to a [usage policy](https://operations.osmfoundation.org/policies/tiles/). For production use, consider a dedicated tile provider or self-hosting.
-
-> [!NOTE]
-> `maxZoom` in your config is passed to the generated raster source as MapLibre style field `maxzoom`.
 
 ---
 
@@ -358,3 +275,19 @@ createInstance("map", {
   - [`src/config/defaultConfig.json`](../src/config/defaultConfig.json)
   - [`src/instance/resolveConfig.js`](../src/instance/resolveConfig.js)
   - [`src/utils/deepMerge.js`](../src/utils/deepMerge.js)
+
+---
+
+# Documentation Index
+
+Developer documentation for Waymark JS.
+
+## Reading order
+
+1. [Development](1.development.md) - Local workflow, test commands, and docs↔tests sync rules.
+2. [Instances](2.instances.md) - `createInstance(...)` usage and instance lifecycle behaviour.
+3. [Config](3.config.md) - Config contract for `config.map.options` (including style-only setup).
+
+## Scope
+
+These docs describe the current public API surface. Map styling is configured through `config.map.options.style`.

@@ -5,21 +5,8 @@ const waymarkInstance = createInstance("map", {
     options: {
       center: [-128.0094, 50.6539],
       zoom: 15,
+      style: "https://tiles.openfreemap.org/styles/bright",
     },
-    basemaps: [
-      {
-        name: "OpenStreetMap",
-        type: "raster",
-        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-        attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      },
-      {
-        name: "OpenFreeMap Bright",
-        type: "vector",
-        style: "https://tiles.openfreemap.org/styles/bright",
-      },
-    ],
   },
 });
 

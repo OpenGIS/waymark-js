@@ -2,14 +2,8 @@
   "map": {
     "options": {
       "center": [0, 0],
-      "zoom": 2
-    },
-    "basemaps": [
-      {
-        "name": "OpenFreeMap Bright",
-        "type": "vector",
-        "style": "https://tiles.openfreemap.org/styles/bright"
-      }
-    ]
+      "zoom": 2,
+      "style": "https://tiles.openfreemap.org/styles/bright"
+    }
   }
 }

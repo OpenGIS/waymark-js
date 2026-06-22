@@ -4,6 +4,9 @@ Waymark JS is a small JavaScript library for rendering interactive maps with [Ma
 
 No API key is required for the default setup.
 
+> [!NOTE]
+> The public config is now style-only. Set map appearance via `config.map.options.style` (string URL or inline style object).
+
 ## Commands
 
 ```bash
@@ -40,8 +43,21 @@ npm run test:browser
 
 `map.options` is passed through to the MapLibre `new Map(options)` constructor.
 
+Set a custom style with `map.options.style`:
+
+```js
+createInstance("map", {
+  map: {
+    options: {
+      style: "https://example.com/style.json",
+    },
+  },
+});
+```
+
 ## Documentation
 
 - [Development guide](docs/1.development.md)
 - [Instances](docs/2.instances.md)
 - [Config](docs/3.config.md)
+- [Docs index](docs/README.md)

@@ -63,7 +63,7 @@ describe("2. Instances", () => {
   // ------------------------------------------------------------------ //
 
   describe("Factory defaults", () => {
-    it("defaults to the OpenFreeMap Liberty style", () => {
+    it("defaults to the OpenFreeMap Bright style", () => {
       createInstance("map");
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -90,16 +90,10 @@ describe("2. Instances", () => {
   // ------------------------------------------------------------------ //
 
   describe("Factory options", () => {
-    it("accepts a custom vector basemap via config.map.basemaps", () => {
+    it("accepts a custom style via config.map.options.style", () => {
       createInstance("map", {
         map: {
-          basemaps: [
-            {
-              name: "Custom",
-              type: "vector",
-              style: "https://custom.tiles.json",
-            },
-          ],
+          options: { style: "https://custom.tiles.json" },
         },
       });
       expect(Map).toHaveBeenCalledWith(
@@ -125,26 +119,6 @@ describe("2. Instances", () => {
       createInstance("map", { map: { options: { bearing: 15 } } });
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({ bearing: 15 }),
-      );
-    });
-
-    it("prefers map.options.style over basemap-derived style", () => {
-      createInstance("map", {
-        map: {
-          options: { style: "https://example.com/custom-style.json" },
-          basemaps: [
-            {
-              type: "vector",
-              style: "https://example.com/basemap-style.json",
-            },
-          ],
-        },
-      });
-
-      expect(Map).toHaveBeenCalledWith(
-        expect.objectContaining({
-          style: "https://example.com/custom-style.json",
-        }),
       );
     });
   });
