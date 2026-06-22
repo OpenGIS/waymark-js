@@ -5,5 +5,5 @@ import { deepMerge } from "../utils/deepMerge.js";
  * @param {object} [config]
  */
 export function resolveConfig(config = {}) {
-    return deepMerge(defaultConfig, config ?? {});
+  return deepMerge(defaultConfig, config ?? {});
 }

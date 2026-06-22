@@ -21,20 +21,20 @@ npm run test:browser
 ```html
 <div id="map" style="height: 400px"></div>
 <script type="module">
-    import { createInstance } from "./dist/waymark.js";
+  import { createInstance } from "./dist/waymark.js";
 
-    const instance = createInstance("map", {
-        map: {
-            options: {
-                center: [-0.1276, 51.5074],
-                zoom: 10,
-            },
-        },
-    });
+  const instance = createInstance("map", {
+    map: {
+      options: {
+        center: [-0.1276, 51.5074],
+        zoom: 10,
+      },
+    },
+  });
 
-    instance.map.on("load", () => {
-        console.log("Map ready");
-    });
+  instance.map.on("load", () => {
+    console.log("Map ready");
+  });
 </script>
 ```
 

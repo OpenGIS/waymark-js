@@ -18,21 +18,21 @@ const OUTPUT = path.join(ROOT, ".agents", "skills", "waymark-js", "SKILL.md");
 
 // Strip Nuxt Content frontmatter (--- ... ---) from the top of a file
 function stripFrontmatter(content) {
-    return content.replace(/^---[\s\S]*?---\n?/, "").trimStart();
+  return content.replace(/^---[\s\S]*?---\n?/, "").trimStart();
 }
 
 // Read doc files in filename order (1.development.md, 2.instances.md, …)
 const docFiles = fs
-    .readdirSync(DOCS_DIR)
-    .filter((f) => f.endsWith(".md"))
-    .sort();
+  .readdirSync(DOCS_DIR)
+  .filter((f) => f.endsWith(".md"))
+  .sort();
 
 const docSections = docFiles
-    .map((file) => {
-        const raw = fs.readFileSync(path.join(DOCS_DIR, file), "utf8");
-        return stripFrontmatter(raw);
-    })
-    .join("\n\n---\n\n");
+  .map((file) => {
+    const raw = fs.readFileSync(path.join(DOCS_DIR, file), "utf8");
+    return stripFrontmatter(raw);
+  })
+  .join("\n\n---\n\n");
 
 const skill = `---
 name: waymark-js

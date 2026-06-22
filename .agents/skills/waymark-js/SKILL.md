@@ -83,9 +83,9 @@ Waymark wraps [MapLibre GL](https://maplibre.org/) into a simple instance factor
 <div id="map" style="width: 100%; height: 400px;"></div>
 
 <script type="module">
-    import { createInstance } from "./dist/waymark.js";
+  import { createInstance } from "./dist/waymark.js";
 
-    const instance = createInstance("map");
+  const instance = createInstance("map");
 </script>
 ```
 
@@ -109,19 +109,19 @@ Default map values come from config defaults (`map.options.center: [0, 0]`, `map
 
 ```js
 const instance = createInstance("map", {
-    map: {
-        options: {
-            center: [-0.1276, 51.5074], // London
-            zoom: 10,
-            bearing: 15,
-        },
-        basemaps: [
-            {
-                type: "vector",
-                style: "https://tiles.openfreemap.org/styles/bright",
-            },
-        ],
+  map: {
+    options: {
+      center: [-0.1276, 51.5074], // London
+      zoom: 10,
+      bearing: 15,
     },
+    basemaps: [
+      {
+        type: "vector",
+        style: "https://tiles.openfreemap.org/styles/bright",
+      },
+    ],
+  },
 });
 ```
 
@@ -138,7 +138,7 @@ const instance = createInstance("map");
 
 // Use the full MapLibre GL API
 instance.map.on("load", () => {
-    console.log("Map loaded");
+  console.log("Map loaded");
 });
 ```
 
@@ -152,20 +152,20 @@ instance.map.on("load", () => {
 
 ```js
 const geojson = {
-    type: "FeatureCollection",
-    features: [
-        {
-            type: "Feature",
-            geometry: {
-                type: "LineString",
-                coordinates: [
-                    [-0.13, 51.5],
-                    [-0.12, 51.51],
-                ],
-            },
-            properties: {},
-        },
-    ],
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [-0.13, 51.5],
+          [-0.12, 51.51],
+        ],
+      },
+      properties: {},
+    },
+  ],
 };
 
 const instance = createInstance("map", undefined, geojson);
@@ -174,9 +174,9 @@ const instance = createInstance("map", undefined, geojson);
 GeoJSON source and layer IDs are scoped by instance ID to avoid collisions between multiple maps on the same page.
 
 - Sources:
-    - [`src/api/createInstance.js`](../src/api/createInstance.js)
-    - [`src/instance/instanceGeojson.js`](../src/instance/instanceGeojson.js)
-    - [`src/entry.js`](../src/entry.js)
+  - [`src/api/createInstance.js`](../src/api/createInstance.js)
+  - [`src/instance/instanceGeojson.js`](../src/instance/instanceGeojson.js)
+  - [`src/entry.js`](../src/entry.js)
 
 ---
 
@@ -196,8 +196,8 @@ When `geojson` is provided, Waymark creates an instance-scoped GeoJSON source an
 
 ```js
 createInstance("map", undefined, {
-    type: "FeatureCollection",
-    features: [],
+  type: "FeatureCollection",
+  features: [],
 });
 ```
 
@@ -279,14 +279,14 @@ Common options:
 
 ```js
 createInstance("map", {
-    map: {
-        options: {
-            center: [-0.1276, 51.5074],
-            zoom: 10,
-            bearing: 15,
-            pitch: 45,
-        },
+  map: {
+    options: {
+      center: [-0.1276, 51.5074],
+      zoom: 10,
+      bearing: 15,
+      pitch: 45,
     },
+  },
 });
 ```
 
@@ -304,15 +304,15 @@ Basemaps define the background map tiles. Waymark supports two types — `vector
 
 ```js
 createInstance("map", {
-    map: {
-        basemaps: [
-            {
-                name: "OpenFreeMap Bright",
-                type: "vector",
-                style: "https://tiles.openfreemap.org/styles/bright",
-            },
-        ],
-    },
+  map: {
+    basemaps: [
+      {
+        name: "OpenFreeMap Bright",
+        type: "vector",
+        style: "https://tiles.openfreemap.org/styles/bright",
+      },
+    ],
+  },
 });
 ```
 
@@ -332,17 +332,17 @@ createInstance("map", {
 
 ```js
 createInstance("map", {
-    map: {
-        basemaps: [
-            {
-                name: "OpenStreetMap",
-                type: "raster",
-                tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-                attribution:
-                    '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            },
-        ],
-    },
+  map: {
+    basemaps: [
+      {
+        name: "OpenStreetMap",
+        type: "raster",
+        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      },
+    ],
+  },
 });
 ```
 
@@ -355,6 +355,6 @@ createInstance("map", {
 ---
 
 - Sources:
-    - [`src/config/defaultConfig.json`](../src/config/defaultConfig.json)
-    - [`src/instance/resolveConfig.js`](../src/instance/resolveConfig.js)
-    - [`src/utils/deepMerge.js`](../src/utils/deepMerge.js)
+  - [`src/config/defaultConfig.json`](../src/config/defaultConfig.json)
+  - [`src/instance/resolveConfig.js`](../src/instance/resolveConfig.js)
+  - [`src/utils/deepMerge.js`](../src/utils/deepMerge.js)
