@@ -28,17 +28,20 @@ Waymark JS is a small JavaScript map library built on [MapLibre GL](https://mapl
 
 Formatting is enforced with Prettier (`.prettierrc.json`) using two-space indentation (`tabWidth: 2`) and spaces instead of tabs (`useTabs: false`).
 
+Vite compiles Vue single-file components through `@vitejs/plugin-vue` (`vite.config.js`), which is required for the instance shell UI.
+
 `npm run build` also runs `node scripts/skill-md.js`, which regenerates `.agents/skills/waymark-js/SKILL.md` from the current `docs/*.md` files.
 
 > [!NOTE]
 > If you change docs content, run `npm run build` before shipping so the generated skill file stays in sync.
 
-The dev app is `index.html` and loads `src/dev.js`, which creates a default `createInstance('map')` instance and exposes `window.createWaymarkInstance` and `window.waymarkInstance` for browser tests and debugging.
+The dev app is `index.html` and loads `src/dev.js`, which creates two vertically stacked instances (`map` and `map-two`) with different `map.options` view/style defaults, and exposes `window.createWaymarkInstance`, `window.waymarkInstance`, and `window.waymarkInstanceTwo` for browser tests and debugging.
 
 ## Instance shell notes
 
-- Waymark mounts a minimal Vue app shell per instance (`src/ui/createAppShell.js`), so `vue` is a direct dependency.
-- `window.createWaymarkInstance` and `window.waymarkInstance` are development globals from `src/dev.js` only (not part of the library export surface).
+- Waymark mounts a Vue SFC shell per instance (`src/ui/InstanceShell.vue`, mounted by `src/ui/createAppShell.js`).
+- The snapshot panel live-updates from map events (`load`, `move`, `zoom`, `rotate`, `pitch`) via the shell refresh wiring in `src/ui/createAppShell.js`.
+- `window.createWaymarkInstance`, `window.waymarkInstance`, and `window.waymarkInstanceTwo` are development globals from `src/dev.js` only (not part of the library export surface).
 
 ## Testing
 
@@ -115,7 +118,8 @@ Runtime orchestration is internal (`src/core/*`). Serialisable data is exposed v
 | [`src/map/ensureContainer.js`](../src/map/ensureContainer.js)                   | Validates provided container IDs or creates a random container when omitted. |
 | [`src/config/resolveConfig.js`](../src/config/resolveConfig.js)                 | Deep-merges consumer config into defaults.                                   |
 | [`src/map/createMap.js`](../src/map/createMap.js)                               | Builds the MapLibre map from resolved `config.map.options`.                  |
-| [`src/ui/createAppShell.js`](../src/ui/createAppShell.js)                       | Mounts a minimal per-instance Vue shell.                                     |
+| [`src/ui/createAppShell.js`](../src/ui/createAppShell.js)                       | Mounts the Vue app shell and wires live snapshot refresh from map events.    |
+| [`src/ui/InstanceShell.vue`](../src/ui/InstanceShell.vue)                       | SFC overlay UI that renders formatted snapshot JSON in a collapsible panel.  |
 | [`src/geojson/createGeoJSONModule.js`](../src/geojson/createGeoJSONModule.js)   | Creates an instance-scoped GeoJSON source/layer module.                      |
 | [`src/state/createInstanceSnapshot.js`](../src/state/createInstanceSnapshot.js) | Produces serialisable per-instance snapshots.                                |
 | [`src/core/runtimeRegistry.js`](../src/core/runtimeRegistry.js)                 | Stores, fetches, and clears ID-scoped runtime cores.                         |
@@ -195,9 +199,17 @@ The runtime registry in [`src/core/runtimeRegistry.js`](../src/core/runtimeRegis
 - `map` is the underlying MapLibre map.
 - `config` is the resolved per-instance config snapshot.
 - `getSnapshot()` returns a plain serialisable object.
-- `destroy()` unmounts the Vue shell, removes the map, and releases the internal registry entry for that ID.
+- `destroy()` removes shell listeners, unmounts the Vue shell, removes the map, and releases the internal registry entry for that ID.
 
 Calling `destroy()` more than once is safe.
+
+## Live snapshot overlay shell
+
+Each instance mounts `InstanceShell.vue` through `createAppShell(...)`, rendering an `Instance snapshot` panel inside the map container.
+
+The panel content refreshes from map events (`load`, `move`, `zoom`, `rotate`, `pitch`) and reflects the current `getSnapshot()` output.
+
+In `createInstanceCore(...)`, shell refresh uses a safe snapshot getter (`core?.snapshot?.getSnapshot() ?? null`) until the snapshot module is initialised, then forces a refresh once snapshot wiring is ready.
 
 ## Serialisable per-instance snapshot
 

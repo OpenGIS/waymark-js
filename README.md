@@ -42,7 +42,7 @@ npm run test:browser
 
 `map.options` is passed through to the MapLibre `new Map(options)` constructor.
 
-`instance.getSnapshot()` returns a serialisable per-instance snapshot from `src/state/createInstanceSnapshot.js`. Runtime instance tracking is handled separately by the internal runtime registry in `src/core/runtimeRegistry.js`.
+`instance.getSnapshot()` returns a serialisable per-instance snapshot from `src/state/createInstanceSnapshot.js`. Waymark also mounts a minimal Vue SFC instance shell (`src/ui/InstanceShell.vue`) in the map container that displays a readable live snapshot overview for development wiring checks. Runtime instance tracking is handled separately by the internal runtime registry in `src/core/runtimeRegistry.js`.
 
 ## Naming glossary
 

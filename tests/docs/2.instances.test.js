@@ -263,6 +263,53 @@ describe("2. Instances", () => {
   // ------------------------------------------------------------------ //
 
   describe("Lifecycle and snapshots", () => {
+    it("mounts the app shell and renders readable snapshot JSON", async () => {
+      createInstance("map");
+
+      await Promise.resolve();
+
+      const mountElement = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+      const snapshotSummary = document.querySelector(
+        '#map [data-waymark-app="true"] summary',
+      );
+      const snapshotPre = document.querySelector(
+        '#map [data-waymark-app="true"] pre',
+      );
+
+      expect(mountElement).toBeTruthy();
+      expect(snapshotSummary?.textContent).toContain("Instance snapshot");
+      expect(snapshotPre?.textContent).toContain('"version": 1');
+      expect(snapshotPre?.textContent).toContain('"map": {');
+      expect(snapshotPre?.textContent).toContain('"ui": {');
+      expect(snapshotPre?.textContent).toContain('"data": {');
+      expect(snapshotPre?.textContent).toContain("\n");
+
+      const parsedSnapshot = JSON.parse(snapshotPre?.textContent ?? "{}");
+
+      expect(parsedSnapshot).toEqual(
+        expect.objectContaining({
+          version: 1,
+          map: expect.objectContaining({
+            center: expect.any(Array),
+            zoom: expect.any(Number),
+            bearing: expect.any(Number),
+            pitch: expect.any(Number),
+          }),
+          ui: expect.objectContaining({
+            hasAppShell: true,
+          }),
+          data: expect.objectContaining({
+            geojson: expect.objectContaining({
+              sourceId: expect.any(String),
+              layerId: expect.any(String),
+            }),
+          }),
+        }),
+      );
+    });
+
     it("getSnapshot returns a serialisable instance snapshot payload", () => {
       const instance = createInstance("map", {
         map: {

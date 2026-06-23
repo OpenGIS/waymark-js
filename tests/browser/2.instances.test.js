@@ -59,6 +59,42 @@ test.describe("2. Instances", () => {
   });
 
   test.describe("Lifecycle and snapshots", () => {
+    test("dev page shows the app shell overlay with snapshot content", async ({
+      page,
+    }) => {
+      const shell = page.locator(
+        '#map [data-waymark-app="true"] .waymark-instance-shell',
+      );
+      const snapshotPre = shell.locator("pre");
+
+      await expect(shell).toBeVisible();
+      await expect(shell.locator("summary")).toHaveText("Instance snapshot");
+      await expect(snapshotPre).toContainText('"version": 1');
+      await expect(snapshotPre).toContainText('"map": {');
+      await expect(snapshotPre).toContainText('"ui": {');
+      await expect(snapshotPre).toContainText('"data": {');
+    });
+
+    test("shell snapshot updates after a map state change", async ({
+      page,
+    }) => {
+      const snapshotPre = page.locator('#map [data-waymark-app="true"] pre');
+
+      await expect(snapshotPre).toContainText('"zoom": 15');
+
+      await page.evaluate(() => {
+        window.waymarkInstance.map.jumpTo({
+          center: [-128.0194, 50.6639],
+          zoom: 16,
+          bearing: 20,
+          pitch: 25,
+        });
+      });
+
+      await expect(snapshotPre).toContainText('"zoom": 16');
+      await expect(snapshotPre).toContainText('"bearing": 20');
+    });
+
     test("getSnapshot returns a serialisable shape with map, ui, and data", async ({
       page,
     }) => {

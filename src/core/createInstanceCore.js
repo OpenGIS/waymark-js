@@ -34,7 +34,7 @@ import { createAppShell } from "../ui/createAppShell.js";
  * @property {WaymarkResolvedConfig} config
  * @property {WaymarkInstancePublicApi} publicApi
  * @property {{ getSnapshot: () => import('../state/createInstanceSnapshot.js').WaymarkInstanceSnapshot }} snapshot
- * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void } }} modules
+ * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void } }} modules
  * @property {{ phase: 'ready' | 'destroyed', destroy: () => void }} lifecycle
  */
 
@@ -51,6 +51,7 @@ function destroyCore(core) {
   core.modules.geoJSON.destroy();
 
   if (core.modules.appShell) {
+    core.modules.appShell.destroy();
     core.modules.appShell.app.unmount();
     core.modules.appShell.mountElement.remove();
   }
@@ -78,10 +79,15 @@ export function createInstanceCore(id, config, geoJSON) {
 
   const resolvedConfig = resolveConfig(config);
   const map = createMap(containerId, resolvedConfig);
-  const appShell = createAppShell(containerId);
+  /** @type {WaymarkInstanceCore | null} */
+  let core = null;
+  const appShell = createAppShell(containerId, {
+    map,
+    getSnapshot: () => core?.snapshot?.getSnapshot() ?? null,
+  });
   const geoJSONModule = createGeoJSONModule(map, containerId, geoJSON);
 
-  const core = {
+  core = {
     id: containerId,
     map,
     config: resolvedConfig,
@@ -101,6 +107,10 @@ export function createInstanceCore(id, config, geoJSON) {
     map: core.map,
     modules: core.modules,
   });
+
+  if (core.modules.appShell) {
+    core.modules.appShell.refresh();
+  }
 
   core.publicApi = {
     id: containerId,
