@@ -10,13 +10,13 @@ vi.mock("maplibre-gl", () => {
     this.addLayer = vi.fn();
     this.loaded = vi.fn(() => false);
   });
-  return { Map: MockMap };
+  return { Map: MockMap, setWorkerUrl: vi.fn() };
 });
 
 // Suppress CSS import from instanceMap.js
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 
-import { createInstance } from "../../src/api/createInstance.js";
+import { createInstance } from "../../src/entry.js";
 import { clearInstanceRegistry } from "../../src/instance/instanceRegistry.js";
 import { Map } from "maplibre-gl";
 

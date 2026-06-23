@@ -8,7 +8,6 @@ description: Waymark JS reference. Use when working on source, docs, tests, or A
 Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple `createInstance(...)` API, forwards map configuration through `config.map.options`, and gives direct access to the underlying MapLibre instance.
 
 **Key facts:**
-
 - Entry point: `import { createInstance } from './dist/waymark.js'`
 - Source: `src/` — built with Vite into `dist/`
 - Tests: `npm test` and `npm run test:browser` (workflow in `docs/1.development.md`)
@@ -38,7 +37,7 @@ The dev app is `index.html` and loads `src/dev.js`, which creates a default `cre
 
 ## Runtime notes
 
-- Waymark now mounts a minimal Vue app shell per instance (`src/instance/ui/instanceApp.js`), so `vue` is a runtime dependency.
+- Waymark now mounts a minimal Vue app shell per instance (`src/ui/instanceApp.js`), so `vue` is a runtime dependency.
 - `window.createWaymarkInstance` and `window.waymarkInstance` are development globals from `src/dev.js` only (not part of the library export surface).
 
 ## Testing
@@ -71,6 +70,7 @@ Sync checklist:
 2. Update matching test `describe` blocks and assertions.
 3. Run `npm test` and `npm run test:browser`.
 4. Confirm no stale filenames or headings remain.
+
 
 ---
 
@@ -171,9 +171,10 @@ const instance = createInstance("map", undefined, geojson);
 GeoJSON source and layer IDs are scoped by instance ID to avoid collisions between multiple maps on the same page.
 
 - Sources:
-  - [`src/api/createInstance.js`](../src/api/createInstance.js)
-  - [`src/instance/instanceGeojson.js`](../src/instance/instanceGeojson.js)
   - [`src/entry.js`](../src/entry.js)
+  - [`src/instance/instanceGeojson.js`](../src/instance/instanceGeojson.js)
+  - [`src/ui/instanceApp.js`](../src/ui/instanceApp.js)
+
 
 ---
 
@@ -276,6 +277,7 @@ createInstance("map", {
   - [`src/instance/resolveConfig.js`](../src/instance/resolveConfig.js)
   - [`src/utils/deepMerge.js`](../src/utils/deepMerge.js)
 
+
 ---
 
 # Documentation Index
@@ -291,3 +293,4 @@ Developer documentation for Waymark JS.
 ## Scope
 
 These docs describe the current public API surface. Map styling is configured through `config.map.options.style`.
+

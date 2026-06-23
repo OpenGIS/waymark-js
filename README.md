@@ -2,11 +2,6 @@
 
 Waymark JS is a small JavaScript library for rendering interactive maps with [MapLibre GL](https://maplibre.org/).
 
-No API key is required for the default setup.
-
-> [!NOTE]
-> The public config is now style-only. Set map appearance via `config.map.options.style` (string URL or inline style object).
-
 ## Commands
 
 ```bash

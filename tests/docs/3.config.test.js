@@ -7,13 +7,13 @@ vi.mock("maplibre-gl", () => {
     this.on = vi.fn();
     this.remove = vi.fn();
   });
-  return { Map: MockMap };
+  return { Map: MockMap, setWorkerUrl: vi.fn() };
 });
 
 // Suppress CSS import from instanceMap.js
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 
-import { createInstance } from "../../src/api/createInstance.js";
+import { createInstance } from "../../src/entry.js";
 import defaultConfig from "../../src/config/defaultConfig.json";
 import { clearInstanceRegistry } from "../../src/instance/instanceRegistry.js";
 import { resolveConfig } from "../../src/instance/resolveConfig.js";
