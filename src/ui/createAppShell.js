@@ -3,7 +3,7 @@ import { createApp, h } from "vue";
 /**
  * @param {string} containerId
  */
-export function createInstanceApp(containerId) {
+export function createAppShell(containerId) {
   const container = document.getElementById(containerId);
 
   if (!container) {

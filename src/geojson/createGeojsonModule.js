@@ -1,17 +1,18 @@
 /**
  * @param {import('maplibre-gl').Map} map
  * @param {string} instanceId
- * @param {object} [geojson]
+ * @param {object} [geoJSON]
  */
-export function createInstanceGeojson(map, instanceId, geojson = null) {
+export function createGeoJSONModule(map, instanceId, geoJSON = null) {
   const instanceToken = String(instanceId).replace(/[^a-zA-Z0-9_-]/g, "-");
   const sourceId = `waymark-${instanceToken}-geojson-source`;
   const layerId = `waymark-${instanceToken}-geojson-layer`;
 
   let hasRendered = false;
+  let detachLoadListener = null;
 
-  function renderInitialGeojson() {
-    if (!geojson || hasRendered) {
+  function renderGeoJSONLayer() {
+    if (!geoJSON || hasRendered) {
       return;
     }
 
@@ -19,7 +20,7 @@ export function createInstanceGeojson(map, instanceId, geojson = null) {
 
     map.addSource(sourceId, {
       type: "geojson",
-      data: geojson,
+      data: geoJSON,
     });
 
     map.addLayer({
@@ -33,11 +34,16 @@ export function createInstanceGeojson(map, instanceId, geojson = null) {
     });
   }
 
-  if (geojson) {
+  if (geoJSON) {
     if (typeof map.loaded === "function" && map.loaded()) {
-      renderInitialGeojson();
+      renderGeoJSONLayer();
     } else {
-      map.on("load", renderInitialGeojson);
+      map.on("load", renderGeoJSONLayer);
+      detachLoadListener = () => {
+        if (typeof map.off === "function") {
+          map.off("load", renderGeoJSONLayer);
+        }
+      };
     }
   }
 
@@ -45,6 +51,12 @@ export function createInstanceGeojson(map, instanceId, geojson = null) {
     map,
     sourceId,
     layerId,
-    geojson,
+    geoJSON,
+    destroy() {
+      if (detachLoadListener) {
+        detachLoadListener();
+        detachLoadListener = null;
+      }
+    },
   };
 }

@@ -32,11 +32,24 @@ npm run test:browser
 
   instance.map.on("load", () => {
     console.log("Map ready");
+    console.log(instance.getSnapshot());
   });
+
+  // Tear down when no longer needed
+  // instance.destroy();
 </script>
 ```
 
 `map.options` is passed through to the MapLibre `new Map(options)` constructor.
+
+`instance.getSnapshot()` returns a serialisable per-instance snapshot from `src/state/createInstanceSnapshot.js`. Runtime instance tracking is handled separately by the internal runtime registry in `src/core/runtimeRegistry.js`.
+
+## Naming glossary
+
+- **Instance**: the public object returned by `createInstance(...)` (`id`, `map`, `config`, `getSnapshot()`, `destroy()`).
+- **Runtime core**: internal lifecycle object stored in `src/core/runtimeRegistry.js`.
+- **Snapshot**: serialisable plain object returned by `instance.getSnapshot()`.
+- **GeoJSON**: the map data format; written as `GeoJSON` in symbols and docs.
 
 Set a custom style with `map.options.style`:
 
@@ -55,4 +68,5 @@ createInstance("map", {
 - [Development guide](docs/1.development.md)
 - [Instances](docs/2.instances.md)
 - [Config](docs/3.config.md)
+- [Naming](docs/4.naming.md)
 - [Docs index](docs/README.md)

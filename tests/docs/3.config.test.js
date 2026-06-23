@@ -10,13 +10,13 @@ vi.mock("maplibre-gl", () => {
   return { Map: MockMap, setWorkerUrl: vi.fn() };
 });
 
-// Suppress CSS import from instanceMap.js
+// Suppress CSS import from createMap.js
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 
 import { createInstance } from "../../src/entry.js";
 import defaultConfig from "../../src/config/defaultConfig.json";
-import { clearInstanceRegistry } from "../../src/instance/instanceRegistry.js";
-import { resolveConfig } from "../../src/instance/resolveConfig.js";
+import { clearRuntimeRegistry } from "../../src/core/runtimeRegistry.js";
+import { resolveConfig } from "../../src/config/resolveConfig.js";
 import { deepMerge } from "../../src/utils/deepMerge.js";
 import { Map } from "maplibre-gl";
 
@@ -25,7 +25,7 @@ describe("3. Config", () => {
     document.body.innerHTML =
       '<div id="map" style="width: 500px; height: 400px;"></div>';
     vi.clearAllMocks();
-    clearInstanceRegistry();
+    clearRuntimeRegistry();
   });
 
   // ------------------------------------------------------------------ //

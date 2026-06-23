@@ -1,21 +1,9 @@
-We need to strengthen what an instance is. Currently it is loosely defined in the library, broken up into unecessary chunks @src/instance/ I want to restructure @src/ to reflect this, I also want the readme and docs/ to reflect this.
+It's time to implement the Instance UI, currently it outputs an empty app inside the maplibre gl js container.
 
-Instances are the core concept of Waymark JS. They provide a simple interface to consumers, encapsulating:
+using the vue js skill and best practices, refactor the vue js implentation to be SFC based.
 
-- Configuration (JSON - e.g. map options, data styles)
-- Map rendering (Maplibre GL JS)
-- Data visualisation (GeosJSON)
-- Dynamic User Interface (Vue JS)
-- State (serialisable into JSON e.g. current map view, ui state)
+the initial UI shell should simply output a readable overview of the current Instance snapshot.
 
-I want to adopt a centralised pattern where Instances are core. With config/geojson/ui/state/map being top level, well documented modules.
-
-Waymark JS should act as a wrapper where possible, adding a little sugar to existing technologies. For example we allow consumers to provide maplibre mapoptions to instances, keeping the waymark js implementation thin, while being flexible.
-
-It is important that the project documentation, folder structure and file names reflect the core concepts.
-
-Ask questions if needed to better understand the direction I want to take before considering multiple approaches.
+This should demonstrate everything is wired correctly and set up a pattern for more advanced ui features.
 
 Remember, this project is in initial development and refactors do not require backwards compatibility.
-
-I am trying to get the foundation right now before the library adds more functionality.

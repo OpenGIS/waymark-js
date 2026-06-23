@@ -3,9 +3,10 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 /**
  * @param {string} containerId
- * @param {object} config
+ * @param {{ map: { options: object } }} config
+ * @returns {import('maplibre-gl').Map}
  */
-export function createInstanceMap(containerId, config) {
+export function createMap(containerId, config) {
   return new Map({
     ...config.map.options,
     container: containerId,

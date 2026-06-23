@@ -44,6 +44,79 @@ test.describe("2. Instances", () => {
       );
       expect(hasFactory).toBe(true);
     });
+
+    test("instance exposes lifecycle and serialisation methods", async ({
+      page,
+    }) => {
+      const shape = await page.evaluate(() => ({
+        hasDestroy: typeof window.waymarkInstance?.destroy === "function",
+        hasGetSnapshot:
+          typeof window.waymarkInstance?.getSnapshot === "function",
+      }));
+
+      expect(shape).toEqual({ hasDestroy: true, hasGetSnapshot: true });
+    });
+  });
+
+  test.describe("Lifecycle and snapshots", () => {
+    test("getSnapshot returns a serialisable shape with map, ui, and data", async ({
+      page,
+    }) => {
+      const snapshot = await page.evaluate(async () => {
+        const instance = window.createWaymarkInstance("map");
+
+        await new Promise((resolve) => {
+          if (instance.map.loaded()) {
+            resolve();
+            return;
+          }
+
+          instance.map.on("load", resolve);
+        });
+
+        return instance.getSnapshot();
+      });
+
+      expect(snapshot).toEqual(
+        expect.objectContaining({
+          version: 1,
+          map: expect.objectContaining({
+            center: expect.any(Array),
+            zoom: expect.any(Number),
+            bearing: expect.any(Number),
+            pitch: expect.any(Number),
+          }),
+          ui: expect.objectContaining({
+            hasAppShell: expect.any(Boolean),
+          }),
+          data: expect.objectContaining({
+            geojson: expect.objectContaining({
+              sourceId: expect.any(String),
+              layerId: expect.any(String),
+            }),
+          }),
+        }),
+      );
+    });
+
+    test("destroy removes an instance so the same ID can be recreated", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const first = window.createWaymarkInstance("map");
+        first.destroy();
+
+        const second = window.createWaymarkInstance("map");
+
+        return {
+          sameObject: first === second,
+          hasMap: Boolean(second?.map),
+        };
+      });
+
+      expect(result).toEqual({ sameObject: false, hasMap: true });
+      await expect(page.locator("#map canvas")).toBeVisible({ timeout: 5000 });
+    });
   });
 
   // ------------------------------------------------------------------ //
@@ -66,7 +139,7 @@ test.describe("2. Instances", () => {
         div.style.height = "400px";
         document.body.appendChild(div);
 
-        const geojson = {
+        const geoJSON = {
           type: "FeatureCollection",
           features: [
             {
@@ -86,7 +159,7 @@ test.describe("2. Instances", () => {
         const instance = window.createWaymarkInstance(
           "map-geojson-test",
           undefined,
-          geojson,
+          geoJSON,
         );
 
         await new Promise((resolve) => {
