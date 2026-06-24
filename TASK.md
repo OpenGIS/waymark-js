@@ -1,33 +1,86 @@
-We are in the middle of setting up the Waymark JS library codebase.
+We are in early library development, in the middle of setting up the Waymark JS library codebase.
 
-Currently the UI simply displays "Instance snapshot" to show that reactivity is wired correctly, and doesn't yet have any features.
+Currently the UI supports two modes: view (currently empty) and debug which displays an "Instance snapshot".
 
-This is because I want to get the library codebase structure and patterns right first.
+No features have been implmented yet. This is because I want to get the library codebase structure and patterns right first.
 
 ---
 
-The next step is to build out the UI. I want the UI to have a top level "mode". To start with, these will be: "view" (default) and "debug".
+Upon reviewing our work so far, we have made good progress, but I see that we are getting off track already.
 
-The UI Mode establishes what controls and content is displayed by the UI. Example future modes might be "record", "navigate" or "edit" (examples only - do not implement these yet).
+I want to bring the initial library codebase inline with my view of the project.
 
-the initial ui mode is provided in the config using config.ui.mode
+By Inspecting src like @src/state/createInstanceSnapshot.js I can see that the terms in the codebase are not well defined and things are getting messy. So now seems like a good time to tigten up the codebase concepts.
 
-the shell is populated dynamically with the elements that make up that mode:
+I want to do a rethink, right down to the instance API constructor. This is the public API of the library and so fundemental.
 
-- View = no elements (yet)
-- Debug = single snapshot
+I want to make instances fully serialisable to JSON.
 
-we also need to handle switching modes programatically (no external API required at this time)
+Instances are created from a single json object and can be serialized into json.
 
-when the ui mode is changed, the shell is emptied and repopulated with the new UI. use the vue js skill to plan this multi-mode UI pattern. SFCs should be used and nested appropriately in @src/ui/
+I want to make instances a single transferrable object:
 
-I believe this may require a rethink on the current snapshot ui.hasAppShell implementation, which is just a placeholder and should be removed.
+- Import/Export in a standard format
+- Accepts and stores an config
+- State is updated as user interacts
+- Data
 
-The UI should always have a shell, it's content determined by the mode. switching modes should remove and then add the relevant components. this means initially the view mode will be an empty shell.
+Let me try to show you what I am aiming for (treat as pseudocode):
 
-Set view as default, but @src/dev.js should demonstate one mode per instance.
+```json
+{
+  // Configure initial map (optional)
+  "config": {
+    // Unique DOM element
+    "id": "map",
 
-This will also be a good opportunity to test our automated testing/documentation setup, because these changes will break the existing API. Initial failing tests means things are working!
+    //
+    "map": {
+      // Any maplibre supported options
+      "options": {}
+    },
+    "ui": {
+      // We specify
+      "mode": "debug"
+    }
+  },
+
+  // The user's state is synced as they move the map, or change the UI
+  "state": {
+    "map": {
+      // We need to define which options
+      "options": {}
+    },
+    "ui": {
+      "mode": "debug"
+    }
+  },
+
+  // Geojson
+  "data": {}
+}
+```
+
+The above pseudocode introduces top-level:
+
+- ID - optional. should be html id attr in dom, or random created
+- Config - optional. used to configure library.
+- State - optional. used to sync user state between sessions
+- Data - optional. used to load
+
+I really need some help figuring out how to implement this new direction.
+
+You can see that both state and config expose "map" and "ui" keys. I'm thinking of referring to these as modules. An instance has a map (maplibre) and ui (vue), both of which can be passed configuration and maintain state.
+
+I think we need to promote the map and ui to be top level modules of the instance and referred as such in the docs/ I think we need to solidify the documentation for each by creating 4.map.md and 5.ui.md and then @docs/3.instances.md should link to this and avoid repetition.
+
+All modules should have events. Right now ui mode change has no events. We need to set this pattern.
+
+Right now geojson data rendering is not implemented and is not required.
+
+I want you to ask lots of questions to ensure we are on the same page. I am unsure practically how this should be structured so that it can grow with the project.
+
+We want to end up with a simple, JSON Instance API that is well documented and flexible.
 
 ---
 
