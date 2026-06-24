@@ -24,7 +24,8 @@ npm run test:browser
 <script type="module">
   import { createInstance } from "./dist/waymark.js";
 
-  const instance = createInstance("map", {
+  const instance = createInstance({
+    id: "map",
     map: {
       options: {
         center: [-0.1276, 51.5074],
@@ -43,7 +44,7 @@ npm run test:browser
 </script>
 ```
 
-`map.options` is passed through to the MapLibre `new Map(options)` constructor, except `container`, which Waymark always sets from `createInstance(id)`.
+`map.options` is passed through to the MapLibre `new Map(options)` constructor, except `container`, which Waymark always sets from `createInstance({ id })`.
 
 ## Instance container events
 
@@ -72,7 +73,8 @@ See [`docs/1.api.md`](docs/1.api.md#instance-event-api) for payload shapes and u
 Set a custom style with `map.options.style`:
 
 ```js
-createInstance("map", {
+createInstance({
+  id: "map",
   map: {
     options: {
       style: "https://example.com/style.json",

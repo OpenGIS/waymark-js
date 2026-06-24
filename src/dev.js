@@ -45,7 +45,8 @@ document.body.style.flexDirection = "column";
 mapContainer.style.height = "50vh";
 secondMapContainer.style.height = "50vh";
 
-const waymarkInstance = createInstance("map", {
+const waymarkInstance = createInstance({
+  id: "map",
   map: {
     options: {
       center: [-128.0094, 50.6539],
@@ -72,7 +73,8 @@ const waymarkInstance = createInstance("map", {
   },
 });
 
-const waymarkInstanceTwo = createInstance("map-two", {
+const waymarkInstanceTwo = createInstance({
+  id: "map-two",
   map: {
     options: {
       center: [-0.1276, 51.5074],

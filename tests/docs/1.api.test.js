@@ -43,18 +43,17 @@ describe("1. API", () => {
 
   describe("Quick start", () => {
     it("creates an instance for a valid container", () => {
-      const instance = createInstance("map");
+      const instance = createInstance({ id: "map" });
       expect(instance.id).toBe("map");
       expect(instance.map).toBeTruthy();
     });
   });
 
   describe("Factory signature", () => {
-    it("accepts id, config, and geoJSON", () => {
+    it("accepts config and geoJSON", () => {
       const geoJSON = { type: "FeatureCollection", features: [] };
       const instance = createInstance(
-        "map",
-        { map: { options: { zoom: 10 } } },
+        { id: "map", map: { options: { zoom: 10 } } },
         geoJSON,
       );
 
@@ -64,11 +63,22 @@ describe("1. API", () => {
         expect.any(Function),
       );
     });
+
+    it("accepts an empty config object with geoJSON", () => {
+      const geoJSON = { type: "FeatureCollection", features: [] };
+      const instance = createInstance({}, geoJSON);
+
+      expect(instance.id).toMatch(/^waymark-/);
+      expect(instance.map.on).toHaveBeenCalledWith(
+        "load",
+        expect.any(Function),
+      );
+    });
   });
 
   describe("Container resolution", () => {
     it("throws when a provided container is missing", () => {
-      expect(() => createInstance("missing-container")).toThrow(
+      expect(() => createInstance({ id: "missing-container" })).toThrow(
         'Waymark container "missing-container" was not found.',
       );
     });
@@ -82,7 +92,7 @@ describe("1. API", () => {
 
   describe("Config defaults and merge behaviour", () => {
     it("uses documented defaults including attributionControl false", () => {
-      createInstance("map");
+      createInstance({ id: "map" });
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({
           center: [0, 0],
@@ -113,7 +123,8 @@ describe("1. API", () => {
 
   describe("Map options pass-through", () => {
     it("forwards map.options values except container", () => {
-      createInstance("map", {
+      createInstance({
+        id: "map",
         map: {
           options: {
             center: [-0.1276, 51.5074],
@@ -137,7 +148,7 @@ describe("1. API", () => {
 
   describe("Returned instance shape", () => {
     it("returns the documented API methods", () => {
-      const instance = createInstance("map");
+      const instance = createInstance({ id: "map" });
       expect(instance).toEqual(
         expect.objectContaining({
           id: "map",
@@ -155,13 +166,13 @@ describe("1. API", () => {
 
   describe("Instance reuse and destroy semantics", () => {
     it("reuses same instance by id and ignores subsequent config/geoJSON", () => {
-      const first = createInstance("map", {
+      const first = createInstance({
+        id: "map",
         map: { options: { zoom: 10 } },
       });
 
       const second = createInstance(
-        "map",
-        { map: { options: { zoom: 2 } } },
+        { id: "map", map: { options: { zoom: 2 } } },
         { type: "FeatureCollection", features: [] },
       );
 
@@ -171,11 +182,11 @@ describe("1. API", () => {
     });
 
     it("destroy is idempotent and allows clean recreation", () => {
-      const first = createInstance("map");
+      const first = createInstance({ id: "map" });
       first.destroy();
       first.destroy();
 
-      const second = createInstance("map");
+      const second = createInstance({ id: "map" });
 
       expect(first.map.remove).toHaveBeenCalledTimes(1);
       expect(second).not.toBe(first);
@@ -185,7 +196,7 @@ describe("1. API", () => {
 
   describe("Instance event API", () => {
     it("supports on/off/once on container events", () => {
-      const instance = createInstance("map");
+      const instance = createInstance({ id: "map" });
       const onHandler = vi.fn();
       const onceHandler = vi.fn();
 
@@ -208,11 +219,11 @@ describe("1. API", () => {
       const created = vi.fn();
       container.addEventListener("waymark:instance.created", created);
 
-      const first = createInstance("map");
+      const first = createInstance({ id: "map" });
       const reused = vi.fn();
       first.on("waymark:instance.reused", reused);
       first.on("waymark:instance.destroyed", reused);
-      createInstance("map");
+      createInstance({ id: "map" });
       first.destroy();
 
       expect(created.mock.calls[0][0].detail).toEqual({ id: "map" });
@@ -220,7 +231,7 @@ describe("1. API", () => {
     });
 
     it("forwards map events with originalEvent in detail", () => {
-      const instance = createInstance("map");
+      const instance = createInstance({ id: "map" });
       const seen = [];
 
       instance.on("waymark:map.moveend", (event) => {
@@ -248,7 +259,8 @@ describe("1. API", () => {
 
   describe("Snapshot shape", () => {
     it("returns a serialisable snapshot payload", () => {
-      const instance = createInstance("map", {
+      const instance = createInstance({
+        id: "map",
         map: {
           options: {
             center: [-0.1276, 51.5074],
@@ -285,11 +297,11 @@ describe("1. API", () => {
   describe("Initial GeoJSON overlay", () => {
     it("adds source and layer ids scoped by instance id", () => {
       const geoJSON = { type: "FeatureCollection", features: [] };
-      const one = createInstance("map", undefined, geoJSON);
+      const one = createInstance({ id: "map" }, geoJSON);
 
       document.body.innerHTML +=
         '<div id="map-two" style="width: 500px; height: 400px;"></div>';
-      const two = createInstance("map-two", undefined, geoJSON);
+      const two = createInstance({ id: "map-two" }, geoJSON);
 
       for (const [eventName, handler] of one.map.on.mock.calls) {
         if (eventName === "load") handler();

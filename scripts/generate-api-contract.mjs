@@ -31,7 +31,7 @@ function parseEventConstants(source) {
 const constants = parseEventConstants(instanceEventsSource);
 
 const contract = {
-  signature: "createInstance(id?, config?, geoJSON?)",
+  signature: "createInstance(config?, geoJSON?)",
   defaults: {
     center: defaultConfig.map.options.center,
     zoom: defaultConfig.map.options.zoom,

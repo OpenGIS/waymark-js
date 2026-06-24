@@ -7,12 +7,11 @@ setWorkerUrl(workerUrl);
 /**
  * Create a new Waymark instance.
  *
- * @param {string} [id]
- * @param {import('./config/resolveConfig.js').WaymarkConfig} [config]
+ * @param {(import('./config/resolveConfig.js').WaymarkConfig & { id?: string })} [config]
  * @param {object} [geoJSON]
  * @returns {import('./core/createInstanceCore.js').WaymarkInstancePublicApi}
  */
-export function createInstance(id, config, geoJSON) {
-  const { publicApi } = createInstanceCore(id, config, geoJSON);
+export function createInstance(config, geoJSON) {
+  const { publicApi } = createInstanceCore(config, geoJSON);
   return publicApi;
 }

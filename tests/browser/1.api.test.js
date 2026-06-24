@@ -14,7 +14,8 @@ test.describe("1. API", () => {
   test.describe("Quick start", () => {
     test("renders a map canvas for a created instance", async ({ page }) => {
       await page.evaluate(() => {
-        window.waymarkFixture.createInstance("map", {
+        window.waymarkFixture.createInstance({
+          id: "map",
           map: { options: { style: { version: 8, sources: {}, layers: [] } } },
         });
       });
@@ -24,12 +25,12 @@ test.describe("1. API", () => {
   });
 
   test.describe("Factory signature", () => {
-    test("accepts id, config, and geoJSON", async ({ page }) => {
+    test("accepts config and geoJSON", async ({ page }) => {
       const result = await page.evaluate(() => {
         const geoJSON = { type: "FeatureCollection", features: [] };
         const instance = window.waymarkFixture.createInstance(
-          "map",
           {
+            id: "map",
             map: {
               options: {
                 style: { version: 8, sources: {}, layers: [] },
@@ -48,13 +49,32 @@ test.describe("1. API", () => {
 
       expect(result).toEqual({ id: "map", zoom: 10 });
     });
+
+    test("accepts an empty config object with geoJSON", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const instance = window.waymarkFixture.createInstance(
+          {},
+          { type: "FeatureCollection", features: [] },
+        );
+
+        return {
+          id: instance.id,
+          hasGeoJSON: Boolean(instance.getSnapshot().data.geojson.geojson),
+        };
+      });
+
+      expect(result.id.startsWith("waymark-")).toBe(true);
+      expect(result.hasGeoJSON).toBe(true);
+    });
   });
 
   test.describe("Container resolution", () => {
     test("throws when a provided container is missing", async ({ page }) => {
       const message = await page.evaluate(() => {
         try {
-          window.waymarkFixture.createInstance("missing-browser-container");
+          window.waymarkFixture.createInstance({
+            id: "missing-browser-container",
+          });
           return null;
         } catch (error) {
           return String(error.message);
@@ -72,7 +92,8 @@ test.describe("1. API", () => {
       page,
     }) => {
       const result = await page.evaluate(() => {
-        const instance = window.waymarkFixture.createInstance("map", {
+        const instance = window.waymarkFixture.createInstance({
+          id: "map",
           map: { options: { style: { version: 8, sources: {}, layers: [] } } },
         });
 
@@ -93,19 +114,17 @@ test.describe("1. API", () => {
     }) => {
       const result = await page.evaluate((inlineStyle) => {
         const map = window.waymarkFixture.createContainer("map-options-test");
-        const instance = window.waymarkFixture.createInstance(
-          "map-options-test",
-          {
-            map: {
-              options: {
-                center: [-0.1276, 51.5074],
-                zoom: 10,
-                bearing: 25,
-                style: inlineStyle,
-              },
+        const instance = window.waymarkFixture.createInstance({
+          id: "map-options-test",
+          map: {
+            options: {
+              center: [-0.1276, 51.5074],
+              zoom: 10,
+              bearing: 25,
+              style: inlineStyle,
             },
           },
-        );
+        });
 
         return {
           hasCanvas: Boolean(map.querySelector("canvas")),
@@ -127,7 +146,8 @@ test.describe("1. API", () => {
   test.describe("Returned instance shape", () => {
     test("returns documented properties and methods", async ({ page }) => {
       const result = await page.evaluate(() => {
-        const instance = window.waymarkFixture.createInstance("map", {
+        const instance = window.waymarkFixture.createInstance({
+          id: "map",
           map: { options: { style: { version: 8, sources: {}, layers: [] } } },
         });
 
@@ -161,7 +181,8 @@ test.describe("1. API", () => {
       page,
     }) => {
       const result = await page.evaluate(() => {
-        const first = window.waymarkFixture.createInstance("map", {
+        const first = window.waymarkFixture.createInstance({
+          id: "map",
           map: {
             options: {
               style: { version: 8, sources: {}, layers: [] },
@@ -171,8 +192,8 @@ test.describe("1. API", () => {
         });
 
         const second = window.waymarkFixture.createInstance(
-          "map",
           {
+            id: "map",
             map: {
               options: {
                 style: { version: 8, sources: {}, layers: [] },
@@ -184,7 +205,8 @@ test.describe("1. API", () => {
         );
 
         first.destroy();
-        const third = window.waymarkFixture.createInstance("map", {
+        const third = window.waymarkFixture.createInstance({
+          id: "map",
           map: {
             options: {
               style: { version: 8, sources: {}, layers: [] },
@@ -214,7 +236,8 @@ test.describe("1. API", () => {
           seen.push({ type: event.type, detail: event.detail });
         });
 
-        const instance = window.waymarkFixture.createInstance("map", {
+        const instance = window.waymarkFixture.createInstance({
+          id: "map",
           map: {
             options: {
               style: { version: 8, sources: {}, layers: [] },
@@ -257,7 +280,8 @@ test.describe("1. API", () => {
       page,
     }) => {
       const snapshot = await page.evaluate(() => {
-        const instance = window.waymarkFixture.createInstance("map", {
+        const instance = window.waymarkFixture.createInstance({
+          id: "map",
           map: {
             options: {
               style: { version: 8, sources: {}, layers: [] },
@@ -297,8 +321,8 @@ test.describe("1. API", () => {
       const result = await page.evaluate(() => {
         window.waymarkFixture.createContainer("map-geojson-test");
         const instance = window.waymarkFixture.createInstance(
-          "map-geojson-test",
           {
+            id: "map-geojson-test",
             map: {
               options: {
                 style: { version: 8, sources: {}, layers: [] },

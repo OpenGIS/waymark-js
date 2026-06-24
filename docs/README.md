@@ -9,7 +9,7 @@ Developer documentation for Waymark JS.
 
 ## Reading order
 
-1. [API](1.api.md) - Consumer API contract for `createInstance(...)`, events, defaults, snapshots, and GeoJSON.
+1. [API](1.api.md) - Consumer API contract for `createInstance(config?, geoJSON?)`, events, defaults, snapshots, and GeoJSON.
 2. [Development](2.development.md) - Contributor workflow, conventions, testing strategy, and sync protocol.
 3. [Instances](3.instances.md) - Internal instance anatomy and orchestration boundaries.
 

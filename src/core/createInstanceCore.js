@@ -22,6 +22,10 @@ import {
  */
 
 /**
+ * @typedef {WaymarkConfig & { id?: string }} WaymarkCreateInstanceConfig
+ */
+
+/**
  * @typedef {import('../config/resolveConfig.js').WaymarkResolvedConfig} WaymarkResolvedConfig
  */
 
@@ -84,13 +88,12 @@ function destroyCore(core) {
 }
 
 /**
- * @param {string} [id]
- * @param {WaymarkConfig} [config]
+ * @param {WaymarkCreateInstanceConfig} [config]
  * @param {object} [geoJSON]
  * @returns {{ publicApi: WaymarkInstancePublicApi, core: WaymarkInstanceCore }}
  */
-export function createInstanceCore(id, config, geoJSON) {
-  const containerId = ensureContainer(id);
+export function createInstanceCore(config, geoJSON) {
+  const containerId = ensureContainer(config?.id);
   const existingCore = getCoreById(containerId);
 
   if (existingCore) {
@@ -105,7 +108,8 @@ export function createInstanceCore(id, config, geoJSON) {
     };
   }
 
-  const resolvedConfig = resolveConfig(config);
+  const { id: _containerIdFromConfig, ...configOverrides } = config ?? {};
+  const resolvedConfig = resolveConfig(configOverrides);
   const events = createInstanceEvents(containerId);
   const map = createMap(containerId, resolvedConfig);
   /** @type {WaymarkInstanceCore | null} */
