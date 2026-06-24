@@ -56,6 +56,9 @@ describe("2. Instances", () => {
           config: expect.any(Object),
           getSnapshot: expect.any(Function),
           destroy: expect.any(Function),
+          on: expect.any(Function),
+          off: expect.any(Function),
+          once: expect.any(Function),
         }),
       );
     });
@@ -176,6 +179,153 @@ describe("2. Instances", () => {
   });
 
   // ------------------------------------------------------------------ //
+  // Instance events
+  // ------------------------------------------------------------------ //
+
+  describe("Instance events", () => {
+    it("on and off subscribe to container events", () => {
+      const instance = createInstance("map");
+      const handler = vi.fn();
+
+      instance.on("waymark:test", handler);
+
+      const container = document.getElementById("map");
+      container.dispatchEvent(new CustomEvent("waymark:test"));
+
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      instance.off("waymark:test", handler);
+      container.dispatchEvent(new CustomEvent("waymark:test"));
+
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it("once subscribes to one container event dispatch", () => {
+      const instance = createInstance("map");
+      const handler = vi.fn();
+
+      instance.once("waymark:test-once", handler);
+
+      const container = document.getElementById("map");
+      container.dispatchEvent(new CustomEvent("waymark:test-once"));
+      container.dispatchEvent(new CustomEvent("waymark:test-once"));
+
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it("emits waymark:instance.created with a lightweight detail payload", () => {
+      const created = vi.fn();
+      document
+        .getElementById("map")
+        .addEventListener("waymark:instance.created", created);
+
+      createInstance("map");
+
+      expect(created).toHaveBeenCalledTimes(1);
+      expect(created.mock.calls[0][0].detail).toEqual({ id: "map" });
+    });
+
+    it("emits waymark:instance.reused when requesting the same ID", () => {
+      const instance = createInstance("map");
+      const reused = vi.fn();
+
+      instance.on("waymark:instance.reused", reused);
+      createInstance("map");
+
+      expect(reused).toHaveBeenCalledTimes(1);
+      expect(reused.mock.calls[0][0].detail).toEqual({ id: "map" });
+    });
+
+    it("emits waymark:instance.destroyed once per lifecycle", () => {
+      const instance = createInstance("map");
+      const destroyed = vi.fn();
+
+      instance.on("waymark:instance.destroyed", destroyed);
+
+      instance.destroy();
+      instance.destroy();
+
+      expect(destroyed).toHaveBeenCalledTimes(1);
+      expect(destroyed.mock.calls[0][0].detail).toEqual({ id: "map" });
+    });
+
+    it("forwards selected map events as namespaced waymark:map.* events", () => {
+      const instance = createInstance("map");
+      const seen = [];
+      const forwardedMapEvents = [
+        ["load", "waymark:map.load"],
+        ["moveend", "waymark:map.moveend"],
+        ["zoomend", "waymark:map.zoomend"],
+        ["rotateend", "waymark:map.rotateend"],
+        ["pitchend", "waymark:map.pitchend"],
+      ];
+
+      for (const [, forwardedEventName] of forwardedMapEvents) {
+        instance.on(forwardedEventName, (event) => {
+          seen.push({
+            type: event.type,
+            detail: {
+              id: event.detail.id,
+              mapEvent: event.detail.mapEvent,
+            },
+          });
+        });
+      }
+
+      for (const [mapEventName] of forwardedMapEvents) {
+        for (const [eventName, handler] of instance.map.on.mock.calls) {
+          if (eventName === mapEventName) {
+            handler({ source: "unit-test", mapEventName });
+          }
+        }
+      }
+
+      expect(seen).toEqual([
+        {
+          type: "waymark:map.load",
+          detail: { id: "map", mapEvent: "load" },
+        },
+        {
+          type: "waymark:map.moveend",
+          detail: { id: "map", mapEvent: "moveend" },
+        },
+        {
+          type: "waymark:map.zoomend",
+          detail: { id: "map", mapEvent: "zoomend" },
+        },
+        {
+          type: "waymark:map.rotateend",
+          detail: { id: "map", mapEvent: "rotateend" },
+        },
+        {
+          type: "waymark:map.pitchend",
+          detail: { id: "map", mapEvent: "pitchend" },
+        },
+      ]);
+    });
+
+    it("removes forwarded map event listeners during destroy", () => {
+      const instance = createInstance("map");
+
+      instance.destroy();
+
+      const offEventNames = instance.map.off.mock.calls.map(([eventName]) =>
+        String(eventName),
+      );
+
+      expect(offEventNames).toEqual(
+        expect.arrayContaining([
+          "load",
+          "moveend",
+          "zoomend",
+          "rotateend",
+          "pitchend",
+        ]),
+      );
+    });
+  });
+
+  // ------------------------------------------------------------------ //
   // Initial GeoJSON
   // ------------------------------------------------------------------ //
 
@@ -205,8 +355,11 @@ describe("2. Instances", () => {
         expect.any(Function),
       );
 
-      const [, onLoad] = instance.map.on.mock.calls[0];
-      onLoad();
+      for (const [eventName, handler] of instance.map.on.mock.calls) {
+        if (eventName === "load") {
+          handler();
+        }
+      }
 
       expect(instance.map.addSource).toHaveBeenCalledWith(
         "waymark-map-geojson-source",
@@ -232,11 +385,17 @@ describe("2. Instances", () => {
       const instanceOne = createInstance("map", undefined, initialGeoJSON);
       const instanceTwo = createInstance("map-two", undefined, initialGeoJSON);
 
-      const [, onLoadOne] = instanceOne.map.on.mock.calls[0];
-      const [, onLoadTwo] = instanceTwo.map.on.mock.calls[0];
+      for (const [eventName, handler] of instanceOne.map.on.mock.calls) {
+        if (eventName === "load") {
+          handler();
+        }
+      }
 
-      onLoadOne();
-      onLoadTwo();
+      for (const [eventName, handler] of instanceTwo.map.on.mock.calls) {
+        if (eventName === "load") {
+          handler();
+        }
+      }
 
       expect(instanceOne.map.addSource).toHaveBeenCalledWith(
         "waymark-map-geojson-source",
@@ -341,6 +500,69 @@ describe("2. Instances", () => {
           },
         },
       });
+    });
+
+    it("refreshes shell snapshot from forwarded waymark:map.* container events", async () => {
+      const instance = createInstance("map", {
+        map: {
+          options: {
+            zoom: 15,
+          },
+        },
+      });
+
+      await Promise.resolve();
+
+      const snapshotPre = document.querySelector(
+        '#map [data-waymark-app="true"] pre',
+      );
+      const container = document.getElementById("map");
+
+      expect(snapshotPre?.textContent).toContain('"zoom": 15');
+
+      instance.map._view.zoom = 16;
+      container?.dispatchEvent(
+        new CustomEvent("waymark:map.zoomend", {
+          detail: {
+            id: "map",
+            mapEvent: "zoomend",
+          },
+        }),
+      );
+
+      await Promise.resolve();
+
+      expect(snapshotPre?.textContent).toContain('"zoom": 16');
+    });
+
+    it("removes shell refresh listeners from container events on destroy", () => {
+      const container = document.getElementById("map");
+      const addListenerSpy = vi.spyOn(container, "addEventListener");
+      const removeListenerSpy = vi.spyOn(container, "removeEventListener");
+
+      const instance = createInstance("map");
+      instance.destroy();
+
+      const expectedEvents = [
+        "waymark:map.load",
+        "waymark:map.moveend",
+        "waymark:map.zoomend",
+        "waymark:map.rotateend",
+        "waymark:map.pitchend",
+      ];
+
+      for (const eventName of expectedEvents) {
+        expect(addListenerSpy).toHaveBeenCalledWith(
+          eventName,
+          expect.any(Function),
+          undefined,
+        );
+        expect(removeListenerSpy).toHaveBeenCalledWith(
+          eventName,
+          expect.any(Function),
+          undefined,
+        );
+      }
     });
 
     it("destroy removes map resources and allows a clean recreate", () => {

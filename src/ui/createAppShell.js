@@ -3,7 +3,7 @@ import InstanceShell from "./InstanceShell.vue";
 
 /**
  * @param {string} containerId
- * @param {{ map: import('maplibre-gl').Map, getSnapshot: () => object | null }} options
+ * @param {{ events: { on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void }, getSnapshot: () => object | null }} options
  */
 export function createAppShell(containerId, options) {
   const container = document.getElementById(containerId);
@@ -12,7 +12,7 @@ export function createAppShell(containerId, options) {
     return null;
   }
 
-  const { map, getSnapshot } = options;
+  const { events, getSnapshot } = options;
   const snapshot = ref(null);
 
   const refresh = () => {
@@ -30,10 +30,16 @@ export function createAppShell(containerId, options) {
     },
   });
 
-  const updateEvents = ["load", "move", "zoom", "rotate", "pitch"];
+  const updateEvents = [
+    "waymark:map.load",
+    "waymark:map.moveend",
+    "waymark:map.zoomend",
+    "waymark:map.rotateend",
+    "waymark:map.pitchend",
+  ];
 
   for (const eventName of updateEvents) {
-    map.on(eventName, refresh);
+    events.on(eventName, refresh);
   }
 
   refresh();
@@ -46,7 +52,7 @@ export function createAppShell(containerId, options) {
     refresh,
     destroy() {
       for (const eventName of updateEvents) {
-        map.off(eventName, refresh);
+        events.off(eventName, refresh);
       }
     },
   };

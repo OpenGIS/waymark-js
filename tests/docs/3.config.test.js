@@ -4,8 +4,21 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 vi.mock("maplibre-gl", () => {
   const MockMap = vi.fn(function (options) {
     this._options = options;
+    this._view = {
+      center: options.center ?? [0, 0],
+      zoom: options.zoom ?? 2,
+      bearing: options.bearing ?? 0,
+      pitch: options.pitch ?? 0,
+    };
     this.on = vi.fn();
     this.remove = vi.fn();
+    this.getCenter = vi.fn(() => ({
+      lng: this._view.center[0],
+      lat: this._view.center[1],
+    }));
+    this.getZoom = vi.fn(() => this._view.zoom);
+    this.getBearing = vi.fn(() => this._view.bearing);
+    this.getPitch = vi.fn(() => this._view.pitch);
   });
   return { Map: MockMap, setWorkerUrl: vi.fn() };
 });

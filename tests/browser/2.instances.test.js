@@ -52,9 +52,212 @@ test.describe("2. Instances", () => {
         hasDestroy: typeof window.waymarkInstance?.destroy === "function",
         hasGetSnapshot:
           typeof window.waymarkInstance?.getSnapshot === "function",
+        hasOn: typeof window.waymarkInstance?.on === "function",
+        hasOff: typeof window.waymarkInstance?.off === "function",
+        hasOnce: typeof window.waymarkInstance?.once === "function",
       }));
 
-      expect(shape).toEqual({ hasDestroy: true, hasGetSnapshot: true });
+      expect(shape).toEqual({
+        hasDestroy: true,
+        hasGetSnapshot: true,
+        hasOn: true,
+        hasOff: true,
+        hasOnce: true,
+      });
+    });
+  });
+
+  test.describe("Instance events", () => {
+    test("dev entry logs forwarded container events for both dev instances", async ({
+      page,
+    }) => {
+      const logs = [];
+
+      page.on("console", (msg) => {
+        if (msg.type() === "info") {
+          logs.push(msg.text());
+        }
+      });
+
+      await page.evaluate(() => {
+        window.waymarkInstance.map.fire("moveend", {
+          source: "playwright-test",
+        });
+        window.waymarkInstanceTwo.map.fire("moveend", {
+          source: "playwright-test",
+        });
+      });
+
+      await expect
+        .poll(() =>
+          logs.filter(
+            (line) =>
+              line.includes("[waymark:dev:event]") &&
+              line.includes("waymark:map.moveend"),
+          ),
+        )
+        .toHaveLength(2);
+
+      expect(
+        logs.some(
+          (line) =>
+            line.includes("[waymark:dev:event]") &&
+            line.includes("map") &&
+            line.includes("waymark:map.moveend"),
+        ),
+      ).toBe(true);
+
+      expect(
+        logs.some(
+          (line) =>
+            line.includes("[waymark:dev:event]") &&
+            line.includes("map-two") &&
+            line.includes("waymark:map.moveend"),
+        ),
+      ).toBe(true);
+    });
+
+    test("on/off/once listen to container CustomEvents", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const mapEvents = document.createElement("div");
+        mapEvents.id = "map-events-api";
+        mapEvents.style.width = "500px";
+        mapEvents.style.height = "400px";
+        document.body.appendChild(mapEvents);
+
+        const instance = window.createWaymarkInstance("map-events-api");
+        const calls = [];
+
+        const onHandler = () => calls.push("on");
+        const onceHandler = () => calls.push("once");
+
+        instance.on("waymark:test", onHandler);
+        instance.once("waymark:test", onceHandler);
+
+        mapEvents.dispatchEvent(new CustomEvent("waymark:test"));
+        mapEvents.dispatchEvent(new CustomEvent("waymark:test"));
+
+        instance.off("waymark:test", onHandler);
+        mapEvents.dispatchEvent(new CustomEvent("waymark:test"));
+
+        return calls;
+      });
+
+      expect(result).toEqual(["on", "once", "on"]);
+    });
+
+    test("emits created, reused, and destroyed lifecycle events", async ({
+      page,
+    }) => {
+      const events = await page.evaluate(() => {
+        const mapEvents = document.createElement("div");
+        mapEvents.id = "map-events-lifecycle";
+        mapEvents.style.width = "500px";
+        mapEvents.style.height = "400px";
+        document.body.appendChild(mapEvents);
+
+        const seen = [];
+        const track = (event) => {
+          seen.push({
+            type: event.type,
+            detail: event.detail,
+          });
+        };
+
+        mapEvents.addEventListener("waymark:instance.created", track);
+        mapEvents.addEventListener("waymark:instance.reused", track);
+        mapEvents.addEventListener("waymark:instance.destroyed", track);
+
+        const first = window.createWaymarkInstance("map-events-lifecycle");
+        const second = window.createWaymarkInstance("map-events-lifecycle");
+
+        first.destroy();
+        first.destroy();
+
+        return {
+          sameInstance: first === second,
+          seen,
+        };
+      });
+
+      expect(events.sameInstance).toBe(true);
+      expect(events.seen).toEqual([
+        {
+          type: "waymark:instance.created",
+          detail: { id: "map-events-lifecycle" },
+        },
+        {
+          type: "waymark:instance.reused",
+          detail: { id: "map-events-lifecycle" },
+        },
+        {
+          type: "waymark:instance.destroyed",
+          detail: { id: "map-events-lifecycle" },
+        },
+      ]);
+    });
+
+    test("forwards selected MapLibre events as waymark:map.* container events", async ({
+      page,
+    }) => {
+      const forwarded = await page.evaluate(() => {
+        const mapEvents = document.createElement("div");
+        mapEvents.id = "map-events-forwarded";
+        mapEvents.style.width = "500px";
+        mapEvents.style.height = "400px";
+        document.body.appendChild(mapEvents);
+
+        const instance = window.createWaymarkInstance("map-events-forwarded");
+        const pairs = [
+          ["load", "waymark:map.load"],
+          ["moveend", "waymark:map.moveend"],
+          ["zoomend", "waymark:map.zoomend"],
+          ["rotateend", "waymark:map.rotateend"],
+          ["pitchend", "waymark:map.pitchend"],
+        ];
+
+        const seen = [];
+        for (const [, waymarkEvent] of pairs) {
+          mapEvents.addEventListener(waymarkEvent, (event) => {
+            seen.push({
+              type: event.type,
+              detail: {
+                id: event.detail.id,
+                mapEvent: event.detail.mapEvent,
+              },
+            });
+          });
+        }
+
+        for (const [mapEvent] of pairs) {
+          instance.map.fire(mapEvent, { source: "playwright-test" });
+        }
+
+        return seen;
+      });
+
+      expect(forwarded).toEqual([
+        {
+          type: "waymark:map.load",
+          detail: { id: "map-events-forwarded", mapEvent: "load" },
+        },
+        {
+          type: "waymark:map.moveend",
+          detail: { id: "map-events-forwarded", mapEvent: "moveend" },
+        },
+        {
+          type: "waymark:map.zoomend",
+          detail: { id: "map-events-forwarded", mapEvent: "zoomend" },
+        },
+        {
+          type: "waymark:map.rotateend",
+          detail: { id: "map-events-forwarded", mapEvent: "rotateend" },
+        },
+        {
+          type: "waymark:map.pitchend",
+          detail: { id: "map-events-forwarded", mapEvent: "pitchend" },
+        },
+      ]);
     });
   });
 
@@ -75,7 +278,7 @@ test.describe("2. Instances", () => {
       await expect(snapshotPre).toContainText('"data": {');
     });
 
-    test("shell snapshot updates after a map state change", async ({
+    test("shell snapshot refreshes from forwarded waymark:map.* container events", async ({
       page,
     }) => {
       const snapshotPre = page.locator('#map [data-waymark-app="true"] pre');
@@ -89,6 +292,15 @@ test.describe("2. Instances", () => {
           bearing: 20,
           pitch: 25,
         });
+
+        document.getElementById("map")?.dispatchEvent(
+          new CustomEvent("waymark:map.zoomend", {
+            detail: {
+              id: "map",
+              mapEvent: "zoomend",
+            },
+          }),
+        );
       });
 
       await expect(snapshotPre).toContainText('"zoom": 16');

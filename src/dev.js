@@ -1,4 +1,33 @@
 import { createInstance } from "./entry.js";
+import {
+  WAYMARK_INSTANCE_CREATED_EVENT,
+  WAYMARK_INSTANCE_DESTROYED_EVENT,
+  WAYMARK_INSTANCE_REUSED_EVENT,
+  WAYMARK_MAP_LOAD_EVENT,
+  WAYMARK_MAP_MOVEEND_EVENT,
+  WAYMARK_MAP_PITCHEND_EVENT,
+  WAYMARK_MAP_ROTATEEND_EVENT,
+  WAYMARK_MAP_ZOOMEND_EVENT,
+} from "./core/createInstanceEvents.js";
+
+const DEV_INSTANCE_CONTAINER_EVENTS = [
+  WAYMARK_INSTANCE_CREATED_EVENT,
+  WAYMARK_INSTANCE_REUSED_EVENT,
+  WAYMARK_INSTANCE_DESTROYED_EVENT,
+  WAYMARK_MAP_LOAD_EVENT,
+  WAYMARK_MAP_MOVEEND_EVENT,
+  WAYMARK_MAP_ZOOMEND_EVENT,
+  WAYMARK_MAP_ROTATEEND_EVENT,
+  WAYMARK_MAP_PITCHEND_EVENT,
+];
+
+function attachDevContainerEventLogging(instance, label) {
+  for (const eventType of DEV_INSTANCE_CONTAINER_EVENTS) {
+    instance.on(eventType, (event) => {
+      console.info(`[waymark:dev:event] ${label} ${event.type}`);
+    });
+  }
+}
 
 const mapContainer = document.getElementById("map");
 
@@ -70,6 +99,9 @@ const waymarkInstanceTwo = createInstance("map-two", {
     },
   },
 });
+
+attachDevContainerEventLogging(waymarkInstance, "map");
+attachDevContainerEventLogging(waymarkInstanceTwo, "map-two");
 
 // Expose for browser tests and debugging
 window.createWaymarkInstance = createInstance;

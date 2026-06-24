@@ -5,6 +5,13 @@ import { createMap } from "../map/createMap.js";
 import { createInstanceSnapshot } from "../state/createInstanceSnapshot.js";
 import { deleteCoreById, getCoreById, setCoreById } from "./runtimeRegistry.js";
 import { createAppShell } from "../ui/createAppShell.js";
+import {
+  createInstanceEvents,
+  forwardMapEventsToInstanceContainer,
+  WAYMARK_INSTANCE_CREATED_EVENT,
+  WAYMARK_INSTANCE_DESTROYED_EVENT,
+  WAYMARK_INSTANCE_REUSED_EVENT,
+} from "./createInstanceEvents.js";
 
 /**
  * @typedef {import('maplibre-gl').Map} WaymarkMap
@@ -25,6 +32,9 @@ import { createAppShell } from "../ui/createAppShell.js";
  * @property {WaymarkResolvedConfig} config
  * @property {() => import('../state/createInstanceSnapshot.js').WaymarkInstanceSnapshot} getSnapshot
  * @property {() => void} destroy
+ * @property {(type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void} on
+ * @property {(type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void} off
+ * @property {(type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void} once
  */
 
 /**
@@ -33,10 +43,18 @@ import { createAppShell } from "../ui/createAppShell.js";
  * @property {WaymarkMap} map
  * @property {WaymarkResolvedConfig} config
  * @property {WaymarkInstancePublicApi} publicApi
+ * @property {{ container: HTMLElement, emit: (type: string, detail: import('./createInstanceEvents.js').WaymarkInstanceLifecycleEventDetail | import('./createInstanceEvents.js').WaymarkInstanceMapEventDetail) => void, on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void, once: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void }} events
  * @property {{ getSnapshot: () => import('../state/createInstanceSnapshot.js').WaymarkInstanceSnapshot }} snapshot
- * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void } }} modules
+ * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void }, mapEvents: { destroy: () => void } }} modules
  * @property {{ phase: 'ready' | 'destroyed', destroy: () => void }} lifecycle
  */
+
+/**
+ * @param {string} id
+ */
+function createLifecycleDetail(id) {
+  return { id };
+}
 
 /**
  * @param {WaymarkInstanceCore} core
@@ -47,8 +65,13 @@ function destroyCore(core) {
   }
 
   core.lifecycle.phase = "destroyed";
+  core.events.emit(
+    WAYMARK_INSTANCE_DESTROYED_EVENT,
+    createLifecycleDetail(core.id),
+  );
 
   core.modules.geoJSON.destroy();
+  core.modules.mapEvents.destroy();
 
   if (core.modules.appShell) {
     core.modules.appShell.destroy();
@@ -71,6 +94,11 @@ export function createInstanceCore(id, config, geoJSON) {
   const existingCore = getCoreById(containerId);
 
   if (existingCore) {
+    existingCore.events.emit(
+      WAYMARK_INSTANCE_REUSED_EVENT,
+      createLifecycleDetail(existingCore.id),
+    );
+
     return {
       publicApi: existingCore.publicApi,
       core: existingCore,
@@ -78,24 +106,32 @@ export function createInstanceCore(id, config, geoJSON) {
   }
 
   const resolvedConfig = resolveConfig(config);
+  const events = createInstanceEvents(containerId);
   const map = createMap(containerId, resolvedConfig);
   /** @type {WaymarkInstanceCore | null} */
   let core = null;
   const appShell = createAppShell(containerId, {
-    map,
+    events,
     getSnapshot: () => core?.snapshot?.getSnapshot() ?? null,
   });
   const geoJSONModule = createGeoJSONModule(map, containerId, geoJSON);
+  const mapEventsModule = forwardMapEventsToInstanceContainer({
+    id: containerId,
+    map,
+    events,
+  });
 
   core = {
     id: containerId,
     map,
     config: resolvedConfig,
     publicApi: null,
+    events,
     snapshot: null,
     modules: {
       appShell,
       geoJSON: geoJSONModule,
+      mapEvents: mapEventsModule,
     },
     lifecycle: {
       phase: "ready",
@@ -118,9 +154,22 @@ export function createInstanceCore(id, config, geoJSON) {
     config: resolvedConfig,
     getSnapshot: () => core.snapshot.getSnapshot(),
     destroy: () => core.lifecycle.destroy(),
+    on: (type, handler, options) => {
+      core.events.on(type, handler, options);
+    },
+    off: (type, handler, options) => {
+      core.events.off(type, handler, options);
+    },
+    once: (type, handler, options) => {
+      core.events.once(type, handler, options);
+    },
   };
 
   setCoreById(containerId, core);
+  core.events.emit(
+    WAYMARK_INSTANCE_CREATED_EVENT,
+    createLifecycleDetail(core.id),
+  );
 
   return {
     publicApi: core.publicApi,

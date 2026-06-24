@@ -35,12 +35,12 @@ Vite compiles Vue single-file components through `@vitejs/plugin-vue` (`vite.con
 > [!NOTE]
 > If you change docs content, run `npm run build` before shipping so the generated skill file stays in sync.
 
-The dev app is `index.html` and loads `src/dev.js`, which creates two vertically stacked instances (`map` and `map-two`) with different `map.options` view/style defaults, and exposes `window.createWaymarkInstance`, `window.waymarkInstance`, and `window.waymarkInstanceTwo` for browser tests and debugging.
+The dev app is `index.html` and loads `src/dev.js`, which creates two vertically stacked instances (`map` and `map-two`) with different `map.options` view/style defaults, logs selected container events to `console.info` (`[waymark:dev:event] ...`), and exposes `window.createWaymarkInstance`, `window.waymarkInstance`, and `window.waymarkInstanceTwo` for browser tests and debugging.
 
 ## Instance shell notes
 
 - Waymark mounts a Vue SFC shell per instance (`src/ui/InstanceShell.vue`, mounted by `src/ui/createAppShell.js`).
-- The snapshot panel live-updates from map events (`load`, `move`, `zoom`, `rotate`, `pitch`) via the shell refresh wiring in `src/ui/createAppShell.js`.
+- The snapshot panel live-updates from forwarded container events (`waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`) via the shell refresh wiring in `src/ui/createAppShell.js`.
 - `window.createWaymarkInstance`, `window.waymarkInstance`, and `window.waymarkInstanceTwo` are development globals from `src/dev.js` only (not part of the library export surface).
 
 ## Testing
@@ -105,6 +105,9 @@ An instance is the public object returned by `createInstance(...)`. It wraps one
 - `config`
 - `getSnapshot()`
 - `destroy()`
+- `on(type, handler, options?)`
+- `off(type, handler, options?)`
+- `once(type, handler, options?)`
 
 Runtime orchestration is internal (`src/core/*`). Serialisable data is exposed via snapshots (`src/state/*`).
 
@@ -112,17 +115,18 @@ Runtime orchestration is internal (`src/core/*`). Serialisable data is exposed v
 
 `createInstance(...)` delegates to `createInstanceCore(...)`, which composes top-level modules around one instance ID.
 
-| Module                                                                          | Responsibility                                                               |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [`src/core/createInstanceCore.js`](../src/core/createInstanceCore.js)           | Orchestrates instance creation, registry reuse, and lifecycle destroy.       |
-| [`src/map/ensureContainer.js`](../src/map/ensureContainer.js)                   | Validates provided container IDs or creates a random container when omitted. |
-| [`src/config/resolveConfig.js`](../src/config/resolveConfig.js)                 | Deep-merges consumer config into defaults.                                   |
-| [`src/map/createMap.js`](../src/map/createMap.js)                               | Builds the MapLibre map from resolved `config.map.options`.                  |
-| [`src/ui/createAppShell.js`](../src/ui/createAppShell.js)                       | Mounts the Vue app shell and wires live snapshot refresh from map events.    |
-| [`src/ui/InstanceShell.vue`](../src/ui/InstanceShell.vue)                       | SFC overlay UI that renders formatted snapshot JSON in a collapsible panel.  |
-| [`src/geojson/createGeoJSONModule.js`](../src/geojson/createGeoJSONModule.js)   | Creates an instance-scoped GeoJSON source/layer module.                      |
-| [`src/state/createInstanceSnapshot.js`](../src/state/createInstanceSnapshot.js) | Produces serialisable per-instance snapshots.                                |
-| [`src/core/runtimeRegistry.js`](../src/core/runtimeRegistry.js)                 | Stores, fetches, and clears ID-scoped runtime cores.                         |
+| Module                                                                          | Responsibility                                                                                            |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [`src/core/createInstanceCore.js`](../src/core/createInstanceCore.js)           | Orchestrates instance creation, registry reuse, and lifecycle destroy.                                    |
+| [`src/core/createInstanceEvents.js`](../src/core/createInstanceEvents.js)       | Defines namespaced instance events and forwards selected map events.                                      |
+| [`src/map/ensureContainer.js`](../src/map/ensureContainer.js)                   | Validates provided container IDs or creates a random container when omitted.                              |
+| [`src/config/resolveConfig.js`](../src/config/resolveConfig.js)                 | Deep-merges consumer config into defaults.                                                                |
+| [`src/map/createMap.js`](../src/map/createMap.js)                               | Builds the MapLibre map from resolved `config.map.options`.                                               |
+| [`src/ui/createAppShell.js`](../src/ui/createAppShell.js)                       | Mounts the Vue app shell and wires live snapshot refresh from forwarded `waymark:map.*` container events. |
+| [`src/ui/InstanceShell.vue`](../src/ui/InstanceShell.vue)                       | SFC overlay UI that renders formatted snapshot JSON in a collapsible panel.                               |
+| [`src/geojson/createGeoJSONModule.js`](../src/geojson/createGeoJSONModule.js)   | Creates an instance-scoped GeoJSON source/layer module.                                                   |
+| [`src/state/createInstanceSnapshot.js`](../src/state/createInstanceSnapshot.js) | Produces serialisable per-instance snapshots.                                                             |
+| [`src/core/runtimeRegistry.js`](../src/core/runtimeRegistry.js)                 | Stores, fetches, and clears ID-scoped runtime cores.                                                      |
 
 ## Factory defaults
 
@@ -155,7 +159,7 @@ const instance = createInstance("map", {
 });
 ```
 
-`map.options` is forwarded directly to the MapLibre constructor (`new Map(options)`).
+`map.options` is forwarded to the MapLibre constructor (`new Map(options)`), with Waymark always overriding `container` from `createInstance(id)`.
 
 ## Accessing the MapLibre instance
 
@@ -182,6 +186,61 @@ The runtime registry in [`src/core/runtimeRegistry.js`](../src/core/runtimeRegis
 > - **Public/serialisable:** `instance.getSnapshot()` from `src/state/createInstanceSnapshot.js`.
 > - **Internal/runtime:** core lifecycle state in `src/core/createInstanceCore.js` and `src/core/runtimeRegistry.js`.
 
+## Instance event API
+
+Waymark dispatches `CustomEvent`s from the instance container element. This gives a lightweight namespaced event surface for both lifecycle and selected MapLibre events.
+
+> [!NOTE]
+> `waymark:instance.created` is emitted during `createInstance(...)` creation. To observe that first event, attach the listener on the container before calling `createInstance(...)`.
+
+```js
+const instance = createInstance("map");
+
+function handleDestroyed(event) {
+  console.log(event.type, event.detail.id);
+}
+
+instance.on("waymark:instance.destroyed", handleDestroyed);
+instance.off("waymark:instance.destroyed", handleDestroyed);
+instance.once("waymark:instance.reused", (event) => {
+  console.log(event.detail.id);
+});
+```
+
+Lifecycle events emitted by this slice:
+
+- `waymark:instance.created`
+- `waymark:instance.reused`
+- `waymark:instance.destroyed`
+
+All lifecycle events use the same lightweight detail payload:
+
+```js
+{
+  id: string;
+}
+```
+
+Forwarded map events (performance-safe defaults):
+
+- `waymark:map.load`
+- `waymark:map.moveend`
+- `waymark:map.zoomend`
+- `waymark:map.rotateend`
+- `waymark:map.pitchend`
+
+Each forwarded map event includes:
+
+```js
+{
+  id: string,
+  mapEvent: "load" | "moveend" | "zoomend" | "rotateend" | "pitchend",
+  originalEvent: unknown,
+}
+```
+
+`moveend` is forwarded instead of high-frequency `move` to keep event defaults lightweight.
+
 ## Returned instance shape
 
 `createInstance(...)` returns:
@@ -192,7 +251,10 @@ The runtime registry in [`src/core/runtimeRegistry.js`](../src/core/runtimeRegis
   map: MapLibreMap,
   config: object,
   getSnapshot: () => InstanceSnapshot,
-  destroy: () => void
+  destroy: () => void,
+  on: (type, handler, options?) => void,
+  off: (type, handler, options?) => void,
+  once: (type, handler, options?) => void
 }
 ```
 
@@ -200,6 +262,7 @@ The runtime registry in [`src/core/runtimeRegistry.js`](../src/core/runtimeRegis
 - `config` is the resolved per-instance config snapshot.
 - `getSnapshot()` returns a plain serialisable object.
 - `destroy()` removes shell listeners, unmounts the Vue shell, removes the map, and releases the internal registry entry for that ID.
+- `on()`, `off()`, and `once()` subscribe to `CustomEvent`s dispatched from the instance container.
 
 Calling `destroy()` more than once is safe.
 
@@ -207,7 +270,7 @@ Calling `destroy()` more than once is safe.
 
 Each instance mounts `InstanceShell.vue` through `createAppShell(...)`, rendering an `Instance snapshot` panel inside the map container.
 
-The panel content refreshes from map events (`load`, `move`, `zoom`, `rotate`, `pitch`) and reflects the current `getSnapshot()` output.
+The panel content refreshes from forwarded container events (`waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`) and reflects the current `getSnapshot()` output.
 
 In `createInstanceCore(...)`, shell refresh uses a safe snapshot getter (`core?.snapshot?.getSnapshot() ?? null`) until the snapshot module is initialised, then forces a refresh once snapshot wiring is ready.
 
@@ -271,6 +334,7 @@ GeoJSON source and layer IDs are scoped by instance ID to avoid collisions betwe
 - Sources:
   - [`src/entry.js`](../src/entry.js)
   - [`src/core/createInstanceCore.js`](../src/core/createInstanceCore.js)
+  - [`src/core/createInstanceEvents.js`](../src/core/createInstanceEvents.js)
   - [`src/config/resolveConfig.js`](../src/config/resolveConfig.js)
   - [`src/map/ensureContainer.js`](../src/map/ensureContainer.js)
   - [`src/map/createMap.js`](../src/map/createMap.js)
@@ -329,9 +393,7 @@ Waymark resolves config with a deep merge:
 - Objects merge recursively by key
 - Arrays are replaced entirely (never merged by index)
 
-`config.map.options` is passed through to the MapLibre constructor (`new Map(options)`), with Waymark setting:
-
-- `container` from `createInstance(id)`
+`config.map.options` is passed through to the MapLibre constructor (`new Map(options)`), except `container`, which Waymark always sets from `createInstance(id)`.
 
 ## Defaults
 
@@ -350,9 +412,9 @@ Waymark resolves config with a deep merge:
 
 Use this object for MapLibre map constructor options.
 
-| Property                                                                                               | Type  | Required | Description                          |
-| ------------------------------------------------------------------------------------------------------ | ----- | -------- | ------------------------------------ |
-| Any valid [MapLibre Map option](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/) | `any` | No       | Passed through to `new Map(options)` |
+| Property                                                                                               | Type  | Required | Description                                                               |
+| ------------------------------------------------------------------------------------------------------ | ----- | -------- | ------------------------------------------------------------------------- |
+| Any valid [MapLibre Map option](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/) | `any` | No       | Passed through to `new Map(options)` except `container` (set by Waymark). |
 
 Common options:
 
@@ -402,6 +464,9 @@ An **instance** is the public object returned by `createInstance(...)`. It repre
 - `config`
 - `getSnapshot()`
 - `destroy()`
+- `on(type, handler, options?)`
+- `off(type, handler, options?)`
+- `once(type, handler, options?)`
 
 ## Glossary
 
@@ -419,12 +484,105 @@ An **instance** is the public object returned by `createInstance(...)`. It repre
 - Keep runtime naming internal (`core`, `runtimeRegistry`) and snapshot naming serialisable/public (`snapshot`).
 - Use **GeoJSON** capitalisation in symbols and docs (`createGeoJSONModule`, `geoJSON` variables).
 
-## Deprecated names and paths to avoid
 
-- `getState()` → use `getSnapshot()`.
-- `src/state/createInstanceState.js` → use `src/state/createInstanceSnapshot.js`.
-- `src/geojson/createGeojsonModule.js` → use `src/geojson/createGeoJSONModule.js`.
-- `src/core/registry.js` → use `src/core/runtimeRegistry.js`.
+---
+
+# Modules
+
+> How `createInstanceCore(...)` composes instance modules and keeps complexity bounded as Waymark grows.
+
+## Why modules exist
+
+`src/core/createInstanceCore.js` keeps one instance readable by delegating focused concerns into modules (`geoJSON`, `mapEvents`, `appShell`, `snapshot`) rather than expanding one monolithic factory.
+
+This keeps growth additive: new behaviour can be added as a module with explicit wiring and teardown, without changing the public instance API shape.
+
+## Current module responsibilities
+
+| Module                                                                                                            | Responsibility                                                                                            |
+| ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [`src/ui/createAppShell.js`](../src/ui/createAppShell.js)                                                         | Mounts/unmounts the Vue shell and refreshes snapshot UI from forwarded map events.                        |
+| [`src/geojson/createGeoJSONModule.js`](../src/geojson/createGeoJSONModule.js)                                     | Adds optional instance-scoped GeoJSON source/layer on map load and detaches its load listener on destroy. |
+| [`src/core/createInstanceEvents.js`](../src/core/createInstanceEvents.js) (`forwardMapEventsToInstanceContainer`) | Forwards selected map end-events as `waymark:map.*` container `CustomEvent`s.                             |
+| [`src/state/createInstanceSnapshot.js`](../src/state/createInstanceSnapshot.js)                                   | Returns serialisable snapshot payloads from runtime map/module state.                                     |
+
+## Lifecycle ordering in `createInstanceCore(...)`
+
+1. Resolve container ID (`ensureContainer`) and check registry reuse.
+2. For new instances: resolve config, create container event bus, create MapLibre map.
+3. Create modules (`appShell`, `geoJSON`, `mapEvents`) and assemble `core`.
+4. Create snapshot module and force one shell refresh after snapshot wiring is ready.
+5. Build public API (`id`, `map`, `config`, `getSnapshot`, `destroy`, `on/off/once`), register core, emit `waymark:instance.created`.
+
+On `destroy()`:
+
+1. Mark lifecycle `destroyed` and emit `waymark:instance.destroyed`.
+2. Destroy modules (`geoJSON`, `mapEvents`, then `appShell` listener detach/unmount/remove).
+3. Remove MapLibre map and delete registry entry.
+
+`destroy()` is idempotent; repeated calls no-op after phase switches to `destroyed`.
+
+## Event flow (create → forwarded events → shell refresh → destroy)
+
+```mermaid
+sequenceDiagram
+  participant C as Caller
+  participant E as createInstance
+  participant I as createInstanceCore
+  participant M as MapLibre map
+  participant EC as Instance container events
+  participant S as App shell
+
+  C->>E: createInstance(id?, config?, geoJSON?)
+  E->>I: createInstanceCore(...)
+  I-->>C: publicApi (new or reused)
+  M-->>EC: load/moveend/zoomend/rotateend/pitchend
+  EC-->>S: waymark:map.*
+  S->>S: refresh() via getSnapshot()
+  C->>I: destroy()
+  I-->>EC: waymark:instance.destroyed
+  I->>S: detach listeners + unmount + remove shell node
+  I->>M: map.remove()
+```
+
+## Module extension contract
+
+When adding a new module to `createInstanceCore(...)`, keep the contract consistent:
+
+- **Factory in, handle out:** module factories accept explicit dependencies (for example `map`, `id`, `events`) and return a small object handle.
+- **Deterministic teardown:** module handle exposes `destroy()` and can be called from `destroyCore(...)` in a predictable order.
+- **Instance-scoped naming:** any generated IDs should include/sanitise the instance ID to avoid cross-instance collisions.
+- **Public API stability:** module wiring should stay behind `createInstance(...)`; avoid expanding public API unless intentionally versioned/documented.
+- **Snapshot boundary:** runtime helpers stay internal; serialisable outputs remain in `getSnapshot()`.
+
+## Unintuitive behaviours to know
+
+> [!NOTE]
+> Reuse is ID-first, not argument-first.
+>
+> If `createInstance(...)` is called again with the same container ID, Waymark returns the existing public instance and emits `waymark:instance.reused`. New `config` or `geoJSON` arguments are ignored on that reuse path.
+
+> [!NOTE]
+> Omitting `id` auto-creates and appends a random `<div>` to `document.body`.
+>
+> This is convenient for quick demos/tests, but the generated container has no layout styles by default.
+
+> [!NOTE]
+> `waymark:instance.destroyed` is emitted before module/map teardown.
+>
+> During that event callback, listeners still run against a core that has not yet removed the map or shell.
+
+---
+
+- Sources:
+  - [`src/core/createInstanceCore.js`](../src/core/createInstanceCore.js)
+  - [`src/core/createInstanceEvents.js`](../src/core/createInstanceEvents.js)
+  - [`src/ui/createAppShell.js`](../src/ui/createAppShell.js)
+  - [`src/geojson/createGeoJSONModule.js`](../src/geojson/createGeoJSONModule.js)
+  - [`src/map/ensureContainer.js`](../src/map/ensureContainer.js)
+  - [`src/map/createMap.js`](../src/map/createMap.js)
+  - [`src/state/createInstanceSnapshot.js`](../src/state/createInstanceSnapshot.js)
+  - [`src/core/runtimeRegistry.js`](../src/core/runtimeRegistry.js)
 
 
 ---
@@ -439,8 +597,9 @@ Developer documentation for Waymark JS.
 2. [Instances](2.instances.md) - `createInstance(...)` usage, instance framing, and lifecycle behaviour.
 3. [Config](3.config.md) - Config contract for `config.map.options` (including style-only setup).
 4. [Naming](4.naming.md) - Canonical naming for runtime cores, snapshots, and GeoJSON.
+5. [Modules](5.modules.md) - Instance wrapper/module architecture, lifecycle ordering, and extension contract.
 
 ## Scope
 
-These docs describe the current instance-first API surface and top-level module layout. Map styling is configured through `config.map.options.style`, and snapshot/runtime naming is defined in the naming glossary.
+These docs describe the current instance-first API surface and top-level module layout. `config.map.options` is forwarded to MapLibre with Waymark overriding `container`, map styling is configured through `config.map.options.style`, and snapshot/runtime naming is defined in the naming glossary.
 
