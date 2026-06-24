@@ -1,0 +1,21 @@
+{
+  "signature": "createInstance(id?, config?, geoJSON?)",
+  "defaults": {
+    "center": [0, 0],
+    "zoom": 2,
+    "style": "https://tiles.openfreemap.org/styles/bright",
+    "attributionControl": false
+  },
+  "lifecycleEvents": [
+    "waymark:instance.created",
+    "waymark:instance.reused",
+    "waymark:instance.destroyed"
+  ],
+  "forwardedMapEvents": [
+    "waymark:map.load",
+    "waymark:map.moveend",
+    "waymark:map.zoomend",
+    "waymark:map.rotateend",
+    "waymark:map.pitchend"
+  ]
+}

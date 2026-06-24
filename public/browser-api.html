@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Waymark Browser API Fixture</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+      }
+
+      .map {
+        width: 640px;
+        height: 360px;
+        margin-bottom: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+
+    <script type="module">
+      import { createInstance } from "/src/entry.js";
+
+      window.waymarkFixture = {
+        createInstance,
+        createContainer(id) {
+          const container = document.createElement("div");
+          container.id = id;
+          container.className = "map";
+          document.body.appendChild(container);
+          return container;
+        },
+      };
+    </script>
+  </body>
+</html>

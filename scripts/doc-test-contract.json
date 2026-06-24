@@ -1,0 +1,161 @@
+{
+  "requiredHeadings": [
+    {
+      "file": "docs/1.api.md",
+      "headings": [
+        "Quick start",
+        "Factory signature",
+        "Container resolution",
+        "Config defaults and merge behaviour",
+        "Map options pass-through",
+        "Returned instance shape",
+        "Instance reuse and destroy semantics",
+        "Instance event API",
+        "Snapshot shape",
+        "Initial GeoJSON overlay"
+      ]
+    }
+  ],
+  "describeMappings": [
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Quick start",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Quick start"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Quick start"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Factory signature",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Factory signature"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Factory signature"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Container resolution",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Container resolution"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Container resolution"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Config defaults and merge behaviour",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Config defaults and merge behaviour"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Config defaults and merge behaviour"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Map options pass-through",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Map options pass-through"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Map options pass-through"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Returned instance shape",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Returned instance shape"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Returned instance shape"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Instance reuse and destroy semantics",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Instance reuse and destroy semantics"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Instance reuse and destroy semantics"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Instance event API",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Instance event API"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Instance event API"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Snapshot shape",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Snapshot shape"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Snapshot shape"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Initial GeoJSON overlay",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Initial GeoJSON overlay"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Initial GeoJSON overlay"
+        }
+      ]
+    }
+  ]
+}

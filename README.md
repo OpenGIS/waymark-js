@@ -10,6 +10,9 @@ npm run dev
 npm run build # also refreshes .agents/skills/waymark-js/SKILL.md from docs/
 npm run format
 npm run format:check
+npm run docs:contract
+npm run docs:api-sync
+npm run docs:sync
 npm test
 npm run test:browser
 ```
@@ -55,14 +58,14 @@ Handlers receive `CustomEvent`s dispatched from the instance container (`waymark
 - Lifecycle: `waymark:instance.created`, `waymark:instance.reused`, `waymark:instance.destroyed`
 - Forwarded map events: `waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`
 
-See [`docs/2.instances.md`](docs/2.instances.md#instance-event-api) for payload shapes and usage notes.
+See [`docs/1.api.md`](docs/1.api.md#instance-event-api) for payload shapes and usage notes.
 
 `instance.getSnapshot()` returns a serialisable per-instance snapshot from `src/state/createInstanceSnapshot.js`. Waymark also mounts a minimal Vue SFC instance shell (`src/ui/InstanceShell.vue`) in the map container that displays a readable live snapshot overview for development wiring checks. Shell refresh is driven by forwarded container events (`waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`) using end-event defaults rather than raw high-frequency map motion listeners. Runtime instance tracking is handled separately by the internal runtime registry in `src/core/runtimeRegistry.js`.
 
 ## Naming glossary
 
 - **Instance**: the public object returned by `createInstance(...)` (`id`, `map`, `config`, `getSnapshot()`, `destroy()`, `on()`, `off()`, `once()`).
-- **Runtime core**: internal lifecycle object stored in `src/core/runtimeRegistry.js`.
+- **Runtime core**: internal lifecycle object assembled by `src/core/createInstanceCore.js` and tracked in `src/core/runtimeRegistry.js`.
 - **Snapshot**: serialisable plain object returned by `instance.getSnapshot()`.
 - **GeoJSON**: the map data format; written as `GeoJSON` in symbols and docs.
 
@@ -80,9 +83,7 @@ createInstance("map", {
 
 ## Documentation
 
-- [Development guide](docs/1.development.md)
-- [Instances](docs/2.instances.md)
-- [Config](docs/3.config.md)
-- [Naming](docs/4.naming.md)
-- [Modules](docs/5.modules.md)
+- [API](docs/1.api.md)
+- [Development guide](docs/2.development.md)
+- [Instances internals](docs/3.instances.md)
 - [Docs index](docs/README.md)

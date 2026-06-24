@@ -18,10 +18,15 @@
     "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "docs:contract": "node scripts/check-doc-test-contract.mjs",
+    "api:contract": "node scripts/generate-api-contract.mjs",
+    "docs:api-sync": "npm run api:contract && node scripts/check-api-doc-sync.mjs",
+    "docs:sync": "npm run docs:contract && npm run docs:api-sync",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "playwright test",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:ci": "npm run format:check && npm run docs:sync && npm test && npm run test:browser"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",

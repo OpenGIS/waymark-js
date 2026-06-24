@@ -46,7 +46,7 @@ Waymark JS is a small JavaScript map library built on [MapLibre GL](https://mapl
 **Key facts:**
 - Entry point: \`import { createInstance } from './dist/waymark.js'\`
 - Source: \`src/\` — built with Vite into \`dist/\`
-- Tests: \`npm test\` and \`npm run test:browser\` (workflow in \`docs/1.development.md\`)
+- Tests: \`npm test\` and \`npm run test:browser\` (workflow in \`docs/2.development.md\`)
 - Docs source: \`docs/\` (also generates this skill file)
 
 ---
