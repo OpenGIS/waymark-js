@@ -18,7 +18,10 @@ Waymark JS is a small JavaScript map library built on [MapLibre GL](https://mapl
 
 # API
 
-> Consumer API reference for `createInstance(id?, config?, geoJSON?)`.
+> Consumer API reference for `createInstance(config?, geoJSON?)`.
+
+> [!NOTE]
+> API heading names and `api-contract` marker blocks are enforced by sync automation. Change them only alongside matching tests and sync scripts.
 
 ## Quick start
 
@@ -28,7 +31,7 @@ Waymark JS is a small JavaScript map library built on [MapLibre GL](https://mapl
 <script type="module">
   import { createInstance } from "./dist/waymark.js";
 
-  const instance = createInstance("map");
+  const instance = createInstance({ id: "map" });
   instance.map.on("load", () => {
     console.log(instance.getSnapshot());
   });
@@ -39,21 +42,20 @@ Waymark JS is a small JavaScript map library built on [MapLibre GL](https://mapl
 
 <!-- api-contract:signature:start -->
 
-`createInstance(id?, config?, geoJSON?)`
+`createInstance(config?, geoJSON?)`
 
 <!-- api-contract:signature:end -->
 
-| Parameter | Type     | Required | Behaviour                                                                                  |
-| --------- | -------- | -------- | ------------------------------------------------------------------------------------------ |
-| `id`      | `string` | No       | Container ID. If omitted, Waymark creates and appends a random `<div>` to `document.body`. |
-| `config`  | `object` | No       | Consumer config merged onto defaults.                                                      |
-| `geoJSON` | `object` | No       | Initial GeoJSON source data for the instance-scoped line layer.                            |
+| Parameter | Type     | Required | Behaviour                                                                                                  |
+| --------- | -------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `config`  | `object` | No       | Consumer config merged onto defaults. Set container ID via `config.id` when targeting an existing element. |
+| `geoJSON` | `object` | No       | Initial GeoJSON source data for the instance-scoped line layer.                                            |
 
 ## Container resolution
 
-- A provided `id` must already exist in the DOM.
+- A provided `config.id` must already exist in the DOM.
 - If that element is missing, `createInstance(...)` throws `Waymark container "{id}" was not found.`.
-- If `id` is omitted, Waymark generates an ID prefixed with `waymark-` and appends the container to `document.body`.
+- If `config.id` is omitted, Waymark generates an ID prefixed with `waymark-` and appends the container to `document.body`.
 
 ## Config defaults and merge behaviour
 
@@ -72,12 +74,32 @@ Waymark resolves config with a deep merge:
 - `map.options.attributionControl`: `false`
 <!-- api-contract:defaults:end -->
 
+- `ui.mode`: `"view"` (invalid values fall back to `"view"`)
+
+Accepted `ui.mode` values:
+
+- `"view"` (default): mounts the shell but renders no mode-specific content.
+- `"debug"`: renders the snapshot inspector panel.
+
+Any other value is normalised to `"view"`.
+
+## UI shell mode rendering
+
+Waymark mounts a per-instance Vue shell in the target map container (`data-waymark-app="true"`) and renders mode-specific content through nested mode components:
+
+- `src/ui/InstanceShell.vue`
+- `src/ui/modes/InstanceShellModeView.vue`
+- `src/ui/modes/InstanceShellModeDebug.vue`
+
+In `"view"` mode, the shell is present but intentionally empty. In `"debug"` mode, the shell renders a `<details>` panel labelled **Instance snapshot** with the latest serialised snapshot payload.
+
 ## Map options pass-through
 
-All map options are passed through via `config.map.options` to `new Map(options)`, except `container`, which Waymark always controls from `createInstance(id)`.
+All map options are passed through via `config.map.options` to `new Map(options)`, except `container`, which Waymark always controls from `config.id`.
 
 ```js
-createInstance("map", {
+createInstance({
+  id: "map",
   map: {
     options: {
       center: [-0.1276, 51.5074],
@@ -168,7 +190,7 @@ Forwarded map event payload shape:
     pitch: number
   },
   ui: {
-    hasAppShell: boolean
+    mode: "view" | "debug"
   },
   data: {
     geojson: {
@@ -180,15 +202,30 @@ Forwarded map event payload shape:
 }
 ```
 
+`ui` contains only `mode`. Older `ui.hasAppShell` references are no longer part of the snapshot contract.
+
 ## Initial GeoJSON overlay
 
-When `geoJSON` is provided as the third argument, Waymark adds an instance-scoped GeoJSON source and line layer on load (or immediately if the map is already loaded).
+When `geoJSON` is provided as the second argument, Waymark adds an instance-scoped GeoJSON source and line layer on load (or immediately if the map is already loaded).
 
 ```js
-createInstance("map", undefined, {
-  type: "FeatureCollection",
-  features: [],
-});
+createInstance(
+  {
+    id: "map",
+  },
+  {
+    type: "FeatureCollection",
+    features: [],
+  },
+);
+
+createInstance(
+  {},
+  {
+    type: "FeatureCollection",
+    features: [],
+  },
+);
 ```
 
 GeoJSON source/layer IDs are instance-scoped to avoid collisions.
@@ -225,6 +262,19 @@ Keep runtime internals internal. Consumer docs and tests should target public AP
 
 - `tests/docs/*.test.js` (Vitest + jsdom): API contract tests without WebGL.
 - `tests/browser/*.test.js` (Playwright): browser API and dev-page smoke behaviour.
+
+## Dev page mode setup
+
+`src/dev.js` intentionally boots two instances with one mode per instance:
+
+- `#map` uses `ui.mode: "view"`
+- `#map-two` uses `ui.mode: "debug"`
+
+This gives a stable baseline for browser smoke coverage in `tests/browser/2.development.test.js`:
+
+- both containers and canvases render
+- view-mode shell stays empty
+- debug-mode shell renders the snapshot panel
 
 Run:
 
@@ -265,6 +315,56 @@ Execution order:
 
 If this gate fails, fix docs headings/marker blocks and corresponding test `describe(...)` names in the same change.
 
+## Adding or changing API sections safely
+
+Use this convention whenever you add, rename, or remove a section in `docs/1.api.md`.
+
+### API section naming
+
+- Use stable heading text in sentence case (for example, `## Snapshot shape`).
+- Treat each heading name as automation-backed contract text, not editorial copy.
+
+### One-to-one heading and `describe(...)` mapping
+
+- Each API section heading in `docs/1.api.md` must have matching `describe(...)` blocks in:
+  - `tests/docs/1.api.test.js`
+  - `tests/browser/1.api.test.js`
+- The `describe(...)` names must be identical to the heading text.
+
+### Manifest updates
+
+- When adding or renaming an API section, update `scripts/doc-test-contract.json` in the same change:
+  - `requiredHeadings`
+  - `describeMappings`
+
+### Marker blocks for source-derived facts
+
+- Source-derived API facts in `docs/1.api.md` must be wrapped in marker blocks:
+
+```html
+<!-- api-contract:<name>:start -->
+...
+<!-- api-contract:<name>:end -->
+```
+
+- Keep `<name>` stable once introduced.
+
+### Extending source-derived contract fields
+
+- If you add a new source-derived contract field, update all three in the same change:
+  1. `scripts/generate-api-contract.mjs`
+  2. `scripts/check-api-doc-sync.mjs`
+  3. The matching marker block in `docs/1.api.md`
+
+### Practical checklist
+
+1. Add or rename the API section heading in `docs/1.api.md` (stable sentence case).
+2. Add or rename matching `describe(...)` blocks in both API test files with identical names.
+3. Update `scripts/doc-test-contract.json` (`requiredHeadings` and `describeMappings`).
+4. If the section includes source-derived facts, add or update the `api-contract` marker block.
+5. If you introduced a new source-derived field, update both sync scripts and the marker block together.
+6. Run `npm run format:check` and `npm run docs:sync` before handing off.
+
 Sync checklist:
 
 1. Update the relevant docs headings and examples.
@@ -280,7 +380,7 @@ Sync checklist:
 
 ## Anatomy at a glance
 
-`createInstance(...)` delegates to `createInstanceCore(...)`, which assembles one runtime core for one container ID.
+`createInstance(config?, geoJSON?)` delegates to `createInstanceCore(...)`, which assembles one runtime core for one resolved container ID.
 
 Key components:
 
@@ -293,7 +393,9 @@ Key components:
 | `src/config/resolveConfig.js`                          | Consumer config deep-merge with defaults.                               |
 | `src/map/createMap.js`                                 | MapLibre map creation from resolved `config.map.options`.               |
 | `src/state/createInstanceSnapshot.js`                  | Snapshot adapter for serialisable state output.                         |
-| `src/ui/createAppShell.js`, `src/ui/InstanceShell.vue` | Overlay shell mount/refresh/unmount wiring.                             |
+| `src/ui/createAppShell.js`, `src/ui/InstanceShell.vue` | Overlay shell mount/refresh/unmount wiring and mode selection boundary. |
+| `src/ui/modes/InstanceShellModeView.vue`               | View-mode component (intentionally no rendered debug panel).            |
+| `src/ui/modes/InstanceShellModeDebug.vue`              | Debug-mode component (snapshot `<details>` inspector UI).               |
 | `src/geojson/createGeoJSONModule.js`                   | Instance-scoped GeoJSON source/layer lifecycle.                         |
 
 ## Internal orchestration boundaries
@@ -312,11 +414,20 @@ Key components:
 
 This grouping is internal lifecycle wiring, not part of the consumer API.
 
+## UI mode state boundary
+
+- Resolved mode originates from `resolveConfig(...)` and is normalised to `"view" | "debug"`.
+- Core tracks mode in `core.ui.mode`.
+- Snapshot reads mode through `createInstanceSnapshot({ getMode })` and emits `snapshot.ui.mode`.
+- Shell updates flow through `core.modules.appShell.setMode(...)`.
+
+`lifecycle.setMode(...)` exists for internal runtime wiring and tests; it is not exposed on the public instance API.
+
 ## Lifecycle order
 
 Create flow:
 
-1. Resolve container and check registry reuse.
+1. Resolve container from `config.id` (or auto-create one) and check registry reuse.
 2. Resolve config and create map.
 3. Create event bus and runtime components.
 4. Build snapshot adapter.
@@ -345,9 +456,9 @@ Developer documentation for Waymark JS.
 
 ## Reading order
 
-1. [API](1.api.md) - Consumer API contract for `createInstance(...)`, events, defaults, snapshots, and GeoJSON.
-2. [Development](2.development.md) - Contributor workflow, conventions, testing strategy, and sync protocol.
-3. [Instances](3.instances.md) - Internal instance anatomy and orchestration boundaries.
+1. [API](1.api.md) - Consumer API contract for `createInstance(config?, geoJSON?)`, config defaults, UI mode behaviour, events, snapshots, and GeoJSON.
+2. [Development](2.development.md) - Contributor workflow, dev-page mode baseline, testing strategy, and sync protocol.
+3. [Instances](3.instances.md) - Internal instance anatomy, mode-state boundaries, and orchestration internals.
 
 ## Scope
 

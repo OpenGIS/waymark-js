@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { nextTick } from "vue";
 
 vi.mock("maplibre-gl", () => {
   const MockMap = vi.fn(function (options) {
@@ -30,7 +31,10 @@ vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 
 import { createInstance } from "../../src/entry.js";
 import { resolveConfig } from "../../src/config/resolveConfig.js";
-import { clearRuntimeRegistry } from "../../src/core/runtimeRegistry.js";
+import {
+  clearRuntimeRegistry,
+  getCoreById,
+} from "../../src/core/runtimeRegistry.js";
 import { Map } from "maplibre-gl";
 
 describe("1. API", () => {
@@ -119,6 +123,82 @@ describe("1. API", () => {
       expect(resolved.map.options.zoom).toBe(2);
       expect(resolved.map.options.camera.padding.top).toBe(24);
     });
+
+    it("falls back to view mode when ui.mode is invalid", () => {
+      const resolved = resolveConfig({
+        ui: {
+          mode: "invalid-mode",
+        },
+      });
+
+      expect(resolved.ui.mode).toBe("view");
+    });
+  });
+
+  describe("UI shell mode rendering", () => {
+    it("keeps the shell mounted with empty mode content in view mode", () => {
+      createInstance({
+        id: "map",
+        ui: {
+          mode: "view",
+        },
+      });
+
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+
+      expect(shellMount).toBeTruthy();
+      expect(shellMount.querySelector("details")).toBeNull();
+    });
+
+    it("renders snapshot content in debug mode", async () => {
+      createInstance({
+        id: "map",
+        ui: {
+          mode: "debug",
+        },
+      });
+
+      await nextTick();
+
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+      const summary = shellMount?.querySelector("summary");
+
+      expect(summary?.textContent).toContain("Instance snapshot");
+      expect(shellMount?.textContent).toContain('"version": 1');
+    });
+
+    it("switches mode by clearing and repopulating shell mode content", async () => {
+      const instance = createInstance({
+        id: "map",
+        ui: {
+          mode: "debug",
+        },
+      });
+
+      await nextTick();
+
+      const core = getCoreById("map");
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+
+      expect(shellMount?.querySelector("details")).toBeTruthy();
+      expect(instance.getSnapshot().ui.mode).toBe("debug");
+
+      core.lifecycle.setMode("view");
+      await nextTick();
+      expect(shellMount?.querySelector("details")).toBeNull();
+      expect(instance.getSnapshot().ui.mode).toBe("view");
+
+      core.lifecycle.setMode("debug");
+      await nextTick();
+      expect(shellMount?.querySelector("details")).toBeTruthy();
+      expect(instance.getSnapshot().ui.mode).toBe("debug");
+    });
   });
 
   describe("Map options pass-through", () => {
@@ -191,6 +271,28 @@ describe("1. API", () => {
       expect(first.map.remove).toHaveBeenCalledTimes(1);
       expect(second).not.toBe(first);
       expect(Map).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps destroy and reuse stable after internal mode switching", () => {
+      const first = createInstance({ id: "map", ui: { mode: "view" } });
+      const firstCore = getCoreById("map");
+
+      firstCore.lifecycle.setMode("debug");
+      firstCore.lifecycle.setMode("view");
+
+      first.destroy();
+      expect(
+        document.querySelector('#map [data-waymark-app="true"]'),
+      ).toBeNull();
+
+      const second = createInstance({ id: "map", ui: { mode: "debug" } });
+      const secondShellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+
+      expect(second).not.toBe(first);
+      expect(secondShellMount).toBeTruthy();
+      expect(secondShellMount?.querySelector("details")).toBeTruthy();
     });
   });
 
@@ -281,7 +383,7 @@ describe("1. API", () => {
             pitch: 30,
           },
           ui: {
-            hasAppShell: true,
+            mode: "view",
           },
           data: {
             geojson: expect.objectContaining({

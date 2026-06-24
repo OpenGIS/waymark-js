@@ -6,5 +6,8 @@
       "style": "https://tiles.openfreemap.org/styles/bright",
       "attributionControl": false
     }
+  },
+  "ui": {
+    "mode": "view"
   }
 }

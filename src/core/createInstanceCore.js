@@ -49,8 +49,9 @@ import {
  * @property {WaymarkInstancePublicApi} publicApi
  * @property {{ container: HTMLElement, emit: (type: string, detail: import('./createInstanceEvents.js').WaymarkInstanceLifecycleEventDetail | import('./createInstanceEvents.js').WaymarkInstanceMapEventDetail) => void, on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void, once: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void }} events
  * @property {{ getSnapshot: () => import('../state/createInstanceSnapshot.js').WaymarkInstanceSnapshot }} snapshot
- * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void }, mapEvents: { destroy: () => void } }} modules
- * @property {{ phase: 'ready' | 'destroyed', destroy: () => void }} lifecycle
+ * @property {{ mode: 'view' | 'debug' }} ui
+ * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, setMode: (mode: 'view' | 'debug') => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void }, mapEvents: { destroy: () => void } }} modules
+ * @property {{ phase: 'ready' | 'destroyed', destroy: () => void, setMode: (mode: 'view' | 'debug') => void }} lifecycle
  */
 
 /**
@@ -58,6 +59,37 @@ import {
  */
 function createLifecycleDetail(id) {
   return { id };
+}
+
+/**
+ * @param {unknown} mode
+ * @returns {'view' | 'debug'}
+ */
+function normaliseMode(mode) {
+  return mode === "debug" ? "debug" : "view";
+}
+
+/**
+ * @param {WaymarkInstanceCore} core
+ * @param {'view' | 'debug'} mode
+ */
+function setCoreMode(core, mode) {
+  if (core.lifecycle.phase === "destroyed") {
+    return;
+  }
+
+  const nextMode = normaliseMode(mode);
+
+  if (core.ui.mode === nextMode) {
+    return;
+  }
+
+  core.ui.mode = nextMode;
+  core.config.ui.mode = nextMode;
+
+  if (core.modules.appShell) {
+    core.modules.appShell.setMode(nextMode);
+  }
 }
 
 /**
@@ -117,6 +149,7 @@ export function createInstanceCore(config, geoJSON) {
   const appShell = createAppShell(containerId, {
     events,
     getSnapshot: () => core?.snapshot?.getSnapshot() ?? null,
+    mode: resolvedConfig.ui.mode,
   });
   const geoJSONModule = createGeoJSONModule(map, containerId, geoJSON);
   const mapEventsModule = forwardMapEventsToInstanceContainer({
@@ -132,6 +165,9 @@ export function createInstanceCore(config, geoJSON) {
     publicApi: null,
     events,
     snapshot: null,
+    ui: {
+      mode: resolvedConfig.ui.mode,
+    },
     modules: {
       appShell,
       geoJSON: geoJSONModule,
@@ -140,11 +176,13 @@ export function createInstanceCore(config, geoJSON) {
     lifecycle: {
       phase: "ready",
       destroy: () => destroyCore(core),
+      setMode: (mode) => setCoreMode(core, mode),
     },
   };
 
   core.snapshot = createInstanceSnapshot({
     map: core.map,
+    getMode: () => core.ui.mode,
     modules: core.modules,
   });
 

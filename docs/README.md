@@ -1,5 +1,5 @@
 ---
-git_hash: ""
+git_hash: "f4bfb0934867decbcac7b792d76fbfed3051ea22"
 modified: "2026-06-24"
 ---
 
@@ -9,9 +9,9 @@ Developer documentation for Waymark JS.
 
 ## Reading order
 
-1. [API](1.api.md) - Consumer API contract for `createInstance(config?, geoJSON?)`, events, defaults, snapshots, and GeoJSON.
-2. [Development](2.development.md) - Contributor workflow, conventions, testing strategy, and sync protocol.
-3. [Instances](3.instances.md) - Internal instance anatomy and orchestration boundaries.
+1. [API](1.api.md) - Consumer API contract for `createInstance(config?, geoJSON?)`, config defaults, UI mode behaviour, events, snapshots, and GeoJSON.
+2. [Development](2.development.md) - Contributor workflow, dev-page mode baseline, testing strategy, and sync protocol.
+3. [Instances](3.instances.md) - Internal instance anatomy, mode-state boundaries, and orchestration internals.
 
 ## Scope
 

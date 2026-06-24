@@ -9,6 +9,7 @@ import {
   WAYMARK_MAP_ROTATEEND_EVENT,
   WAYMARK_MAP_ZOOMEND_EVENT,
 } from "./core/createInstanceEvents.js";
+import { getCoreById } from "./core/runtimeRegistry.js";
 
 const DEV_INSTANCE_CONTAINER_EVENTS = [
   WAYMARK_INSTANCE_CREATED_EVENT,
@@ -29,6 +30,63 @@ function attachDevContainerEventLogging(instance, label) {
   }
 }
 
+function createDevModeSelect({ id, labelText }) {
+  const label = document.createElement("label");
+  label.htmlFor = id;
+  label.textContent = `${labelText}: `;
+
+  const select = document.createElement("select");
+  select.id = id;
+
+  for (const mode of ["view", "debug"]) {
+    const option = document.createElement("option");
+    option.value = mode;
+    option.textContent = mode;
+    select.append(option);
+  }
+
+  label.append(select);
+
+  return { label, select };
+}
+
+function createDevModeDropdowns() {
+  const controls = document.createElement("div");
+  controls.id = "dev-controls";
+  controls.style.padding = "0.5rem";
+  controls.style.background = "#f8f9fb";
+
+  const mapMode = createDevModeSelect({
+    id: "dev-instance-mode",
+    labelText: "#map ui.mode",
+  });
+  const mapTwoMode = createDevModeSelect({
+    id: "dev-instance-mode-two",
+    labelText: "#map-two ui.mode",
+  });
+
+  controls.append(mapMode.label, mapTwoMode.label);
+  document.body.prepend(controls);
+
+  return {
+    mapModeSelect: mapMode.select,
+    mapTwoModeSelect: mapTwoMode.select,
+  };
+}
+
+function wireDevModeDropdown(select, instanceId) {
+  select.addEventListener("change", () => {
+    const core = getCoreById(instanceId);
+
+    if (!core) {
+      return;
+    }
+
+    const nextMode = select.value === "debug" ? "debug" : "view";
+    core.lifecycle.setMode(nextMode);
+  });
+}
+
 const mapContainer = document.getElementById("map");
 
 if (!mapContainer) {
@@ -47,6 +105,9 @@ secondMapContainer.style.height = "50vh";
 
 const waymarkInstance = createInstance({
   id: "map",
+  ui: {
+    mode: "view",
+  },
   map: {
     options: {
       center: [-128.0094, 50.6539],
@@ -75,6 +136,9 @@ const waymarkInstance = createInstance({
 
 const waymarkInstanceTwo = createInstance({
   id: "map-two",
+  ui: {
+    mode: "debug",
+  },
   map: {
     options: {
       center: [-0.1276, 51.5074],
@@ -101,6 +165,14 @@ const waymarkInstanceTwo = createInstance({
     },
   },
 });
+
+const { mapModeSelect, mapTwoModeSelect } = createDevModeDropdowns();
+
+mapModeSelect.value = waymarkInstance.getSnapshot().ui.mode;
+mapTwoModeSelect.value = waymarkInstanceTwo.getSnapshot().ui.mode;
+
+wireDevModeDropdown(mapModeSelect, waymarkInstance.id);
+wireDevModeDropdown(mapTwoModeSelect, waymarkInstanceTwo.id);
 
 attachDevContainerEventLogging(waymarkInstance, "map");
 attachDevContainerEventLogging(waymarkInstanceTwo, "map-two");

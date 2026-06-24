@@ -61,7 +61,16 @@ Handlers receive `CustomEvent`s dispatched from the instance container (`waymark
 
 See [`docs/1.api.md`](docs/1.api.md#instance-event-api) for payload shapes and usage notes.
 
-`instance.getSnapshot()` returns a serialisable per-instance snapshot from `src/state/createInstanceSnapshot.js`. Waymark also mounts a minimal Vue SFC instance shell (`src/ui/InstanceShell.vue`) in the map container that displays a readable live snapshot overview for development wiring checks. Shell refresh is driven by forwarded container events (`waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`) using end-event defaults rather than raw high-frequency map motion listeners. Runtime instance tracking is handled separately by the internal runtime registry in `src/core/runtimeRegistry.js`.
+`instance.getSnapshot()` returns a serialisable per-instance snapshot from `src/state/createInstanceSnapshot.js`, including `ui.mode` (`"view"` or `"debug"`).
+
+Waymark always mounts a Vue app shell (`src/ui/InstanceShell.vue`) in the map container. The shell content is mode-driven:
+
+- `view` (default): shell present, no mode content
+- `debug`: shell renders the **Instance snapshot** inspector via `src/ui/modes/InstanceShellModeDebug.vue`
+
+`config.ui.mode` is normalised to `view` when invalid.
+
+Shell refresh is driven by forwarded container events (`waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`) using end-event defaults rather than raw high-frequency map motion listeners. Runtime instance tracking is handled separately by the internal runtime registry in `src/core/runtimeRegistry.js`.
 
 ## Naming glossary
 

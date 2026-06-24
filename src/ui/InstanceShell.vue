@@ -1,28 +1,31 @@
 <script setup>
 import { computed } from "vue";
+import InstanceShellModeDebug from "./modes/InstanceShellModeDebug.vue";
+import InstanceShellModeView from "./modes/InstanceShellModeView.vue";
 
 const props = defineProps({
+  mode: {
+    type: String,
+    required: true,
+  },
   snapshot: {
     type: Object,
     default: null,
   },
 });
 
-const formattedSnapshot = computed(() => {
-  if (!props.snapshot) {
-    return "{}";
+const modeComponent = computed(() => {
+  if (props.mode === "debug") {
+    return InstanceShellModeDebug;
   }
 
-  return JSON.stringify(props.snapshot, null, 2);
+  return InstanceShellModeView;
 });
 </script>
 
 <template>
   <aside class="waymark-instance-shell" aria-live="polite">
-    <details open>
-      <summary>Instance snapshot</summary>
-      <pre>{{ formattedSnapshot }}</pre>
-    </details>
+    <component :is="modeComponent" :key="mode" :snapshot="snapshot" />
   </aside>
 </template>
 
@@ -34,32 +37,5 @@ const formattedSnapshot = computed(() => {
   z-index: 1;
   max-width: min(32rem, calc(100% - 1rem));
   pointer-events: none;
-}
-
-details {
-  margin: 0;
-  border-radius: 0.25rem;
-  background: rgb(255 255 255 / 90%);
-}
-
-summary {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.4;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-pre {
-  margin: 0;
-  padding: 0.5rem;
-  max-height: 40vh;
-  overflow: auto;
-  border-radius: 0 0 0.25rem 0.25rem;
-  font-size: 0.6875rem;
-  line-height: 1.4;
-  background: rgb(255 255 255 / 92%);
-  pointer-events: auto;
 }
 </style>

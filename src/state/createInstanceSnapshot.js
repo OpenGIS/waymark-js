@@ -12,7 +12,7 @@
 
 /**
  * @typedef {object} WaymarkUISnapshot
- * @property {boolean} hasAppShell
+ * @property {'view' | 'debug'} mode
  */
 
 /**
@@ -44,12 +44,12 @@ function snapshotMap(map) {
 }
 
 /**
- * @param {{ app: import('vue').App, mountElement: HTMLElement } | null} appShell
+ * @param {'view' | 'debug'} mode
  * @returns {WaymarkUISnapshot}
  */
-function snapshotUI(appShell) {
+function snapshotUI(mode) {
   return {
-    hasAppShell: Boolean(appShell),
+    mode,
   };
 }
 
@@ -77,14 +77,14 @@ function cloneSnapshot(value) {
 /**
  * @param {{
  *   map: WaymarkMap,
+ *   getMode: () => 'view' | 'debug',
  *   modules: {
- *     appShell: { app: import('vue').App, mountElement: HTMLElement } | null,
  *     geoJSON: { sourceId: string, layerId: string, geoJSON: object | null }
  *   }
  * }} options
  */
 export function createInstanceSnapshot(options) {
-  const { map, modules } = options;
+  const { map, getMode, modules } = options;
 
   return {
     /**
@@ -94,7 +94,7 @@ export function createInstanceSnapshot(options) {
       return cloneSnapshot({
         version: 1,
         map: snapshotMap(map),
-        ui: snapshotUI(modules.appShell),
+        ui: snapshotUI(getMode()),
         data: snapshotData(modules.geoJSON),
       });
     },

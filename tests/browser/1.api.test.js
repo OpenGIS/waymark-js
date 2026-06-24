@@ -106,6 +106,22 @@ test.describe("1. API", () => {
       expect(result.zoom).toBe(2);
       expect(result.center).toEqual([0, 0]);
     });
+
+    test("falls back to view mode when ui.mode is invalid", async ({
+      page,
+    }) => {
+      const mode = await page.evaluate(() => {
+        const instance = window.waymarkFixture.createInstance({
+          id: "map",
+          ui: { mode: "invalid-mode" },
+          map: { options: { style: { version: 8, sources: {}, layers: [] } } },
+        });
+
+        return instance.getSnapshot().ui.mode;
+      });
+
+      expect(mode).toBe("view");
+    });
   });
 
   test.describe("Map options pass-through", () => {
@@ -302,7 +318,7 @@ test.describe("1. API", () => {
             bearing: expect.any(Number),
             pitch: expect.any(Number),
           }),
-          ui: expect.objectContaining({ hasAppShell: expect.any(Boolean) }),
+          ui: expect.objectContaining({ mode: "view" }),
           data: expect.objectContaining({
             geojson: expect.objectContaining({
               sourceId: expect.any(String),
