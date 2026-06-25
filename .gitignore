@@ -27,3 +27,6 @@ dist-ssr
 test-results/
 playwright-report/
 coverage/
+
+# Joe Wordkflow
+TASK.md
