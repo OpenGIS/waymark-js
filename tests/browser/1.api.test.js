@@ -82,7 +82,7 @@ test.describe("1. API", () => {
     });
 
     test("supports round-trip instance document reuse", async ({ page }) => {
-      const result = await page.evaluate((inlineStyle) => {
+      const result = await page.evaluate(async (inlineStyle) => {
         const first = window.waymarkFixture.createInstance({
           config: {
             id: "map",
@@ -299,10 +299,10 @@ test.describe("1. API", () => {
   });
 
   test.describe("UI shell mode rendering", () => {
-    test("keeps shell mounted in view mode and renders debug payload panel in debug mode", async ({
+    test("keeps shell mounted in view mode and renders debug sections in debug mode", async ({
       page,
     }) => {
-      const result = await page.evaluate((inlineStyle) => {
+      const result = await page.evaluate(async (inlineStyle) => {
         window.waymarkFixture.createInstance({
           config: {
             id: "map",
@@ -322,7 +322,9 @@ test.describe("1. API", () => {
         const viewShell = document.querySelector(
           '#map [data-waymark-app="true"]',
         );
-        const viewHasDetails = Boolean(viewShell?.querySelector("details"));
+        const viewHasDebugPanel = Boolean(
+          viewShell?.querySelector('[data-waymark-debug-panel="true"]'),
+        );
 
         window.waymarkFixture.createInstance({
           config: {
@@ -343,20 +345,109 @@ test.describe("1. API", () => {
         const debugShell = document.querySelector(
           '#map [data-waymark-app="true"]',
         );
-        const summary = debugShell?.querySelector("summary")?.textContent ?? "";
+
+        const debugPanel = debugShell?.querySelector(
+          '[data-waymark-debug-panel="true"]',
+        );
+        const debugControl = debugShell?.querySelector(
+          '[data-waymark-control="debug-output-toggle"]',
+        );
+        const headingTexts = [
+          ...(debugPanel?.querySelectorAll("h2") ?? []),
+        ].map((heading) => heading.textContent);
+        window.waymarkFixture
+          .getRuntimeMap("map")
+          .fire("moveend", { type: "moveend", source: "browser-test" });
+        await Promise.resolve();
+        const eventsJSON =
+          debugPanel?.querySelectorAll("pre")?.[1]?.textContent ?? "[]";
+        const events = JSON.parse(eventsJSON);
 
         return {
           hasShell: Boolean(viewShell),
-          viewHasDetails,
-          debugHasDetails: Boolean(debugShell?.querySelector("details")),
-          summary,
+          viewHasDebugPanel,
+          hasDebugPanel: Boolean(debugPanel),
+          hasDebugControl: Boolean(debugControl),
+          headingTexts,
+          eventsLength: events.length,
+          lastEventType: events.at(-1)?.type ?? null,
+          lastEventSummary: events.at(-1)?.detail ?? null,
         };
       }, INLINE_STYLE);
 
       expect(result.hasShell).toBe(true);
-      expect(result.viewHasDetails).toBe(false);
-      expect(result.debugHasDetails).toBe(true);
-      expect(result.summary).toContain("Instance debug payload");
+      expect(result.viewHasDebugPanel).toBe(false);
+      expect(result.hasDebugPanel).toBe(true);
+      expect(result.hasDebugControl).toBe(true);
+      expect(result.headingTexts).toEqual([
+        "Instance document",
+        "Waymark events (last 25)",
+      ]);
+      expect(result.eventsLength).toBeGreaterThan(0);
+      expect(result.lastEventType).toBe("waymark:map.moveend");
+      expect(result.lastEventSummary).toEqual(
+        expect.objectContaining({
+          mapEvent: "moveend",
+          hasOriginalEvent: true,
+          originalEventType: "moveend",
+        }),
+      );
+    });
+
+    test("toggles debug outputs from the internal debug control", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async (inlineStyle) => {
+        window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+            ui: { mode: "debug" },
+            map: {
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: inlineStyle,
+                  },
+                ],
+              },
+            },
+          },
+        });
+
+        const shell = document.querySelector('#map [data-waymark-app="true"]');
+        const control = shell?.querySelector(
+          '[data-waymark-control="debug-output-toggle"]',
+        );
+        const hasPanelInitially = Boolean(
+          shell?.querySelector('[data-waymark-debug-panel="true"]'),
+        );
+
+        control?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await Promise.resolve();
+        const hasPanelAfterFirstClick = Boolean(
+          shell?.querySelector('[data-waymark-debug-panel="true"]'),
+        );
+
+        control?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await Promise.resolve();
+        const hasPanelAfterSecondClick = Boolean(
+          shell?.querySelector('[data-waymark-debug-panel="true"]'),
+        );
+
+        return {
+          hasControl: Boolean(control),
+          hasPanelInitially,
+          hasPanelAfterFirstClick,
+          hasPanelAfterSecondClick,
+        };
+      }, INLINE_STYLE);
+
+      expect(result).toEqual({
+        hasControl: true,
+        hasPanelInitially: true,
+        hasPanelAfterFirstClick: false,
+        hasPanelAfterSecondClick: true,
+      });
     });
   });
 

@@ -2,53 +2,92 @@
 import { computed } from "vue";
 
 const props = defineProps({
-  debugPayload: {
+  instanceDocument: {
     type: Object,
     default: null,
   },
+  waymarkEvents: {
+    type: Array,
+    default: () => [],
+  },
+  debugOutputVisible: {
+    type: Boolean,
+    default: true,
+  },
 });
 
-const formattedDebugPayload = computed(() => {
-  if (!props.debugPayload) {
+const formattedInstanceDocument = computed(() => {
+  if (!props.instanceDocument) {
     return "{}";
   }
 
-  return JSON.stringify(props.debugPayload, null, 2);
+  return JSON.stringify(props.instanceDocument, null, 2);
+});
+
+const formattedWaymarkEvents = computed(() => {
+  if (!Array.isArray(props.waymarkEvents) || props.waymarkEvents.length === 0) {
+    return "[]";
+  }
+
+  return JSON.stringify(props.waymarkEvents, null, 2);
 });
 </script>
 
 <template>
-  <details open>
-    <summary>Instance debug payload</summary>
-    <pre>{{ formattedDebugPayload }}</pre>
-  </details>
+  <section
+    v-if="debugOutputVisible"
+    class="waymark-instance-shell-debug-panel"
+    data-waymark-debug-panel="true"
+  >
+    <section>
+      <h2>Instance document</h2>
+      <pre>{{ formattedInstanceDocument }}</pre>
+    </section>
+
+    <section>
+      <h2>Waymark events (last 25)</h2>
+      <pre>{{ formattedWaymarkEvents }}</pre>
+    </section>
+  </section>
 </template>
 
 <style scoped>
-details {
+.waymark-instance-shell-debug-panel {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  width: min(36rem, calc(100% - 1rem));
   margin: 0;
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.5rem;
   border-radius: 0.25rem;
-  background: rgb(255 255 255 / 90%);
+  background: rgb(255 255 255 / 92%);
+  pointer-events: auto;
 }
 
-summary {
-  padding: 0.25rem 0.5rem;
+.waymark-instance-shell-debug-panel section {
+  margin: 0;
+}
+
+.waymark-instance-shell-debug-panel h2 {
+  margin: 0;
+  padding: 0 0 0.25rem;
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.4;
-  cursor: pointer;
-  pointer-events: auto;
 }
 
 pre {
   margin: 0;
   padding: 0.5rem;
-  max-height: 40vh;
+  max-height: 20vh;
   overflow: auto;
-  border-radius: 0 0 0.25rem 0.25rem;
+  border-radius: 0.25rem;
   font-size: 0.6875rem;
   line-height: 1.4;
-  background: rgb(255 255 255 / 92%);
+  background: rgb(255 255 255 / 95%);
   pointer-events: auto;
 }
 </style>

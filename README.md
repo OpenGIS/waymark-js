@@ -80,12 +80,12 @@ See [`docs/1.api.md`](docs/1.api.md#instance-event-api) for payload shapes and u
 
 `instance.toJSON()` returns a canonical serialisable per-instance document from `src/document/instanceDocument.js`, including `state.ui.mode` (`"view"` or `"debug"`).
 
-Runtime metadata is intentionally separate from `toJSON()` and exposed only through the debug payload used by the debug UI.
+Runtime metadata is intentionally separate from `toJSON()` and not part of the public debug output.
 
 Waymark always mounts a Vue app shell (`src/ui/InstanceShell.vue`) in the map container. The shell content is mode-driven:
 
 - `view` (default): shell present, no mode content
-- `debug`: shell renders the **Instance debug payload** inspector via `src/ui/modes/InstanceShellModeDebug.vue`
+- `debug`: shell renders a debug control button that toggles a debug panel with **Instance document** and **Waymark events (last 25)** sections
 
 `config.ui.mode` is normalised to `view` when invalid.
 
@@ -96,7 +96,7 @@ Shell refresh is driven by forwarded container events (`waymark:map.load`, `waym
 - **Instance**: the public object returned by `createInstance(...)` (`id`, `toJSON()`, `ui.setMode()`, `destroy()`, `on()`, `off()`, `once()`).
 - **Runtime core**: internal lifecycle object assembled by `src/runtime/createInstanceCore.js` and tracked in `src/runtime/runtimeRegistry.js`.
 - **InstanceDocument**: canonical serialisable plain object returned by `instance.toJSON()`.
-- **GeoJSON**: the map data format; canonical JSON keys are `data.geoJSON` (InstanceDocument) and `runtime.geoJSON` (debug payload).
+- **GeoJSON**: the map data format; canonical JSON key is `data.geoJSON` in the InstanceDocument.
 
 Set basemaps with `map.basemaps.vector[]` and `map.basemaps.raster[]`:
 

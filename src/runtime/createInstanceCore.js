@@ -8,7 +8,6 @@ import {
   normaliseMode,
   serialiseInstanceDocument,
 } from "../document/instanceDocument.js";
-import { createInstanceDebugPayload } from "../debug/createInstanceDebugPayload.js";
 import { deleteCoreById, getCoreById, setCoreById } from "./runtimeRegistry.js";
 import {
   createInstanceEvents,
@@ -59,7 +58,6 @@ import {
  * @property {WaymarkInstancePublicApi} publicApi
  * @property {{ container: HTMLElement, emit: (type: string, detail: import('./createInstanceEvents.js').WaymarkInstanceLifecycleEventDetail | import('./createInstanceEvents.js').WaymarkInstanceMapEventDetail | import('./createInstanceEvents.js').WaymarkInstanceModuleEventDetail) => void, on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void, once: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void }} events
  * @property {{ toJSON: () => WaymarkInstanceDocument }} instanceDocument
- * @property {{ toJSON: () => object }} debug
  * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, setMode: (mode: 'view' | 'debug') => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void }, rasterBasemaps: { destroy: () => void }, mapEvents: { destroy: () => void }, stateSync: { destroy: () => void } }} modules
  * @property {{ phase: 'ready' | 'destroyed', destroy: () => void }} lifecycle
  */
@@ -268,7 +266,7 @@ export function createInstanceCore(instanceDocument) {
   let core = null;
   const appShell = createAppShell(containerId, {
     events,
-    getDebugPayload: () => core?.debug?.toJSON() ?? null,
+    getInstanceDocument: () => core?.instanceDocument?.toJSON() ?? null,
     mode: resolvedConfig.ui.mode,
   });
   const geoJSONModule = createGeoJSONModule(
@@ -290,7 +288,6 @@ export function createInstanceCore(instanceDocument) {
     publicApi: null,
     events,
     instanceDocument: null,
-    debug: null,
     modules: {
       appShell,
       geoJSON: geoJSONModule,
@@ -356,19 +353,6 @@ export function createInstanceCore(instanceDocument) {
         },
       }),
   };
-
-  core.debug = createInstanceDebugPayload({
-    getInstanceDocument: () => core.instanceDocument.toJSON(),
-    getRuntimeMetadata: () => ({
-      lifecycle: {
-        phase: core.lifecycle.phase,
-      },
-      geoJSON: {
-        sourceId: core.modules.geoJSON.sourceId,
-        layerId: core.modules.geoJSON.layerId,
-      },
-    }),
-  });
 
   if (core.modules.appShell) {
     core.modules.appShell.refresh();

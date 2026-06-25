@@ -14,10 +14,16 @@ test.describe("2. Development smoke", () => {
     await expect(page.locator("#map-two canvas")).toBeVisible();
 
     await expect(
-      page.locator("#map .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-debug-panel="true"]'),
     ).toHaveCount(0);
     await expect(
-      page.locator("#map-two .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(1);
 
     const basemapConfig = await page.evaluate(() => ({
@@ -52,10 +58,16 @@ test.describe("2. Development smoke", () => {
     await expect(mapTwoModeSelect).toHaveValue("debug");
 
     await expect(
-      page.locator("#map .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-debug-panel="true"]'),
     ).toHaveCount(0);
     await expect(
-      page.locator("#map-two .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(1);
 
     const modes = await page.evaluate(() => ({
@@ -71,10 +83,13 @@ test.describe("2. Development smoke", () => {
     await mapModeSelect.selectOption("debug");
     await expect(mapModeSelect).toHaveValue("debug");
     await expect(
-      page.locator("#map .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-debug-panel="true"]'),
     ).toHaveCount(1);
     await expect(
-      page.locator("#map-two .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
     ).toHaveCount(1);
 
     const afterMapDebug = await page.evaluate(() => ({
@@ -90,10 +105,16 @@ test.describe("2. Development smoke", () => {
     await mapTwoModeSelect.selectOption("view");
     await expect(mapTwoModeSelect).toHaveValue("view");
     await expect(
-      page.locator("#map .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-debug-panel="true"]'),
     ).toHaveCount(1);
     await expect(
-      page.locator("#map-two .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(0);
 
     const afterMapTwoView = await page.evaluate(() => ({
@@ -109,10 +130,16 @@ test.describe("2. Development smoke", () => {
     await mapModeSelect.selectOption("view");
     await expect(mapModeSelect).toHaveValue("view");
     await expect(
-      page.locator("#map .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-debug-panel="true"]'),
     ).toHaveCount(0);
     await expect(
-      page.locator("#map-two .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(0);
 
     const afterMapView = await page.evaluate(() => ({
@@ -128,10 +155,16 @@ test.describe("2. Development smoke", () => {
     await mapTwoModeSelect.selectOption("debug");
     await expect(mapTwoModeSelect).toHaveValue("debug");
     await expect(
-      page.locator("#map .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-debug-panel="true"]'),
     ).toHaveCount(0);
     await expect(
-      page.locator("#map-two .waymark-instance-shell details"),
+      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(1);
 
     const finalModes = await page.evaluate(() => ({
@@ -143,6 +176,10 @@ test.describe("2. Development smoke", () => {
       map: "view",
       mapTwo: "debug",
     });
+
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(1);
   });
 
   test("dev globals remain available for manual debugging", async ({
@@ -162,5 +199,27 @@ test.describe("2. Development smoke", () => {
       hasInstanceOne: true,
       hasInstanceTwo: true,
     });
+  });
+
+  test("debug output toggle remains clickable above debug panel content", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const debugOutputToggle = page.locator(
+      '#map-two [data-waymark-control="debug-output-toggle"]',
+    );
+    const debugPanel = page.locator(
+      '#map-two [data-waymark-debug-panel="true"]',
+    );
+
+    await expect(debugOutputToggle).toBeVisible();
+    await expect(debugPanel).toHaveCount(1);
+
+    await debugOutputToggle.click();
+    await expect(debugPanel).toHaveCount(0);
+
+    await debugOutputToggle.click();
+    await expect(debugPanel).toHaveCount(1);
   });
 });

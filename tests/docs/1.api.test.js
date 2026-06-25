@@ -416,7 +416,7 @@ describe("1. API", () => {
   });
 
   describe("UI shell mode rendering", () => {
-    it("keeps the shell mounted with empty mode content in view mode", () => {
+    it("keeps the shell mounted and hidden in view mode", () => {
       createInstance({
         config: {
           id: "map",
@@ -431,10 +431,12 @@ describe("1. API", () => {
       );
 
       expect(shellMount).toBeTruthy();
-      expect(shellMount.querySelector("details")).toBeNull();
+      expect(
+        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
+      ).toBeNull();
     });
 
-    it("renders debug payload content in debug mode", async () => {
+    it("renders instance document and event feed sections in debug mode", async () => {
       createInstance({
         config: {
           id: "map",
@@ -449,14 +451,22 @@ describe("1. API", () => {
       const shellMount = document.querySelector(
         '#map [data-waymark-app="true"]',
       );
-      const summary = shellMount?.querySelector("summary");
+      const panel = shellMount?.querySelector(
+        '[data-waymark-debug-panel="true"]',
+      );
+      const debugControl = shellMount?.querySelector(
+        '[data-waymark-control="debug-output-toggle"]',
+      );
 
-      expect(summary?.textContent).toContain("Instance debug payload");
-      expect(shellMount?.textContent).toContain('"instanceDocument"');
+      expect(panel).toBeTruthy();
+      expect(debugControl).toBeTruthy();
+      expect(panel?.textContent).toContain("Instance document");
+      expect(panel?.textContent).toContain("Waymark events (last 25)");
+      expect(panel?.textContent).toContain('"config"');
     });
 
-    it("switches mode by clearing and repopulating shell mode content", async () => {
-      const instance = createInstance({
+    it("toggles debug outputs from the internal debug control", async () => {
+      createInstance({
         config: {
           id: "map",
           ui: {
@@ -470,19 +480,83 @@ describe("1. API", () => {
       const shellMount = document.querySelector(
         '#map [data-waymark-app="true"]',
       );
+      const debugControl = shellMount?.querySelector(
+        '[data-waymark-control="debug-output-toggle"]',
+      );
 
-      expect(shellMount?.querySelector("details")).toBeTruthy();
+      expect(
+        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
+      ).toBeTruthy();
+
+      debugControl?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await nextTick();
+
+      expect(
+        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
+      ).toBeNull();
+
+      debugControl?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await nextTick();
+
+      expect(
+        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
+      ).toBeTruthy();
+    });
+
+    it("keeps a bounded sanitised feed of Waymark events in debug mode", async () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "debug",
+          },
+        },
+      });
+
+      await nextTick();
+
+      const map = getLastMapInstance();
+
+      for (let index = 0; index < 30; index += 1) {
+        map.fire("moveend", {
+          type: "moveend",
+          source: `docs-test-${index}`,
+          heavy: {
+            nested: true,
+          },
+        });
+      }
+
+      await nextTick();
+
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+      const panel = shellMount?.querySelector(
+        '[data-waymark-debug-panel="true"]',
+      );
+      const preElements = panel?.querySelectorAll("pre");
+      const events = JSON.parse(preElements?.[1]?.textContent ?? "[]");
+
+      expect(panel).toBeTruthy();
       expect(instance.toJSON().state.ui.mode).toBe("debug");
 
-      instance.ui.setMode("view");
-      await nextTick();
-      expect(shellMount?.querySelector("details")).toBeNull();
-      expect(instance.toJSON().state.ui.mode).toBe("view");
-
-      instance.ui.setMode("debug");
-      await nextTick();
-      expect(shellMount?.querySelector("details")).toBeTruthy();
-      expect(instance.toJSON().state.ui.mode).toBe("debug");
+      expect(events).toHaveLength(25);
+      expect(events.every((event) => event.type.startsWith("waymark:"))).toBe(
+        true,
+      );
+      expect(events.every((event) => event.at)).toBe(true);
+      expect(events.at(-1)).toEqual(
+        expect.objectContaining({
+          type: "waymark:map.moveend",
+          detail: expect.objectContaining({
+            id: "map",
+            mapEvent: "moveend",
+            hasOriginalEvent: true,
+            originalEventType: "moveend",
+          }),
+        }),
+      );
     });
   });
 
@@ -737,7 +811,9 @@ describe("1. API", () => {
 
       expect(second).not.toBe(first);
       expect(secondShellMount).toBeTruthy();
-      expect(secondShellMount?.querySelector("details")).toBeTruthy();
+      expect(
+        secondShellMount?.querySelector('[data-waymark-debug-panel="true"]'),
+      ).toBeTruthy();
     });
   });
 
@@ -937,7 +1013,7 @@ describe("1. API", () => {
       );
     });
 
-    it("keeps runtime metadata out of toJSON and exposes it in debug payload", () => {
+    it("keeps runtime metadata out of toJSON", () => {
       createInstance({
         config: {
           id: "map",
@@ -950,16 +1026,12 @@ describe("1. API", () => {
 
       const core = getCoreById("map");
       const instanceDocument = core?.publicApi.toJSON();
-      const debugPayload = core?.debug.toJSON();
 
       expect(instanceDocument?.data.geoJSON).toEqual({
         type: "FeatureCollection",
         features: [],
       });
-      expect(debugPayload?.runtime.geoJSON).toEqual({
-        sourceId: "waymark-map-geojson-source",
-        layerId: "waymark-map-geojson-layer",
-      });
+      expect(instanceDocument?.runtime).toBeUndefined();
     });
 
     it("omits runtime-injected default basemap from toJSON", () => {
