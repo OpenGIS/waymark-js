@@ -12,7 +12,7 @@
         "Returned instance shape",
         "Instance reuse and destroy semantics",
         "Instance event API",
-        "Instance JSON shape",
+        "InstanceDocument shape",
         "Initial GeoJSON overlay"
       ]
     },
@@ -167,15 +167,15 @@
     },
     {
       "docFile": "docs/1.api.md",
-      "heading": "Instance JSON shape",
+      "heading": "InstanceDocument shape",
       "tests": [
         {
           "file": "tests/docs/1.api.test.js",
-          "describe": "Instance JSON shape"
+          "describe": "InstanceDocument shape"
         },
         {
           "file": "tests/browser/1.api.test.js",
-          "describe": "Instance JSON shape"
+          "describe": "InstanceDocument shape"
         }
       ]
     },

@@ -35,7 +35,7 @@ test.describe("1. API", () => {
   });
 
   test.describe("Factory signature", () => {
-    test("accepts an instance JSON document", async ({ page }) => {
+    test("accepts an instance document", async ({ page }) => {
       const result = await page.evaluate(() => {
         const instance = window.waymarkFixture.createInstance({
           config: {
@@ -54,7 +54,7 @@ test.describe("1. API", () => {
             },
           },
           data: {
-            geojson: { type: "FeatureCollection", features: [] },
+            geoJSON: { type: "FeatureCollection", features: [] },
           },
         });
 
@@ -67,13 +67,13 @@ test.describe("1. API", () => {
       expect(result).toEqual({ id: "map", zoom: 10 });
     });
 
-    test("accepts an empty instance JSON document", async ({ page }) => {
+    test("accepts an empty instance document", async ({ page }) => {
       const result = await page.evaluate(() => {
         const instance = window.waymarkFixture.createInstance({});
 
         return {
           id: instance.id,
-          hasGeoJSON: Boolean(instance.toJSON().data.geojson),
+          hasGeoJSON: Boolean(instance.toJSON().data.geoJSON),
         };
       });
 
@@ -101,7 +101,7 @@ test.describe("1. API", () => {
             },
           },
           data: {
-            geojson: { type: "FeatureCollection", features: [] },
+            geoJSON: { type: "FeatureCollection", features: [] },
           },
         });
 
@@ -590,7 +590,7 @@ test.describe("1. API", () => {
             },
           },
           data: {
-            geojson: { type: "FeatureCollection", features: [] },
+            geoJSON: { type: "FeatureCollection", features: [] },
           },
         });
 
@@ -614,7 +614,7 @@ test.describe("1. API", () => {
         return {
           secondIsNew: second !== first,
           secondZoom: second.toJSON().state.map.zoom,
-          secondHasGeoJSON: Boolean(second.toJSON().data.geojson),
+          secondHasGeoJSON: Boolean(second.toJSON().data.geoJSON),
           thirdIsNew: third !== second,
         };
       });
@@ -724,11 +724,11 @@ test.describe("1. API", () => {
     });
   });
 
-  test.describe("Instance JSON shape", () => {
+  test.describe("InstanceDocument shape", () => {
     test("toJSON returns a serialisable config/state/data payload", async ({
       page,
     }) => {
-      const instanceJSON = await page.evaluate(() => {
+      const instanceDocument = await page.evaluate(() => {
         const instance = window.waymarkFixture.createInstance({
           config: {
             id: "map",
@@ -750,7 +750,7 @@ test.describe("1. API", () => {
         return instance.toJSON();
       });
 
-      expect(instanceJSON).toEqual(
+      expect(instanceDocument).toEqual(
         expect.objectContaining({
           config: expect.objectContaining({
             id: "map",
@@ -765,7 +765,7 @@ test.describe("1. API", () => {
             ui: expect.objectContaining({ mode: "view" }),
           }),
           data: expect.objectContaining({
-            geojson: null,
+            geoJSON: null,
           }),
         }),
       );
@@ -812,7 +812,7 @@ test.describe("1. API", () => {
   });
 
   test.describe("Initial GeoJSON overlay", () => {
-    test("creates instance-scoped source and layer from data.geojson", async ({
+    test("creates instance-scoped source and layer from data.geoJSON", async ({
       page,
     }) => {
       const result = await page.evaluate(() => {
@@ -831,7 +831,7 @@ test.describe("1. API", () => {
             },
           },
           data: {
-            geojson: {
+            geoJSON: {
               type: "FeatureCollection",
               features: [],
             },

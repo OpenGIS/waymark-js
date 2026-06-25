@@ -37,7 +37,7 @@ function parseEventConstants(source) {
 const constants = parseEventConstants(instanceEventsSource);
 
 const contract = {
-  signature: "createInstance(instanceJSON?)",
+  signature: "createInstance(instanceDocument?)",
   defaults: {
     center: defaultConfig.map.options.center,
     zoom: defaultConfig.map.options.zoom,

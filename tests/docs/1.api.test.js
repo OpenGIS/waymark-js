@@ -103,14 +103,14 @@ describe("1. API", () => {
   });
 
   describe("Factory signature", () => {
-    it("accepts an instance JSON document", () => {
+    it("accepts an instance document", () => {
       const instance = createInstance({
         config: {
           id: "map",
           map: { options: { zoom: 10 } },
         },
         data: {
-          geojson: { type: "FeatureCollection", features: [] },
+          geoJSON: { type: "FeatureCollection", features: [] },
         },
       });
 
@@ -121,11 +121,11 @@ describe("1. API", () => {
       );
     });
 
-    it("accepts an empty instance JSON document", () => {
+    it("accepts an empty instance document", () => {
       const instance = createInstance({});
 
       expect(instance.id).toMatch(/^waymark-/);
-      expect(instance.toJSON().data.geojson).toBeNull();
+      expect(instance.toJSON().data.geoJSON).toBeNull();
     });
 
     it("supports strict round-trip serialisation", () => {
@@ -141,7 +141,7 @@ describe("1. API", () => {
           },
         },
         data: {
-          geojson: {
+          geoJSON: {
             type: "FeatureCollection",
             features: [],
           },
@@ -186,7 +186,7 @@ describe("1. API", () => {
       });
       expect(normalised.state.ui.mode).toBe("view");
       expect(normalised.data).toEqual({
-        geojson: { type: "FeatureCollection", features: [] },
+        geoJSON: { type: "FeatureCollection", features: [1] },
       });
     });
 
@@ -661,7 +661,7 @@ describe("1. API", () => {
   });
 
   describe("Instance reuse and destroy semantics", () => {
-    it("recreates on the same id using the incoming instance JSON", () => {
+    it("recreates on the same id using the incoming instance document", () => {
       const first = createInstance({
         config: {
           id: "map",
@@ -672,7 +672,7 @@ describe("1. API", () => {
 
       const second = createInstance({
         config: { id: "map", map: { options: { zoom: 2 } } },
-        data: { geojson: { type: "FeatureCollection", features: [] } },
+        data: { geoJSON: { type: "FeatureCollection", features: [] } },
       });
       const secondMap = getLastMapInstance();
 
@@ -680,7 +680,7 @@ describe("1. API", () => {
       expect(firstMap.remove).toHaveBeenCalledTimes(1);
       expect(Map).toHaveBeenCalledTimes(2);
       expect(secondMap._options.zoom).toBe(2);
-      expect(second.toJSON().data.geojson).toEqual({
+      expect(second.toJSON().data.geoJSON).toEqual({
         type: "FeatureCollection",
         features: [],
       });
@@ -892,7 +892,7 @@ describe("1. API", () => {
     });
   });
 
-  describe("Instance JSON shape", () => {
+  describe("InstanceDocument shape", () => {
     it("toJSON returns a serialisable instance document payload", () => {
       const instance = createInstance({
         config: {
@@ -931,7 +931,7 @@ describe("1. API", () => {
             },
           },
           data: {
-            geojson: null,
+            geoJSON: null,
           },
         }),
       );
@@ -944,7 +944,7 @@ describe("1. API", () => {
           ui: { mode: "debug" },
         },
         data: {
-          geojson: { type: "FeatureCollection", features: [] },
+          geoJSON: { type: "FeatureCollection", features: [] },
         },
       });
 
@@ -952,11 +952,11 @@ describe("1. API", () => {
       const instanceDocument = core?.publicApi.toJSON();
       const debugPayload = core?.debug.toJSON();
 
-      expect(instanceDocument?.data.geojson).toEqual({
+      expect(instanceDocument?.data.geoJSON).toEqual({
         type: "FeatureCollection",
         features: [],
       });
-      expect(debugPayload?.runtime.geojson).toEqual({
+      expect(debugPayload?.runtime.geoJSON).toEqual({
         sourceId: "waymark-map-geojson-source",
         layerId: "waymark-map-geojson-layer",
       });
@@ -1050,7 +1050,7 @@ describe("1. API", () => {
           id: "map",
         },
         data: {
-          geojson: geoJSON,
+          geoJSON,
         },
       });
 
@@ -1061,7 +1061,7 @@ describe("1. API", () => {
           id: "map-two",
         },
         data: {
-          geojson: geoJSON,
+          geoJSON,
         },
       });
       const [oneMap, twoMap] = Map.mock.instances;

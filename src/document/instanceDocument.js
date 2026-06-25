@@ -43,7 +43,7 @@
  * @typedef {object} WaymarkInstanceDocument
  * @property {WaymarkInstanceDocumentConfig} config
  * @property {{ map: WaymarkInstanceDocumentStateMap, ui: { mode: 'view' | 'debug' } }} state
- * @property {{ geojson: object | null }} data
+ * @property {{ geoJSON: object | null }} data
  */
 
 /**
@@ -438,7 +438,7 @@ export function normaliseInstanceDocument(instanceDocument) {
       },
     },
     data: {
-      geojson: null,
+      geoJSON: null,
     },
   };
 
@@ -446,9 +446,9 @@ export function normaliseInstanceDocument(instanceDocument) {
     normalised.config.id = rawConfig.id;
   }
 
-  if (Object.hasOwn(rawData, "geojson")) {
-    const serialisableGeoJSON = toSerializableValue(rawData.geojson);
-    normalised.data.geojson = serialisableGeoJSON ?? null;
+  if (Object.hasOwn(rawData, "geoJSON")) {
+    const serialisableGeoJSON = toSerializableValue(rawData.geoJSON);
+    normalised.data.geoJSON = serialisableGeoJSON ?? null;
   }
 
   return normalised;
@@ -480,7 +480,7 @@ export function validateInstanceDocument(instanceDocument) {
     hasValidBasemaps &&
     isPlainObject(state.map) &&
     typeof state.ui?.mode === "string" &&
-    Object.hasOwn(data, "geojson")
+    Object.hasOwn(data, "geoJSON")
   );
 }
 

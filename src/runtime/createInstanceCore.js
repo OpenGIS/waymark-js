@@ -274,7 +274,7 @@ export function createInstanceCore(instanceDocument) {
   const geoJSONModule = createGeoJSONModule(
     map,
     containerId,
-    instanceDocument.data.geojson,
+    instanceDocument.data.geoJSON,
   );
 
   core = {
@@ -352,7 +352,7 @@ export function createInstanceCore(instanceDocument) {
           },
         },
         data: {
-          geojson: core.modules.geoJSON.geoJSON,
+          geoJSON: core.modules.geoJSON.geoJSON,
         },
       }),
   };
@@ -363,7 +363,7 @@ export function createInstanceCore(instanceDocument) {
       lifecycle: {
         phase: core.lifecycle.phase,
       },
-      geojson: {
+      geoJSON: {
         sourceId: core.modules.geoJSON.sourceId,
         layerId: core.modules.geoJSON.layerId,
       },

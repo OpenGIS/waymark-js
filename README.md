@@ -50,7 +50,7 @@ Serialisable `config.map.options` values are passed through to the MapLibre `new
 
 Non-serialisable option values are dropped during normalisation to keep round-trip serialisation deterministic.
 
-`createInstance(instanceJSON?)` is JSON-first. `instance.toJSON()` is the only public serialisation API and returns the canonical serialisable InstanceDocument.
+`createInstance(instanceDocument?)` is JSON-first. `instance.toJSON()` is the only public serialisation API and returns the canonical serialisable InstanceDocument.
 
 ## Runtime requirements
 
@@ -96,7 +96,7 @@ Shell refresh is driven by forwarded container events (`waymark:map.load`, `waym
 - **Instance**: the public object returned by `createInstance(...)` (`id`, `toJSON()`, `ui.setMode()`, `destroy()`, `on()`, `off()`, `once()`).
 - **Runtime core**: internal lifecycle object assembled by `src/runtime/createInstanceCore.js` and tracked in `src/runtime/runtimeRegistry.js`.
 - **InstanceDocument**: canonical serialisable plain object returned by `instance.toJSON()`.
-- **GeoJSON**: the map data format; written as `GeoJSON` in symbols and docs.
+- **GeoJSON**: the map data format; canonical JSON keys are `data.geoJSON` (InstanceDocument) and `runtime.geoJSON` (debug payload).
 
 Set basemaps with `map.basemaps.vector[]` and `map.basemaps.raster[]`:
 

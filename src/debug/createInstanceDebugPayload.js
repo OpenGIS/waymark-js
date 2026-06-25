@@ -3,7 +3,7 @@
  *   getInstanceDocument: () => import('../document/instanceDocument.js').WaymarkInstanceDocument,
  *   getRuntimeMetadata: () => {
  *     lifecycle: { phase: 'ready' | 'destroyed' },
- *     geojson: { sourceId: string, layerId: string }
+ *     geoJSON: { sourceId: string, layerId: string }
  *   }
  * }} options
  */

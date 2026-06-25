@@ -1,18 +1,18 @@
 import { setWorkerUrl } from "maplibre-gl";
-import workerUrl from "maplibre-gl/dist/maplibre-gl-csp-worker?url";
+import workerURL from "maplibre-gl/dist/maplibre-gl-csp-worker?url";
 import { createInstanceCore } from "./runtime/createInstanceCore.js";
 import { normaliseInstanceDocument } from "./document/instanceDocument.js";
 
-setWorkerUrl(workerUrl);
+setWorkerUrl(workerURL);
 
 /**
  * Create a new Waymark instance.
  *
- * @param {unknown} [instanceJSON]
+ * @param {unknown} [instanceDocument]
  * @returns {import('./runtime/createInstanceCore.js').WaymarkInstancePublicApi}
  */
-export function createInstance(instanceJSON) {
-  const instanceDocument = normaliseInstanceDocument(instanceJSON);
-  const { publicApi } = createInstanceCore(instanceDocument);
+export function createInstance(instanceDocument) {
+  const normalisedDocument = normaliseInstanceDocument(instanceDocument);
+  const { publicApi } = createInstanceCore(normalisedDocument);
   return publicApi;
 }
