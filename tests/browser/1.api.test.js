@@ -18,7 +18,13 @@ test.describe("1. API", () => {
           config: {
             id: "map",
             map: {
-              options: { style: { version: 8, sources: {}, layers: [] } },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
+              },
             },
           },
         });
@@ -35,8 +41,14 @@ test.describe("1. API", () => {
           config: {
             id: "map",
             map: {
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
+              },
               options: {
-                style: { version: 8, sources: {}, layers: [] },
                 zoom: 10,
               },
             },
@@ -76,8 +88,14 @@ test.describe("1. API", () => {
             id: "map",
             ui: { mode: "debug" },
             map: {
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: inlineStyle,
+                  },
+                ],
+              },
               options: {
-                style: inlineStyle,
                 zoom: 7,
               },
             },
@@ -129,7 +147,13 @@ test.describe("1. API", () => {
           config: {
             id: "map",
             map: {
-              options: { style: { version: 8, sources: {}, layers: [] } },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
+              },
             },
           },
         });
@@ -144,6 +168,55 @@ test.describe("1. API", () => {
       expect(result.center).toEqual([0, 0]);
     });
 
+    test("injects OpenFreeMap default only when no basemaps are provided", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const defaultInstance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+          },
+        });
+
+        window.waymarkFixture.createContainer("map-raster-only");
+        const rasterOnlyInstance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map-raster-only",
+            map: {
+              basemaps: {
+                raster: [
+                  {
+                    tileURLTemplates: [
+                      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        });
+
+        const defaultCore = window.waymarkFixture.getRuntimeCore(
+          defaultInstance.id,
+        );
+        const rasterOnlyCore = window.waymarkFixture.getRuntimeCore(
+          rasterOnlyInstance.id,
+        );
+
+        return {
+          defaultVectorStyleURL:
+            defaultCore.config.map.basemaps.vector[0]?.styleURL,
+          rasterOnlyVectorCount:
+            rasterOnlyCore.config.map.basemaps.vector.length,
+        };
+      });
+
+      expect(result.defaultVectorStyleURL).toBe(
+        "https://tiles.openfreemap.org/styles/bright",
+      );
+      expect(result.rasterOnlyVectorCount).toBe(0);
+    });
+
     test("falls back to view mode when ui.mode is invalid", async ({
       page,
     }) => {
@@ -153,7 +226,13 @@ test.describe("1. API", () => {
             id: "map",
             ui: { mode: "invalid-mode" },
             map: {
-              options: { style: { version: 8, sources: {}, layers: [] } },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
+              },
             },
           },
         });
@@ -162,6 +241,60 @@ test.describe("1. API", () => {
       });
 
       expect(mode).toBe("view");
+    });
+
+    test("rejects legacy map.options.style and invalid basemap entries", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        try {
+          window.waymarkFixture.createInstance({
+            config: {
+              id: "map",
+              map: {
+                options: {
+                  style: "https://example.com/style.json",
+                },
+              },
+            },
+          });
+          return { legacyStyleError: null, invalidBasemapError: null };
+        } catch (error) {
+          const legacyStyleError = String(error.message);
+
+          try {
+            window.waymarkFixture.createInstance({
+              config: {
+                id: "map",
+                map: {
+                  basemaps: {
+                    raster: [
+                      {
+                        tiles: [
+                          "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+            });
+            return { legacyStyleError, invalidBasemapError: null };
+          } catch (secondError) {
+            return {
+              legacyStyleError,
+              invalidBasemapError: String(secondError.message),
+            };
+          }
+        }
+      });
+
+      expect(result.legacyStyleError).toBe(
+        "Invalid config.map.options.style: use config.map.basemaps.vector[] instead.",
+      );
+      expect(result.invalidBasemapError).toBe(
+        "Invalid config.map.basemaps.raster[0].tiles: unexpected key for raster basemap entry.",
+      );
     });
   });
 
@@ -175,7 +308,13 @@ test.describe("1. API", () => {
             id: "map",
             ui: { mode: "view" },
             map: {
-              options: { style: inlineStyle },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: inlineStyle,
+                  },
+                ],
+              },
             },
           },
         });
@@ -190,7 +329,13 @@ test.describe("1. API", () => {
             id: "map",
             ui: { mode: "debug" },
             map: {
-              options: { style: inlineStyle },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: inlineStyle,
+                  },
+                ],
+              },
             },
           },
         });
@@ -229,7 +374,13 @@ test.describe("1. API", () => {
                 center: [-0.1276, 51.5074],
                 zoom: 10,
                 bearing: 25,
-                style: inlineStyle,
+              },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: inlineStyle,
+                  },
+                ],
               },
             },
           },
@@ -258,12 +409,18 @@ test.describe("1. API", () => {
             id: "map",
             map: {
               options: {
-                style: inlineStyle,
                 transformRequest: () => ({ url: "x" }),
                 nested: {
                   onClick: () => {},
                   ok: true,
                 },
+              },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: inlineStyle,
+                  },
+                ],
               },
             },
           },
@@ -275,6 +432,79 @@ test.describe("1. API", () => {
       expect(result.transformRequest).toBeUndefined();
       expect(result.nested).toEqual({ ok: true });
     });
+
+    test("uses the first vector basemap and stacks raster overlays in listed order", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const instance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+            map: {
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: {
+                      version: 8,
+                      sources: {},
+                      layers: [{ id: "background", type: "background" }],
+                    },
+                  },
+                  {
+                    styleURL: "https://example.com/unused-style.json",
+                  },
+                ],
+                raster: [
+                  {
+                    tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+                    opacity: 0.6,
+                  },
+                  {
+                    tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+                    opacity: 0.3,
+                  },
+                ],
+              },
+            },
+          },
+        });
+
+        const map = window.waymarkFixture.getRuntimeMap(instance.id);
+        return new Promise((resolve) => {
+          const readLayers = () => {
+            const styleLayers = map.getStyle().layers;
+            resolve(
+              styleLayers.map((layer) => ({
+                id: layer.id,
+                type: layer.type,
+                opacity: layer.paint?.["raster-opacity"],
+              })),
+            );
+          };
+
+          if (map.loaded()) {
+            readLayers();
+            return;
+          }
+
+          map.on("load", readLayers);
+        });
+      });
+
+      expect(result).toEqual([
+        { id: "background", type: "background", opacity: undefined },
+        {
+          id: "waymark-map-basemap-raster-layer-0",
+          type: "raster",
+          opacity: 0.6,
+        },
+        {
+          id: "waymark-map-basemap-raster-layer-1",
+          type: "raster",
+          opacity: 0.3,
+        },
+      ]);
+    });
   });
 
   test.describe("Returned instance shape", () => {
@@ -284,7 +514,13 @@ test.describe("1. API", () => {
           config: {
             id: "map",
             map: {
-              options: { style: { version: 8, sources: {}, layers: [] } },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
+              },
             },
           },
         });
@@ -324,8 +560,14 @@ test.describe("1. API", () => {
             id: "map",
             map: {
               options: {
-                style: { version: 8, sources: {}, layers: [] },
                 zoom: 12,
+              },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
               },
             },
           },
@@ -336,8 +578,14 @@ test.describe("1. API", () => {
             id: "map",
             map: {
               options: {
-                style: { version: 8, sources: {}, layers: [] },
                 zoom: 5,
+              },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
               },
             },
           },
@@ -351,8 +599,13 @@ test.describe("1. API", () => {
           config: {
             id: "map",
             map: {
-              options: {
-                style: { version: 8, sources: {}, layers: [] },
+              options: {},
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
               },
             },
           },
@@ -390,8 +643,12 @@ test.describe("1. API", () => {
           config: {
             id: "map",
             map: {
-              options: {
-                style: { version: 8, sources: {}, layers: [] },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
               },
             },
           },
@@ -437,8 +694,12 @@ test.describe("1. API", () => {
             id: "map",
             ui: { mode: "view" },
             map: {
-              options: {
-                style: { version: 8, sources: {}, layers: [] },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
               },
             },
           },
@@ -473,8 +734,14 @@ test.describe("1. API", () => {
             id: "map",
             map: {
               options: {
-                style: { version: 8, sources: {}, layers: [] },
                 zoom: 9,
+              },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
               },
             },
           },
@@ -503,6 +770,45 @@ test.describe("1. API", () => {
         }),
       );
     });
+
+    test("omits runtime-injected defaults and keeps authored basemaps", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const defaultInstance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+          },
+        });
+
+        window.waymarkFixture.createContainer("map-explicit");
+        const explicitInstance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map-explicit",
+            map: {
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: "https://tiles.openfreemap.org/styles/bright",
+                  },
+                ],
+                raster: [],
+              },
+            },
+          },
+        });
+
+        return {
+          defaultBasemaps: defaultInstance.toJSON().config.map.basemaps,
+          explicitBasemaps: explicitInstance.toJSON().config.map.basemaps,
+        };
+      });
+
+      expect(result.defaultBasemaps).toBeUndefined();
+      expect(result.explicitBasemaps).toEqual({
+        vector: [{ styleURL: "https://tiles.openfreemap.org/styles/bright" }],
+      });
+    });
   });
 
   test.describe("Initial GeoJSON overlay", () => {
@@ -515,8 +821,12 @@ test.describe("1. API", () => {
           config: {
             id: "map-geojson-test",
             map: {
-              options: {
-                style: { version: 8, sources: {}, layers: [] },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
               },
             },
           },

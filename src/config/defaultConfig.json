@@ -3,8 +3,11 @@
     "options": {
       "center": [0, 0],
       "zoom": 2,
-      "style": "https://tiles.openfreemap.org/styles/bright",
       "attributionControl": false
+    },
+    "basemaps": {
+      "vector": [],
+      "raster": []
     }
   },
   "ui": {

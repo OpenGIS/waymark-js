@@ -46,7 +46,7 @@ npm run test:browser
 </script>
 ```
 
-Serialisable `config.map.options` values are passed through to the MapLibre `new Map(options)` constructor, except `container`, which Waymark always sets from `createInstance({ config: { id } })`.
+Serialisable `config.map.options` values are passed through to the MapLibre `new Map(options)` constructor, except `container` (always set by Waymark from `createInstance({ config: { id } })`) and `style` (managed via `config.map.basemaps`).
 
 Non-serialisable option values are dropped during normalisation to keep round-trip serialisation deterministic.
 
@@ -98,15 +98,19 @@ Shell refresh is driven by forwarded container events (`waymark:map.load`, `waym
 - **InstanceDocument**: canonical serialisable plain object returned by `instance.toJSON()`.
 - **GeoJSON**: the map data format; written as `GeoJSON` in symbols and docs.
 
-Set a custom style with `map.options.style`:
+Set basemaps with `map.basemaps.vector[]` and `map.basemaps.raster[]`:
 
 ```js
 createInstance({
   config: {
     id: "map",
     map: {
-      options: {
-        style: "https://example.com/style.json",
+      basemaps: {
+        vector: [
+          {
+            styleURL: "https://example.com/style.json",
+          },
+        ],
       },
     },
   },

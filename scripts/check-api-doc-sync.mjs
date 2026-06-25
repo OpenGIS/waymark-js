@@ -37,8 +37,8 @@ const expectedBlocks = {
   defaults: [
     `- \`map.options.center\`: \`[${contract.defaults.center.join(", ")}]\``,
     `- \`map.options.zoom\`: \`${contract.defaults.zoom}\``,
-    `- \`map.options.style\`: \`${contract.defaults.style}\``,
     `- \`map.options.attributionControl\`: \`${contract.defaults.attributionControl}\``,
+    `- \`map.basemaps.vector[0].styleURL\` (runtime-injected only when no basemap entries exist): \`${contract.defaults.runtimeDefaultVectorStyleURL}\``,
   ].join("\n"),
   "lifecycle-events": renderList(contract.lifecycleEvents),
   "forwarded-map-events": renderList(contract.forwardedMapEvents),

@@ -105,27 +105,30 @@ const waymarkInstance = createInstance({
       mode: "view",
     },
     map: {
+      basemaps: {
+        vector: [
+          {
+            title: "OpenFreeMap Bright (active)",
+            styleURL: "https://tiles.openfreemap.org/styles/bright",
+          },
+          {
+            title: "OpenFreeMap Liberty (inactive demo entry)",
+            styleURL: "https://tiles.openfreemap.org/styles/liberty",
+          },
+        ],
+        raster: [
+          {
+            title: "OpenTopoMap raster overlay",
+            tileURLTemplates: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
+            attributionHTML:
+              "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap",
+            opacity: 0.5,
+          },
+        ],
+      },
       options: {
         center: [-128.0094, 50.6539],
         zoom: 15,
-        style: {
-          version: 8,
-          sources: {
-            raster: {
-              type: "raster",
-              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-              tileSize: 256,
-              attribution: "© OpenStreetMap contributors",
-            },
-          },
-          layers: [
-            {
-              id: "osm-raster",
-              type: "raster",
-              source: "raster",
-            },
-          ],
-        },
       },
     },
   },
@@ -138,28 +141,28 @@ const waymarkInstanceTwo = createInstance({
       mode: "debug",
     },
     map: {
+      basemaps: {
+        raster: [
+          {
+            title: "OpenStreetMap raster",
+            tileURLTemplates: [
+              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ],
+            attributionHTML: "© OpenStreetMap contributors",
+            opacity: 1,
+          },
+          {
+            title: "OpenTopoMap raster overlay",
+            tileURLTemplates: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
+            attributionHTML:
+              "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap",
+            opacity: 0.4,
+          },
+        ],
+      },
       options: {
         center: [-0.1276, 51.5074],
         zoom: 11,
-        style: {
-          version: 8,
-          sources: {
-            raster: {
-              type: "raster",
-              tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
-              tileSize: 256,
-              attribution:
-                "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap",
-            },
-          },
-          layers: [
-            {
-              id: "opentopo-raster",
-              type: "raster",
-              source: "raster",
-            },
-          ],
-        },
       },
     },
   },

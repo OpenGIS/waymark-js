@@ -4,18 +4,50 @@ import { nextTick } from "vue";
 vi.mock("maplibre-gl", () => {
   const MockMap = vi.fn(function (options) {
     this._options = options;
+    this._style =
+      typeof options.style === "object"
+        ? structuredClone(options.style)
+        : {
+            version: 8,
+            sources: {},
+            layers: [],
+          };
     this._view = {
       center: options.center ?? [0, 0],
       zoom: options.zoom ?? 2,
       bearing: options.bearing ?? 0,
       pitch: options.pitch ?? 0,
     };
+    this._loaded = false;
     this.on = vi.fn();
     this.off = vi.fn();
     this.remove = vi.fn();
-    this.addSource = vi.fn();
-    this.addLayer = vi.fn();
-    this.loaded = vi.fn(() => false);
+    this.addSource = vi.fn((id, source) => {
+      this._style.sources = {
+        ...this._style.sources,
+        [id]: source,
+      };
+    });
+    this.addLayer = vi.fn((layer, beforeId) => {
+      const layers = [...(this._style.layers ?? [])];
+
+      if (beforeId) {
+        const beforeIndex = layers.findIndex(
+          (existing) => existing.id === beforeId,
+        );
+        if (beforeIndex >= 0) {
+          layers.splice(beforeIndex, 0, layer);
+        } else {
+          layers.push(layer);
+        }
+      } else {
+        layers.push(layer);
+      }
+
+      this._style.layers = layers;
+    });
+    this.loaded = vi.fn(() => this._loaded);
+    this.getStyle = vi.fn(() => this._style);
     this.getCenter = vi.fn(() => ({
       lng: this._view.center[0],
       lat: this._view.center[1],
@@ -23,6 +55,13 @@ vi.mock("maplibre-gl", () => {
     this.getZoom = vi.fn(() => this._view.zoom);
     this.getBearing = vi.fn(() => this._view.bearing);
     this.getPitch = vi.fn(() => this._view.pitch);
+    this.fire = vi.fn((eventName, event = {}) => {
+      for (const [registeredEventName, handler] of this.on.mock.calls) {
+        if (registeredEventName === eventName) {
+          handler(event);
+        }
+      }
+    });
   });
   return { Map: MockMap, setWorkerUrl: vi.fn() };
 });
@@ -194,7 +233,7 @@ describe("1. API", () => {
   });
 
   describe("Config defaults and merge behaviour", () => {
-    it("uses documented defaults including attributionControl false", () => {
+    it("uses documented defaults for camera and attributionControl", () => {
       createInstance({
         config: {
           id: "map",
@@ -205,8 +244,50 @@ describe("1. API", () => {
         expect.objectContaining({
           center: [0, 0],
           zoom: 2,
-          style: "https://tiles.openfreemap.org/styles/bright",
           attributionControl: false,
+        }),
+      );
+    });
+
+    it("injects OpenFreeMap vector only when no basemap entries are configured", () => {
+      createInstance({
+        config: {
+          id: "map",
+        },
+      });
+
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({
+          style: "https://tiles.openfreemap.org/styles/bright",
+        }),
+      );
+    });
+
+    it("does not inject default vector when raster-only basemaps are configured", () => {
+      createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              raster: [
+                {
+                  tileURLTemplates: [
+                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({
+          style: {
+            version: 8,
+            sources: {},
+            layers: [],
+          },
         }),
       );
     });
@@ -236,6 +317,101 @@ describe("1. API", () => {
       });
 
       expect(resolved.ui.mode).toBe("view");
+    });
+
+    it("rejects legacy config.map.options.style", () => {
+      expect(() =>
+        createInstance({
+          config: {
+            id: "map",
+            map: {
+              options: {
+                style: "https://example.com/style.json",
+              },
+            },
+          },
+        }),
+      ).toThrow(
+        "Invalid config.map.options.style: use config.map.basemaps.vector[] instead.",
+      );
+    });
+
+    it("rejects invalid basemap entries with clear path errors", () => {
+      expect(() =>
+        createInstance({
+          config: {
+            id: "map",
+            map: {
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: "",
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      ).toThrow(
+        "Invalid config.map.basemaps.vector[0].styleURL: expected a non-empty string or style object.",
+      );
+
+      expect(() =>
+        createInstance({
+          config: {
+            id: "map",
+            map: {
+              basemaps: {
+                raster: [
+                  {
+                    tileURLTemplates: [],
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      ).toThrow(
+        "Invalid config.map.basemaps.raster[0].tileURLTemplates: expected a non-empty string array.",
+      );
+
+      expect(() =>
+        createInstance({
+          config: {
+            id: "map",
+            map: {
+              basemaps: {
+                vector: [
+                  {
+                    style: "https://example.com/legacy-style.json",
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      ).toThrow(
+        "Invalid config.map.basemaps.vector[0].style: unexpected key for vector basemap entry.",
+      );
+
+      expect(() =>
+        createInstance({
+          config: {
+            id: "map",
+            map: {
+              basemaps: {
+                raster: [
+                  {
+                    tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      ).toThrow(
+        "Invalid config.map.basemaps.raster[0].tiles: unexpected key for raster basemap entry.",
+      );
     });
   });
 
@@ -367,6 +543,96 @@ describe("1. API", () => {
       expect(
         instance.toJSON().config.map.options.nested.onClick,
       ).toBeUndefined();
+    });
+
+    it("uses only the first configured vector basemap at runtime", () => {
+      createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: "https://example.com/first-style.json",
+                },
+                {
+                  styleURL: "https://example.com/second-style.json",
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(Map).toHaveBeenCalledWith(
+        expect.objectContaining({
+          style: "https://example.com/first-style.json",
+        }),
+      );
+    });
+
+    it("stacks raster basemaps in listed order below the first symbol layer", () => {
+      createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "background",
+                        type: "background",
+                      },
+                      {
+                        id: "poi-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+              ],
+              raster: [
+                {
+                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+                  opacity: 0.7,
+                },
+                {
+                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+                  opacity: 0.3,
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const map = getLastMapInstance();
+      map.fire("load", { source: "test" });
+
+      const addedLayerCalls = map.addLayer.mock.calls.map(
+        ([layer, beforeId]) => ({
+          id: layer.id,
+          beforeId,
+          opacity: layer.paint?.["raster-opacity"],
+        }),
+      );
+
+      expect(addedLayerCalls).toEqual([
+        {
+          id: "waymark-map-basemap-raster-layer-0",
+          beforeId: "poi-label",
+          opacity: 0.7,
+        },
+        {
+          id: "waymark-map-basemap-raster-layer-1",
+          beforeId: "poi-label",
+          opacity: 0.3,
+        },
+      ]);
     });
   });
 
@@ -693,6 +959,85 @@ describe("1. API", () => {
       expect(debugPayload?.runtime.geojson).toEqual({
         sourceId: "waymark-map-geojson-source",
         layerId: "waymark-map-geojson-layer",
+      });
+    });
+
+    it("omits runtime-injected default basemap from toJSON", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+
+      expect(instance.toJSON().config.map.basemaps).toBeUndefined();
+    });
+
+    it("preserves explicitly authored basemaps, including explicit OpenFreeMap values", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: "https://tiles.openfreemap.org/styles/bright",
+                  title: "OpenFreeMap Bright",
+                },
+              ],
+              raster: [
+                {
+                  tileURLTemplates: [
+                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                  ],
+                  opacity: 0.5,
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(instance.toJSON().config.map.basemaps).toEqual({
+        vector: [
+          {
+            styleURL: "https://tiles.openfreemap.org/styles/bright",
+            title: "OpenFreeMap Bright",
+          },
+        ],
+        raster: [
+          {
+            tileURLTemplates: [
+              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ],
+            opacity: 0.5,
+          },
+        ],
+      });
+    });
+
+    it("omits empty basemap arrays from toJSON output", () => {
+      const vectorOnly = createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: "https://example.com/vector-style.json",
+                },
+              ],
+              raster: [],
+            },
+          },
+        },
+      });
+
+      expect(vectorOnly.toJSON().config.map.basemaps).toEqual({
+        vector: [
+          {
+            styleURL: "https://example.com/vector-style.json",
+          },
+        ],
       });
     });
   });

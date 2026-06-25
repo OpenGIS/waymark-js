@@ -1,7 +1,33 @@
 /**
+ * @typedef {object} WaymarkVectorBasemap
+ * @property {string | Record<string, unknown>} styleURL
+ * @property {string} [title]
+ * @property {string} [attributionHTML]
+ * @property {number} [maxZoom]
+ * @property {number} [opacity]
+ */
+
+/**
+ * @typedef {object} WaymarkRasterBasemap
+ * @property {string[]} tileURLTemplates
+ * @property {string} [title]
+ * @property {string} [attributionHTML]
+ * @property {number} [tileSize]
+ * @property {number} [minZoom]
+ * @property {number} [maxZoom]
+ * @property {number} [opacity]
+ */
+
+/**
+ * @typedef {object} WaymarkBasemapConfig
+ * @property {WaymarkVectorBasemap[]} vector
+ * @property {WaymarkRasterBasemap[]} raster
+ */
+
+/**
  * @typedef {object} WaymarkInstanceDocumentConfig
  * @property {string} [id]
- * @property {{ options: Record<string, unknown> }} map
+ * @property {{ options: Record<string, unknown>, basemaps?: Partial<WaymarkBasemapConfig> }} map
  * @property {{ mode: 'view' | 'debug' }} ui
  */
 
@@ -97,8 +123,267 @@ function normaliseMapOptions(mapOptions) {
     return {};
   }
 
+  if (Object.hasOwn(mapOptions, "style")) {
+    throw new Error(
+      "Invalid config.map.options.style: use config.map.basemaps.vector[] instead.",
+    );
+  }
+
   const serialisable = toSerializableValue(mapOptions);
   return isPlainObject(serialisable) ? serialisable : {};
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} path
+ */
+function expectPlainObject(value, path) {
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid ${path}: expected an object.`);
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} path
+ */
+function normaliseOptionalString(value, path) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Invalid ${path}: expected a non-empty string.`);
+  }
+
+  return value;
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} path
+ */
+function normaliseOptionalNumber(value, path) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`Invalid ${path}: expected a finite number.`);
+  }
+
+  return value;
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} path
+ */
+function normaliseOptionalOpacity(value, path) {
+  const opacity = normaliseOptionalNumber(value, path);
+
+  if (opacity === undefined) {
+    return undefined;
+  }
+
+  if (opacity < 0 || opacity > 1) {
+    throw new Error(`Invalid ${path}: expected a number between 0 and 1.`);
+  }
+
+  return opacity;
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} path
+ */
+function normaliseVectorStyleURL(value, path) {
+  if (typeof value === "string" && value.length > 0) {
+    return value;
+  }
+
+  if (isPlainObject(value)) {
+    const serialisable = toSerializableValue(value);
+
+    if (isPlainObject(serialisable)) {
+      return serialisable;
+    }
+  }
+
+  throw new Error(
+    `Invalid ${path}: expected a non-empty string or style object.`,
+  );
+}
+
+/**
+ * @param {unknown} entry
+ * @param {number} index
+ * @returns {WaymarkVectorBasemap}
+ */
+function normaliseVectorBasemapEntry(entry, index) {
+  const path = `config.map.basemaps.vector[${index}]`;
+  expectPlainObject(entry, path);
+
+  const allowedKeys = new Set([
+    "styleURL",
+    "title",
+    "attributionHTML",
+    "maxZoom",
+    "opacity",
+  ]);
+  for (const key of Object.keys(entry)) {
+    if (!allowedKeys.has(key)) {
+      throw new Error(
+        `Invalid ${path}.${key}: unexpected key for vector basemap entry.`,
+      );
+    }
+  }
+
+  const styleURL = normaliseVectorStyleURL(entry.styleURL, `${path}.styleURL`);
+
+  return {
+    styleURL,
+    ...(normaliseOptionalString(entry.title, `${path}.title`) !== undefined
+      ? { title: normaliseOptionalString(entry.title, `${path}.title`) }
+      : {}),
+    ...(normaliseOptionalString(
+      entry.attributionHTML,
+      `${path}.attributionHTML`,
+    ) !== undefined
+      ? {
+          attributionHTML: normaliseOptionalString(
+            entry.attributionHTML,
+            `${path}.attributionHTML`,
+          ),
+        }
+      : {}),
+    ...(normaliseOptionalNumber(entry.maxZoom, `${path}.maxZoom`) !== undefined
+      ? { maxZoom: normaliseOptionalNumber(entry.maxZoom, `${path}.maxZoom`) }
+      : {}),
+    ...(normaliseOptionalOpacity(entry.opacity, `${path}.opacity`) !== undefined
+      ? { opacity: normaliseOptionalOpacity(entry.opacity, `${path}.opacity`) }
+      : {}),
+  };
+}
+
+/**
+ * @param {unknown} entry
+ * @param {number} index
+ * @returns {WaymarkRasterBasemap}
+ */
+function normaliseRasterBasemapEntry(entry, index) {
+  const path = `config.map.basemaps.raster[${index}]`;
+  expectPlainObject(entry, path);
+
+  const allowedKeys = new Set([
+    "tileURLTemplates",
+    "title",
+    "attributionHTML",
+    "tileSize",
+    "minZoom",
+    "maxZoom",
+    "opacity",
+  ]);
+  for (const key of Object.keys(entry)) {
+    if (!allowedKeys.has(key)) {
+      throw new Error(
+        `Invalid ${path}.${key}: unexpected key for raster basemap entry.`,
+      );
+    }
+  }
+
+  if (
+    !Array.isArray(entry.tileURLTemplates) ||
+    entry.tileURLTemplates.length === 0
+  ) {
+    throw new Error(
+      `Invalid ${path}.tileURLTemplates: expected a non-empty string array.`,
+    );
+  }
+
+  const tileURLTemplates = entry.tileURLTemplates.map((tile, tileIndex) => {
+    if (typeof tile !== "string" || tile.length === 0) {
+      throw new Error(
+        `Invalid ${path}.tileURLTemplates[${tileIndex}]: expected a non-empty string.`,
+      );
+    }
+
+    return tile;
+  });
+
+  return {
+    tileURLTemplates,
+    ...(normaliseOptionalString(entry.title, `${path}.title`) !== undefined
+      ? { title: normaliseOptionalString(entry.title, `${path}.title`) }
+      : {}),
+    ...(normaliseOptionalString(
+      entry.attributionHTML,
+      `${path}.attributionHTML`,
+    ) !== undefined
+      ? {
+          attributionHTML: normaliseOptionalString(
+            entry.attributionHTML,
+            `${path}.attributionHTML`,
+          ),
+        }
+      : {}),
+    ...(normaliseOptionalNumber(entry.tileSize, `${path}.tileSize`) !==
+    undefined
+      ? {
+          tileSize: normaliseOptionalNumber(entry.tileSize, `${path}.tileSize`),
+        }
+      : {}),
+    ...(normaliseOptionalNumber(entry.minZoom, `${path}.minZoom`) !== undefined
+      ? { minZoom: normaliseOptionalNumber(entry.minZoom, `${path}.minZoom`) }
+      : {}),
+    ...(normaliseOptionalNumber(entry.maxZoom, `${path}.maxZoom`) !== undefined
+      ? { maxZoom: normaliseOptionalNumber(entry.maxZoom, `${path}.maxZoom`) }
+      : {}),
+    ...(normaliseOptionalOpacity(entry.opacity, `${path}.opacity`) !== undefined
+      ? { opacity: normaliseOptionalOpacity(entry.opacity, `${path}.opacity`) }
+      : {}),
+  };
+}
+
+/**
+ * @param {unknown} rawBasemaps
+ * @returns {WaymarkBasemapConfig}
+ */
+function normaliseBasemaps(rawBasemaps) {
+  if (rawBasemaps === undefined) {
+    return {
+      vector: [],
+      raster: [],
+    };
+  }
+
+  expectPlainObject(rawBasemaps, "config.map.basemaps");
+
+  const allowedKeys = new Set(["vector", "raster"]);
+  for (const key of Object.keys(rawBasemaps)) {
+    if (!allowedKeys.has(key)) {
+      throw new Error(
+        `Invalid config.map.basemaps.${key}: expected only vector and raster keys.`,
+      );
+    }
+  }
+
+  if (rawBasemaps.vector !== undefined && !Array.isArray(rawBasemaps.vector)) {
+    throw new Error("Invalid config.map.basemaps.vector: expected an array.");
+  }
+
+  if (rawBasemaps.raster !== undefined && !Array.isArray(rawBasemaps.raster)) {
+    throw new Error("Invalid config.map.basemaps.raster: expected an array.");
+  }
+
+  return {
+    vector: (rawBasemaps.vector ?? []).map((entry, index) =>
+      normaliseVectorBasemapEntry(entry, index),
+    ),
+    raster: (rawBasemaps.raster ?? []).map((entry, index) =>
+      normaliseRasterBasemapEntry(entry, index),
+    ),
+  };
 }
 
 /**
@@ -140,6 +425,7 @@ export function normaliseInstanceDocument(instanceDocument) {
     config: {
       map: {
         options: normaliseMapOptions(rawConfigMap.options),
+        basemaps: normaliseBasemaps(rawConfigMap.basemaps),
       },
       ui: {
         mode: normaliseMode(rawConfigUI.mode),
@@ -181,9 +467,17 @@ export function validateInstanceDocument(instanceDocument) {
     return false;
   }
 
+  const basemaps = config.map?.basemaps;
+  const hasValidBasemaps =
+    basemaps === undefined ||
+    (isPlainObject(basemaps) &&
+      (basemaps.vector === undefined || Array.isArray(basemaps.vector)) &&
+      (basemaps.raster === undefined || Array.isArray(basemaps.raster)));
+
   return (
     typeof config.ui?.mode === "string" &&
     isPlainObject(config.map?.options) &&
+    hasValidBasemaps &&
     isPlainObject(state.map) &&
     typeof state.ui?.mode === "string" &&
     Object.hasOwn(data, "geojson")

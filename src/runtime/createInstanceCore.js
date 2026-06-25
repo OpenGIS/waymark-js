@@ -2,6 +2,7 @@ import { resolveConfig } from "../config/resolveConfig.js";
 import { createGeoJSONModule } from "../geojson/createGeoJSONModule.js";
 import { ensureContainer } from "../map/ensureContainer.js";
 import { createMap } from "../map/createMap.js";
+import { createRasterBasemapModule } from "../map/createRasterBasemapModule.js";
 import { createAppShell } from "../ui/createAppShell.js";
 import {
   normaliseMode,
@@ -59,7 +60,7 @@ import {
  * @property {{ container: HTMLElement, emit: (type: string, detail: import('./createInstanceEvents.js').WaymarkInstanceLifecycleEventDetail | import('./createInstanceEvents.js').WaymarkInstanceMapEventDetail | import('./createInstanceEvents.js').WaymarkInstanceModuleEventDetail) => void, on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void, once: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void }} events
  * @property {{ toJSON: () => WaymarkInstanceDocument }} instanceDocument
  * @property {{ toJSON: () => object }} debug
- * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, setMode: (mode: 'view' | 'debug') => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void }, mapEvents: { destroy: () => void }, stateSync: { destroy: () => void } }} modules
+ * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, setMode: (mode: 'view' | 'debug') => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void }, rasterBasemaps: { destroy: () => void }, mapEvents: { destroy: () => void }, stateSync: { destroy: () => void } }} modules
  * @property {{ phase: 'ready' | 'destroyed', destroy: () => void }} lifecycle
  */
 
@@ -191,6 +192,23 @@ function toMapCameraOverrides(stateMap) {
 }
 
 /**
+ * @param {{ vector: object[], raster: object[] }} basemaps
+ */
+function serialiseAuthoredBasemaps(basemaps) {
+  const serialised = {};
+
+  if (basemaps.vector.length > 0) {
+    serialised.vector = basemaps.vector;
+  }
+
+  if (basemaps.raster.length > 0) {
+    serialised.raster = basemaps.raster;
+  }
+
+  return serialised;
+}
+
+/**
  * @param {WaymarkInstanceCore} core
  */
 function destroyCore(core) {
@@ -205,6 +223,7 @@ function destroyCore(core) {
   );
 
   core.modules.geoJSON.destroy();
+  core.modules.rasterBasemaps.destroy();
   core.modules.mapEvents.destroy();
   core.modules.stateSync.destroy();
 
@@ -235,6 +254,7 @@ export function createInstanceCore(instanceDocument) {
 
   const { id: _containerIdFromConfig, ...configOverrides } =
     instanceDocument.config;
+  const authoredBasemaps = instanceDocument.config.map.basemaps;
   const resolvedConfig = resolveConfig(configOverrides);
   resolvedConfig.map.options = {
     ...resolvedConfig.map.options,
@@ -274,6 +294,11 @@ export function createInstanceCore(instanceDocument) {
     modules: {
       appShell,
       geoJSON: geoJSONModule,
+      rasterBasemaps: createRasterBasemapModule(
+        map,
+        containerId,
+        resolvedConfig.map.basemaps.raster,
+      ),
       mapEvents: {
         destroy() {},
       },
@@ -307,6 +332,14 @@ export function createInstanceCore(instanceDocument) {
               ...core.config.map.options,
               ...toMapCameraOverrides(core.state.map),
             },
+            ...(() => {
+              const serialisedBasemaps =
+                serialiseAuthoredBasemaps(authoredBasemaps);
+
+              return Object.keys(serialisedBasemaps).length > 0
+                ? { basemaps: serialisedBasemaps }
+                : {};
+            })(),
           },
           ui: {
             mode: core.state.ui.mode,

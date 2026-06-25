@@ -19,6 +19,25 @@ test.describe("2. Development smoke", () => {
     await expect(
       page.locator("#map-two .waymark-instance-shell details"),
     ).toHaveCount(1);
+
+    const basemapConfig = await page.evaluate(() => ({
+      map: window.waymarkInstance?.toJSON().config.map.basemaps,
+      mapTwo: window.waymarkInstanceTwo?.toJSON().config.map.basemaps,
+    }));
+
+    expect(basemapConfig).toEqual({
+      map: {
+        vector: expect.arrayContaining([
+          expect.objectContaining({
+            styleURL: "https://tiles.openfreemap.org/styles/bright",
+          }),
+        ]),
+        raster: expect.any(Array),
+      },
+      mapTwo: {
+        raster: expect.any(Array),
+      },
+    });
   });
 
   test("dev page dropdowns change instance modes independently", async ({

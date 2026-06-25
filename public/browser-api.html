@@ -26,6 +26,9 @@
 
       window.waymarkFixture = {
         createInstance,
+        getRuntimeCore(id) {
+          return getCoreById(id) ?? null;
+        },
         getRuntimeMap(id) {
           return getCoreById(id)?.map ?? null;
         },

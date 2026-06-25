@@ -11,6 +11,12 @@ const defaultConfig = JSON.parse(
     "utf8",
   ),
 );
+const defaultBasemaps = JSON.parse(
+  fs.readFileSync(
+    path.join(ROOT, "src", "map", "defaultBasemaps.json"),
+    "utf8",
+  ),
+);
 const instanceEventsSource = fs.readFileSync(
   path.join(ROOT, "src", "runtime", "createInstanceEvents.js"),
   "utf8",
@@ -35,8 +41,8 @@ const contract = {
   defaults: {
     center: defaultConfig.map.options.center,
     zoom: defaultConfig.map.options.zoom,
-    style: defaultConfig.map.options.style,
     attributionControl: defaultConfig.map.options.attributionControl,
+    runtimeDefaultVectorStyleURL: defaultBasemaps.vector[0]?.styleURL ?? null,
   },
   lifecycleEvents: [
     constants.WAYMARK_INSTANCE_CREATED_EVENT,
