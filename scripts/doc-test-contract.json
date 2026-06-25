@@ -7,12 +7,34 @@
         "Factory signature",
         "Container resolution",
         "Config defaults and merge behaviour",
+        "UI shell mode rendering",
         "Map options pass-through",
         "Returned instance shape",
         "Instance reuse and destroy semantics",
         "Instance event API",
-        "Snapshot shape",
+        "Instance JSON shape",
         "Initial GeoJSON overlay"
+      ]
+    },
+    {
+      "file": "docs/4.map.md",
+      "headings": [
+        "Responsibilities",
+        "Input and output boundaries",
+        "Runtime behaviour",
+        "Internal files",
+        "Related API sections"
+      ]
+    },
+    {
+      "file": "docs/5.ui.md",
+      "headings": [
+        "Responsibilities",
+        "Mode contract",
+        "Shell behaviour",
+        "Runtime mode updates",
+        "Internal files",
+        "Related API sections"
       ]
     }
   ],
@@ -75,6 +97,20 @@
     },
     {
       "docFile": "docs/1.api.md",
+      "heading": "UI shell mode rendering",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "UI shell mode rendering"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "UI shell mode rendering"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
       "heading": "Map options pass-through",
       "tests": [
         {
@@ -131,15 +167,15 @@
     },
     {
       "docFile": "docs/1.api.md",
-      "heading": "Snapshot shape",
+      "heading": "Instance JSON shape",
       "tests": [
         {
           "file": "tests/docs/1.api.test.js",
-          "describe": "Snapshot shape"
+          "describe": "Instance JSON shape"
         },
         {
           "file": "tests/browser/1.api.test.js",
-          "describe": "Snapshot shape"
+          "describe": "Instance JSON shape"
         }
       ]
     },

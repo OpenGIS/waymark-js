@@ -2,25 +2,25 @@
 import { computed } from "vue";
 
 const props = defineProps({
-  snapshot: {
+  instanceJSON: {
     type: Object,
     default: null,
   },
 });
 
-const formattedSnapshot = computed(() => {
-  if (!props.snapshot) {
+const formattedInstanceJSON = computed(() => {
+  if (!props.instanceJSON) {
     return "{}";
   }
 
-  return JSON.stringify(props.snapshot, null, 2);
+  return JSON.stringify(props.instanceJSON, null, 2);
 });
 </script>
 
 <template>
   <details open>
-    <summary>Instance snapshot</summary>
-    <pre>{{ formattedSnapshot }}</pre>
+    <summary>Instance JSON</summary>
+    <pre>{{ formattedInstanceJSON }}</pre>
   </details>
 </template>
 

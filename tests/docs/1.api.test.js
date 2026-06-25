@@ -31,11 +31,13 @@ vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 
 import { createInstance } from "../../src/entry.js";
 import { resolveConfig } from "../../src/config/resolveConfig.js";
-import {
-  clearRuntimeRegistry,
-  getCoreById,
-} from "../../src/core/runtimeRegistry.js";
+import { normaliseInstanceDocument } from "../../src/instance/normaliseInstanceDocument.js";
+import { clearRuntimeRegistry } from "../../src/core/runtimeRegistry.js";
 import { Map } from "maplibre-gl";
+
+function getLastMapInstance() {
+  return Map.mock.instances.at(-1);
+}
 
 describe("1. API", () => {
   beforeEach(() => {
@@ -47,44 +49,113 @@ describe("1. API", () => {
 
   describe("Quick start", () => {
     it("creates an instance for a valid container", () => {
-      const instance = createInstance({ id: "map" });
+      const instance = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+
       expect(instance.id).toBe("map");
-      expect(instance.map).toBeTruthy();
+      expect(instance.toJSON().config.id).toBe("map");
     });
   });
 
   describe("Factory signature", () => {
-    it("accepts config and geoJSON", () => {
-      const geoJSON = { type: "FeatureCollection", features: [] };
-      const instance = createInstance(
-        { id: "map", map: { options: { zoom: 10 } } },
-        geoJSON,
-      );
+    it("accepts an instance JSON document", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: { options: { zoom: 10 } },
+        },
+        data: {
+          geojson: { type: "FeatureCollection", features: [] },
+        },
+      });
 
       expect(instance.id).toBe("map");
-      expect(instance.map.on).toHaveBeenCalledWith(
+      expect(getLastMapInstance().on).toHaveBeenCalledWith(
         "load",
         expect.any(Function),
       );
     });
 
-    it("accepts an empty config object with geoJSON", () => {
-      const geoJSON = { type: "FeatureCollection", features: [] };
-      const instance = createInstance({}, geoJSON);
+    it("accepts an empty instance JSON document", () => {
+      const instance = createInstance({});
 
       expect(instance.id).toMatch(/^waymark-/);
-      expect(instance.map.on).toHaveBeenCalledWith(
-        "load",
-        expect.any(Function),
-      );
+      expect(instance.toJSON().data.geojson.geojson).toBeNull();
+    });
+
+    it("normalises to strict top-level config/state/data keys", () => {
+      const normalised = normaliseInstanceDocument({
+        config: {
+          id: "map",
+        },
+        state: {
+          map: {
+            center: [-3, 55],
+            zoom: 8,
+            bearing: 20,
+            pitch: 30,
+            ignored: true,
+          },
+          ui: {
+            mode: "invalid",
+          },
+        },
+        data: {
+          geojson: { type: "FeatureCollection", features: [] },
+          geoJSON: { type: "FeatureCollection", features: [1] },
+        },
+        unknown: true,
+      });
+
+      expect(Object.keys(normalised)).toEqual(["config", "state", "data"]);
+      expect(normalised.state.map).toEqual({
+        center: [-3, 55],
+        zoom: 8,
+        bearing: 20,
+        pitch: 30,
+      });
+      expect(normalised.state.ui.mode).toBe("view");
+      expect(normalised.data).toEqual({
+        geojson: { type: "FeatureCollection", features: [] },
+      });
+    });
+
+    it("applies state camera values over config.map.options", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            options: {
+              zoom: 4,
+              center: [0, 0],
+            },
+          },
+        },
+        state: {
+          map: {
+            zoom: 12,
+            center: [-0.1276, 51.5074],
+          },
+        },
+      });
+
+      expect(instance.toJSON().state.map.zoom).toBe(12);
+      expect(instance.toJSON().state.map.center).toEqual([-0.1276, 51.5074]);
     });
   });
 
   describe("Container resolution", () => {
     it("throws when a provided container is missing", () => {
-      expect(() => createInstance({ id: "missing-container" })).toThrow(
-        'Waymark container "missing-container" was not found.',
-      );
+      expect(() =>
+        createInstance({
+          config: {
+            id: "missing-container",
+          },
+        }),
+      ).toThrow('Waymark container "missing-container" was not found.');
     });
 
     it("creates and appends a random container when id is omitted", () => {
@@ -96,7 +167,12 @@ describe("1. API", () => {
 
   describe("Config defaults and merge behaviour", () => {
     it("uses documented defaults including attributionControl false", () => {
-      createInstance({ id: "map" });
+      createInstance({
+        config: {
+          id: "map",
+        },
+      });
+
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({
           center: [0, 0],
@@ -138,9 +214,11 @@ describe("1. API", () => {
   describe("UI shell mode rendering", () => {
     it("keeps the shell mounted with empty mode content in view mode", () => {
       createInstance({
-        id: "map",
-        ui: {
-          mode: "view",
+        config: {
+          id: "map",
+          ui: {
+            mode: "view",
+          },
         },
       });
 
@@ -152,11 +230,13 @@ describe("1. API", () => {
       expect(shellMount.querySelector("details")).toBeNull();
     });
 
-    it("renders snapshot content in debug mode", async () => {
+    it("renders Instance JSON content in debug mode", async () => {
       createInstance({
-        id: "map",
-        ui: {
-          mode: "debug",
+        config: {
+          id: "map",
+          ui: {
+            mode: "debug",
+          },
         },
       });
 
@@ -167,50 +247,53 @@ describe("1. API", () => {
       );
       const summary = shellMount?.querySelector("summary");
 
-      expect(summary?.textContent).toContain("Instance snapshot");
-      expect(shellMount?.textContent).toContain('"version": 1');
+      expect(summary?.textContent).toContain("Instance JSON");
+      expect(shellMount?.textContent).toContain('"config"');
     });
 
     it("switches mode by clearing and repopulating shell mode content", async () => {
       const instance = createInstance({
-        id: "map",
-        ui: {
-          mode: "debug",
+        config: {
+          id: "map",
+          ui: {
+            mode: "debug",
+          },
         },
       });
 
       await nextTick();
 
-      const core = getCoreById("map");
       const shellMount = document.querySelector(
         '#map [data-waymark-app="true"]',
       );
 
       expect(shellMount?.querySelector("details")).toBeTruthy();
-      expect(instance.getSnapshot().ui.mode).toBe("debug");
+      expect(instance.toJSON().state.ui.mode).toBe("debug");
 
-      core.lifecycle.setMode("view");
+      instance.ui.setMode("view");
       await nextTick();
       expect(shellMount?.querySelector("details")).toBeNull();
-      expect(instance.getSnapshot().ui.mode).toBe("view");
+      expect(instance.toJSON().state.ui.mode).toBe("view");
 
-      core.lifecycle.setMode("debug");
+      instance.ui.setMode("debug");
       await nextTick();
       expect(shellMount?.querySelector("details")).toBeTruthy();
-      expect(instance.getSnapshot().ui.mode).toBe("debug");
+      expect(instance.toJSON().state.ui.mode).toBe("debug");
     });
   });
 
   describe("Map options pass-through", () => {
     it("forwards map.options values except container", () => {
       createInstance({
-        id: "map",
-        map: {
-          options: {
-            center: [-0.1276, 51.5074],
-            zoom: 10,
-            bearing: 15,
-            container: "other",
+        config: {
+          id: "map",
+          map: {
+            options: {
+              center: [-0.1276, 51.5074],
+              zoom: 10,
+              bearing: 15,
+              container: "other",
+            },
           },
         },
       });
@@ -228,13 +311,19 @@ describe("1. API", () => {
 
   describe("Returned instance shape", () => {
     it("returns the documented API methods", () => {
-      const instance = createInstance({ id: "map" });
+      const instance = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+
       expect(instance).toEqual(
         expect.objectContaining({
           id: "map",
-          map: expect.any(Object),
-          config: expect.any(Object),
-          getSnapshot: expect.any(Function),
+          toJSON: expect.any(Function),
+          ui: expect.objectContaining({
+            setMode: expect.any(Function),
+          }),
           destroy: expect.any(Function),
           on: expect.any(Function),
           off: expect.any(Function),
@@ -245,47 +334,76 @@ describe("1. API", () => {
   });
 
   describe("Instance reuse and destroy semantics", () => {
-    it("reuses same instance by id and ignores subsequent config/geoJSON", () => {
+    it("recreates on the same id using the incoming instance JSON", () => {
       const first = createInstance({
-        id: "map",
-        map: { options: { zoom: 10 } },
+        config: {
+          id: "map",
+          map: { options: { zoom: 10 } },
+        },
       });
+      const firstMap = getLastMapInstance();
 
-      const second = createInstance(
-        { id: "map", map: { options: { zoom: 2 } } },
-        { type: "FeatureCollection", features: [] },
-      );
+      const second = createInstance({
+        config: { id: "map", map: { options: { zoom: 2 } } },
+        data: { geojson: { type: "FeatureCollection", features: [] } },
+      });
+      const secondMap = getLastMapInstance();
 
-      expect(second).toBe(first);
-      expect(Map).toHaveBeenCalledTimes(1);
-      expect(second.map._options.zoom).toBe(10);
+      expect(second).not.toBe(first);
+      expect(firstMap.remove).toHaveBeenCalledTimes(1);
+      expect(Map).toHaveBeenCalledTimes(2);
+      expect(secondMap._options.zoom).toBe(2);
+      expect(second.toJSON().data.geojson.geojson).toEqual({
+        type: "FeatureCollection",
+        features: [],
+      });
     });
 
     it("destroy is idempotent and allows clean recreation", () => {
-      const first = createInstance({ id: "map" });
+      const first = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+      const firstMap = getLastMapInstance();
+
       first.destroy();
       first.destroy();
 
-      const second = createInstance({ id: "map" });
+      const second = createInstance({
+        config: {
+          id: "map",
+        },
+      });
 
-      expect(first.map.remove).toHaveBeenCalledTimes(1);
+      expect(firstMap.remove).toHaveBeenCalledTimes(1);
       expect(second).not.toBe(first);
       expect(Map).toHaveBeenCalledTimes(2);
     });
 
     it("keeps destroy and reuse stable after internal mode switching", () => {
-      const first = createInstance({ id: "map", ui: { mode: "view" } });
-      const firstCore = getCoreById("map");
+      const first = createInstance({
+        config: {
+          id: "map",
+          ui: { mode: "view" },
+        },
+      });
 
-      firstCore.lifecycle.setMode("debug");
-      firstCore.lifecycle.setMode("view");
+      first.ui.setMode("debug");
+      first.ui.setMode("view");
 
       first.destroy();
       expect(
         document.querySelector('#map [data-waymark-app="true"]'),
       ).toBeNull();
 
-      const second = createInstance({ id: "map", ui: { mode: "debug" } });
+      const second = createInstance({
+        config: {
+          id: "map",
+          ui: { mode: "debug" },
+        },
+      });
+
       const secondShellMount = document.querySelector(
         '#map [data-waymark-app="true"]',
       );
@@ -298,7 +416,12 @@ describe("1. API", () => {
 
   describe("Instance event API", () => {
     it("supports on/off/once on container events", () => {
-      const instance = createInstance({ id: "map" });
+      const instance = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+
       const onHandler = vi.fn();
       const onceHandler = vi.fn();
 
@@ -321,26 +444,109 @@ describe("1. API", () => {
       const created = vi.fn();
       container.addEventListener("waymark:instance.created", created);
 
-      const first = createInstance({ id: "map" });
+      const first = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+
       const reused = vi.fn();
-      first.on("waymark:instance.reused", reused);
-      first.on("waymark:instance.destroyed", reused);
-      createInstance({ id: "map" });
+      const destroyed = vi.fn();
+      first.on("waymark:instance.recreated", reused);
+      first.on("waymark:instance.destroyed", destroyed);
+      createInstance({
+        config: {
+          id: "map",
+        },
+      });
+
       first.destroy();
 
       expect(created.mock.calls[0][0].detail).toEqual({ id: "map" });
-      expect(reused).toHaveBeenCalledTimes(2);
+      expect(reused).toHaveBeenCalledTimes(1);
+      expect(destroyed).toHaveBeenCalledTimes(1);
+    });
+
+    it("emits waymark:ui.mode.changed with rich module detail", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "view",
+          },
+        },
+      });
+      const seen = [];
+
+      instance.on("waymark:ui.mode.changed", (event) => {
+        seen.push(event.detail);
+      });
+
+      instance.ui.setMode("debug");
+
+      expect(seen).toEqual([
+        {
+          id: "map",
+          module: "ui",
+          event: "mode.changed",
+          previous: "view",
+          next: "debug",
+          source: "public:ui.setMode",
+        },
+      ]);
+      expect(instance.toJSON().state.ui.mode).toBe("debug");
+    });
+
+    it("syncs map camera into state.map on map end events", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            options: {
+              center: [0, 0],
+              zoom: 5,
+            },
+          },
+        },
+      });
+      const map = getLastMapInstance();
+
+      map._view = {
+        center: [12.3, 45.6],
+        zoom: 8,
+        bearing: 30,
+        pitch: 20,
+      };
+
+      for (const [eventName, handler] of map.on.mock.calls) {
+        if (eventName === "moveend") {
+          handler({ source: "docs-test" });
+        }
+      }
+
+      expect(instance.toJSON().state.map).toEqual({
+        center: [12.3, 45.6],
+        zoom: 8,
+        bearing: 30,
+        pitch: 20,
+      });
     });
 
     it("forwards map events with originalEvent in detail", () => {
-      const instance = createInstance({ id: "map" });
+      const instance = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+      const map = getLastMapInstance();
+
       const seen = [];
 
       instance.on("waymark:map.moveend", (event) => {
         seen.push(event.detail);
       });
 
-      for (const [eventName, handler] of instance.map.on.mock.calls) {
+      for (const [eventName, handler] of map.on.mock.calls) {
         if (eventName === "moveend") {
           handler({ source: "docs-test", type: "moveend" });
         }
@@ -359,31 +565,43 @@ describe("1. API", () => {
     });
   });
 
-  describe("Snapshot shape", () => {
-    it("returns a serialisable snapshot payload", () => {
+  describe("Instance JSON shape", () => {
+    it("toJSON returns a serialisable instance document payload", () => {
       const instance = createInstance({
-        id: "map",
-        map: {
-          options: {
-            center: [-0.1276, 51.5074],
-            zoom: 10,
-            bearing: 15,
-            pitch: 30,
+        config: {
+          id: "map",
+          map: {
+            options: {
+              center: [-0.1276, 51.5074],
+              zoom: 10,
+              bearing: 15,
+              pitch: 30,
+            },
           },
         },
       });
 
-      expect(instance.getSnapshot()).toEqual(
+      expect(instance.toJSON()).toEqual(
         expect.objectContaining({
-          version: 1,
-          map: {
-            center: [-0.1276, 51.5074],
-            zoom: 10,
-            bearing: 15,
-            pitch: 30,
+          config: {
+            id: "map",
+            map: {
+              options: expect.any(Object),
+            },
+            ui: {
+              mode: "view",
+            },
           },
-          ui: {
-            mode: "view",
+          state: {
+            map: {
+              center: [-0.1276, 51.5074],
+              zoom: 10,
+              bearing: 15,
+              pitch: 30,
+            },
+            ui: {
+              mode: "view",
+            },
           },
           data: {
             geojson: expect.objectContaining({
@@ -399,24 +617,39 @@ describe("1. API", () => {
   describe("Initial GeoJSON overlay", () => {
     it("adds source and layer ids scoped by instance id", () => {
       const geoJSON = { type: "FeatureCollection", features: [] };
-      const one = createInstance({ id: "map" }, geoJSON);
+      const one = createInstance({
+        config: {
+          id: "map",
+        },
+        data: {
+          geojson: geoJSON,
+        },
+      });
 
       document.body.innerHTML +=
         '<div id="map-two" style="width: 500px; height: 400px;"></div>';
-      const two = createInstance({ id: "map-two" }, geoJSON);
+      const two = createInstance({
+        config: {
+          id: "map-two",
+        },
+        data: {
+          geojson: geoJSON,
+        },
+      });
+      const [oneMap, twoMap] = Map.mock.instances;
 
-      for (const [eventName, handler] of one.map.on.mock.calls) {
+      for (const [eventName, handler] of oneMap.on.mock.calls) {
         if (eventName === "load") handler();
       }
-      for (const [eventName, handler] of two.map.on.mock.calls) {
+      for (const [eventName, handler] of twoMap.on.mock.calls) {
         if (eventName === "load") handler();
       }
 
-      expect(one.map.addSource).toHaveBeenCalledWith(
+      expect(oneMap.addSource).toHaveBeenCalledWith(
         "waymark-map-geojson-source",
         expect.any(Object),
       );
-      expect(two.map.addSource).toHaveBeenCalledWith(
+      expect(twoMap.addSource).toHaveBeenCalledWith(
         "waymark-map-two-geojson-source",
         expect.any(Object),
       );

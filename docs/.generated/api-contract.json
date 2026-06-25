@@ -1,5 +1,5 @@
 {
-  "signature": "createInstance(config?, geoJSON?)",
+  "signature": "createInstance(instanceJSON?)",
   "defaults": {
     "center": [0, 0],
     "zoom": 2,
@@ -8,7 +8,7 @@
   },
   "lifecycleEvents": [
     "waymark:instance.created",
-    "waymark:instance.reused",
+    "waymark:instance.recreated",
     "waymark:instance.destroyed"
   ],
   "forwardedMapEvents": [

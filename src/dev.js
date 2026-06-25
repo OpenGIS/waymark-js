@@ -2,24 +2,25 @@ import { createInstance } from "./entry.js";
 import {
   WAYMARK_INSTANCE_CREATED_EVENT,
   WAYMARK_INSTANCE_DESTROYED_EVENT,
-  WAYMARK_INSTANCE_REUSED_EVENT,
+  WAYMARK_INSTANCE_RECREATED_EVENT,
   WAYMARK_MAP_LOAD_EVENT,
   WAYMARK_MAP_MOVEEND_EVENT,
   WAYMARK_MAP_PITCHEND_EVENT,
   WAYMARK_MAP_ROTATEEND_EVENT,
   WAYMARK_MAP_ZOOMEND_EVENT,
+  WAYMARK_UI_MODE_CHANGED_EVENT,
 } from "./core/createInstanceEvents.js";
-import { getCoreById } from "./core/runtimeRegistry.js";
 
 const DEV_INSTANCE_CONTAINER_EVENTS = [
   WAYMARK_INSTANCE_CREATED_EVENT,
-  WAYMARK_INSTANCE_REUSED_EVENT,
+  WAYMARK_INSTANCE_RECREATED_EVENT,
   WAYMARK_INSTANCE_DESTROYED_EVENT,
   WAYMARK_MAP_LOAD_EVENT,
   WAYMARK_MAP_MOVEEND_EVENT,
   WAYMARK_MAP_ZOOMEND_EVENT,
   WAYMARK_MAP_ROTATEEND_EVENT,
   WAYMARK_MAP_PITCHEND_EVENT,
+  WAYMARK_UI_MODE_CHANGED_EVENT,
 ];
 
 function attachDevContainerEventLogging(instance, label) {
@@ -74,16 +75,10 @@ function createDevModeDropdowns() {
   };
 }
 
-function wireDevModeDropdown(select, instanceId) {
+function wireDevModeDropdown(select, instance) {
   select.addEventListener("change", () => {
-    const core = getCoreById(instanceId);
-
-    if (!core) {
-      return;
-    }
-
     const nextMode = select.value === "debug" ? "debug" : "view";
-    core.lifecycle.setMode(nextMode);
+    instance.ui.setMode(nextMode);
   });
 }
 
@@ -104,63 +99,67 @@ mapContainer.style.height = "50vh";
 secondMapContainer.style.height = "50vh";
 
 const waymarkInstance = createInstance({
-  id: "map",
-  ui: {
-    mode: "view",
-  },
-  map: {
-    options: {
-      center: [-128.0094, 50.6539],
-      zoom: 15,
-      style: {
-        version: 8,
-        sources: {
-          raster: {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution: "© OpenStreetMap contributors",
+  config: {
+    id: "map",
+    ui: {
+      mode: "view",
+    },
+    map: {
+      options: {
+        center: [-128.0094, 50.6539],
+        zoom: 15,
+        style: {
+          version: 8,
+          sources: {
+            raster: {
+              type: "raster",
+              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+              tileSize: 256,
+              attribution: "© OpenStreetMap contributors",
+            },
           },
+          layers: [
+            {
+              id: "osm-raster",
+              type: "raster",
+              source: "raster",
+            },
+          ],
         },
-        layers: [
-          {
-            id: "osm-raster",
-            type: "raster",
-            source: "raster",
-          },
-        ],
       },
     },
   },
 });
 
 const waymarkInstanceTwo = createInstance({
-  id: "map-two",
-  ui: {
-    mode: "debug",
-  },
-  map: {
-    options: {
-      center: [-0.1276, 51.5074],
-      zoom: 11,
-      style: {
-        version: 8,
-        sources: {
-          raster: {
-            type: "raster",
-            tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution:
-              "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap",
+  config: {
+    id: "map-two",
+    ui: {
+      mode: "debug",
+    },
+    map: {
+      options: {
+        center: [-0.1276, 51.5074],
+        zoom: 11,
+        style: {
+          version: 8,
+          sources: {
+            raster: {
+              type: "raster",
+              tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
+              tileSize: 256,
+              attribution:
+                "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap",
+            },
           },
+          layers: [
+            {
+              id: "opentopo-raster",
+              type: "raster",
+              source: "raster",
+            },
+          ],
         },
-        layers: [
-          {
-            id: "opentopo-raster",
-            type: "raster",
-            source: "raster",
-          },
-        ],
       },
     },
   },
@@ -168,11 +167,11 @@ const waymarkInstanceTwo = createInstance({
 
 const { mapModeSelect, mapTwoModeSelect } = createDevModeDropdowns();
 
-mapModeSelect.value = waymarkInstance.getSnapshot().ui.mode;
-mapTwoModeSelect.value = waymarkInstanceTwo.getSnapshot().ui.mode;
+mapModeSelect.value = waymarkInstance.toJSON().state.ui.mode;
+mapTwoModeSelect.value = waymarkInstanceTwo.toJSON().state.ui.mode;
 
-wireDevModeDropdown(mapModeSelect, waymarkInstance.id);
-wireDevModeDropdown(mapTwoModeSelect, waymarkInstanceTwo.id);
+wireDevModeDropdown(mapModeSelect, waymarkInstance);
+wireDevModeDropdown(mapTwoModeSelect, waymarkInstanceTwo);
 
 attachDevContainerEventLogging(waymarkInstance, "map");
 attachDevContainerEventLogging(waymarkInstanceTwo, "map-two");

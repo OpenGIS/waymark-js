@@ -31,7 +31,7 @@ function parseEventConstants(source) {
 const constants = parseEventConstants(instanceEventsSource);
 
 const contract = {
-  signature: "createInstance(config?, geoJSON?)",
+  signature: "createInstance(instanceJSON?)",
   defaults: {
     center: defaultConfig.map.options.center,
     zoom: defaultConfig.map.options.zoom,
@@ -40,7 +40,7 @@ const contract = {
   },
   lifecycleEvents: [
     constants.WAYMARK_INSTANCE_CREATED_EVENT,
-    constants.WAYMARK_INSTANCE_REUSED_EVENT,
+    constants.WAYMARK_INSTANCE_RECREATED_EVENT,
     constants.WAYMARK_INSTANCE_DESTROYED_EVENT,
   ],
   forwardedMapEvents: [

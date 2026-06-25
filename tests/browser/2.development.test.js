@@ -40,8 +40,8 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(1);
 
     const modes = await page.evaluate(() => ({
-      map: window.waymarkInstance?.getSnapshot().ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.getSnapshot().ui.mode,
+      map: window.waymarkInstance?.toJSON().state.ui.mode,
+      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
     }));
 
     expect(modes).toEqual({
@@ -59,8 +59,8 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(1);
 
     const afterMapDebug = await page.evaluate(() => ({
-      map: window.waymarkInstance?.getSnapshot().ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.getSnapshot().ui.mode,
+      map: window.waymarkInstance?.toJSON().state.ui.mode,
+      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
     }));
 
     expect(afterMapDebug).toEqual({
@@ -78,8 +78,8 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(0);
 
     const afterMapTwoView = await page.evaluate(() => ({
-      map: window.waymarkInstance?.getSnapshot().ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.getSnapshot().ui.mode,
+      map: window.waymarkInstance?.toJSON().state.ui.mode,
+      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
     }));
 
     expect(afterMapTwoView).toEqual({
@@ -97,8 +97,8 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(0);
 
     const afterMapView = await page.evaluate(() => ({
-      map: window.waymarkInstance?.getSnapshot().ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.getSnapshot().ui.mode,
+      map: window.waymarkInstance?.toJSON().state.ui.mode,
+      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
     }));
 
     expect(afterMapView).toEqual({
@@ -116,8 +116,8 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(1);
 
     const finalModes = await page.evaluate(() => ({
-      map: window.waymarkInstance?.getSnapshot().ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.getSnapshot().ui.mode,
+      map: window.waymarkInstance?.toJSON().state.ui.mode,
+      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
     }));
 
     expect(finalModes).toEqual({
@@ -133,8 +133,9 @@ test.describe("2. Development smoke", () => {
 
     const result = await page.evaluate(() => ({
       hasFactory: typeof window.createWaymarkInstance === "function",
-      hasInstanceOne: Boolean(window.waymarkInstance?.map),
-      hasInstanceTwo: Boolean(window.waymarkInstanceTwo?.map),
+      hasInstanceOne: typeof window.waymarkInstance?.ui?.setMode === "function",
+      hasInstanceTwo:
+        typeof window.waymarkInstanceTwo?.ui?.setMode === "function",
     }));
 
     expect(result).toEqual({

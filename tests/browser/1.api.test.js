@@ -15,8 +15,12 @@ test.describe("1. API", () => {
     test("renders a map canvas for a created instance", async ({ page }) => {
       await page.evaluate(() => {
         window.waymarkFixture.createInstance({
-          id: "map",
-          map: { options: { style: { version: 8, sources: {}, layers: [] } } },
+          config: {
+            id: "map",
+            map: {
+              options: { style: { version: 8, sources: {}, layers: [] } },
+            },
+          },
         });
       });
 
@@ -25,11 +29,10 @@ test.describe("1. API", () => {
   });
 
   test.describe("Factory signature", () => {
-    test("accepts config and geoJSON", async ({ page }) => {
+    test("accepts an instance JSON document", async ({ page }) => {
       const result = await page.evaluate(() => {
-        const geoJSON = { type: "FeatureCollection", features: [] };
-        const instance = window.waymarkFixture.createInstance(
-          {
+        const instance = window.waymarkFixture.createInstance({
+          config: {
             id: "map",
             map: {
               options: {
@@ -38,33 +41,32 @@ test.describe("1. API", () => {
               },
             },
           },
-          geoJSON,
-        );
+          data: {
+            geojson: { type: "FeatureCollection", features: [] },
+          },
+        });
 
         return {
           id: instance.id,
-          zoom: instance.map.getZoom(),
+          zoom: instance.toJSON().state.map.zoom,
         };
       });
 
       expect(result).toEqual({ id: "map", zoom: 10 });
     });
 
-    test("accepts an empty config object with geoJSON", async ({ page }) => {
+    test("accepts an empty instance JSON document", async ({ page }) => {
       const result = await page.evaluate(() => {
-        const instance = window.waymarkFixture.createInstance(
-          {},
-          { type: "FeatureCollection", features: [] },
-        );
+        const instance = window.waymarkFixture.createInstance({});
 
         return {
           id: instance.id,
-          hasGeoJSON: Boolean(instance.getSnapshot().data.geojson.geojson),
+          hasGeoJSON: Boolean(instance.toJSON().data.geojson.geojson),
         };
       });
 
       expect(result.id.startsWith("waymark-")).toBe(true);
-      expect(result.hasGeoJSON).toBe(true);
+      expect(result.hasGeoJSON).toBe(false);
     });
   });
 
@@ -73,7 +75,9 @@ test.describe("1. API", () => {
       const message = await page.evaluate(() => {
         try {
           window.waymarkFixture.createInstance({
-            id: "missing-browser-container",
+            config: {
+              id: "missing-browser-container",
+            },
           });
           return null;
         } catch (error) {
@@ -93,13 +97,17 @@ test.describe("1. API", () => {
     }) => {
       const result = await page.evaluate(() => {
         const instance = window.waymarkFixture.createInstance({
-          id: "map",
-          map: { options: { style: { version: 8, sources: {}, layers: [] } } },
+          config: {
+            id: "map",
+            map: {
+              options: { style: { version: 8, sources: {}, layers: [] } },
+            },
+          },
         });
 
         return {
-          zoom: instance.map.getZoom(),
-          center: instance.map.getCenter().toArray(),
+          zoom: instance.toJSON().state.map.zoom,
+          center: instance.toJSON().state.map.center,
         };
       });
 
@@ -112,15 +120,69 @@ test.describe("1. API", () => {
     }) => {
       const mode = await page.evaluate(() => {
         const instance = window.waymarkFixture.createInstance({
-          id: "map",
-          ui: { mode: "invalid-mode" },
-          map: { options: { style: { version: 8, sources: {}, layers: [] } } },
+          config: {
+            id: "map",
+            ui: { mode: "invalid-mode" },
+            map: {
+              options: { style: { version: 8, sources: {}, layers: [] } },
+            },
+          },
         });
 
-        return instance.getSnapshot().ui.mode;
+        return instance.toJSON().state.ui.mode;
       });
 
       expect(mode).toBe("view");
+    });
+  });
+
+  test.describe("UI shell mode rendering", () => {
+    test("keeps shell mounted in view mode and renders Instance JSON panel in debug mode", async ({
+      page,
+    }) => {
+      const result = await page.evaluate((inlineStyle) => {
+        window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+            ui: { mode: "view" },
+            map: {
+              options: { style: inlineStyle },
+            },
+          },
+        });
+
+        const viewShell = document.querySelector(
+          '#map [data-waymark-app="true"]',
+        );
+        const viewHasDetails = Boolean(viewShell?.querySelector("details"));
+
+        window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+            ui: { mode: "debug" },
+            map: {
+              options: { style: inlineStyle },
+            },
+          },
+        });
+
+        const debugShell = document.querySelector(
+          '#map [data-waymark-app="true"]',
+        );
+        const summary = debugShell?.querySelector("summary")?.textContent ?? "";
+
+        return {
+          hasShell: Boolean(viewShell),
+          viewHasDetails,
+          debugHasDetails: Boolean(debugShell?.querySelector("details")),
+          summary,
+        };
+      }, INLINE_STYLE);
+
+      expect(result.hasShell).toBe(true);
+      expect(result.viewHasDetails).toBe(false);
+      expect(result.debugHasDetails).toBe(true);
+      expect(result.summary).toContain("Instance JSON");
     });
   });
 
@@ -131,22 +193,24 @@ test.describe("1. API", () => {
       const result = await page.evaluate((inlineStyle) => {
         const map = window.waymarkFixture.createContainer("map-options-test");
         const instance = window.waymarkFixture.createInstance({
-          id: "map-options-test",
-          map: {
-            options: {
-              center: [-0.1276, 51.5074],
-              zoom: 10,
-              bearing: 25,
-              style: inlineStyle,
+          config: {
+            id: "map-options-test",
+            map: {
+              options: {
+                center: [-0.1276, 51.5074],
+                zoom: 10,
+                bearing: 25,
+                style: inlineStyle,
+              },
             },
           },
         });
 
         return {
           hasCanvas: Boolean(map.querySelector("canvas")),
-          center: instance.map.getCenter().toArray(),
-          zoom: instance.map.getZoom(),
-          bearing: instance.map.getBearing(),
+          center: instance.toJSON().state.map.center,
+          zoom: instance.toJSON().state.map.zoom,
+          bearing: instance.toJSON().state.map.bearing,
         };
       }, INLINE_STYLE);
 
@@ -163,15 +227,19 @@ test.describe("1. API", () => {
     test("returns documented properties and methods", async ({ page }) => {
       const result = await page.evaluate(() => {
         const instance = window.waymarkFixture.createInstance({
-          id: "map",
-          map: { options: { style: { version: 8, sources: {}, layers: [] } } },
+          config: {
+            id: "map",
+            map: {
+              options: { style: { version: 8, sources: {}, layers: [] } },
+            },
+          },
         });
 
         return {
           id: instance.id,
-          hasMap: Boolean(instance.map),
-          hasConfig: Boolean(instance.config),
-          hasGetSnapshot: typeof instance.getSnapshot === "function",
+          hasUI: Boolean(instance.ui),
+          hasToJSON: typeof instance.toJSON === "function",
+          hasSetMode: typeof instance.ui?.setMode === "function",
           hasDestroy: typeof instance.destroy === "function",
           hasOn: typeof instance.on === "function",
           hasOff: typeof instance.off === "function",
@@ -181,9 +249,9 @@ test.describe("1. API", () => {
 
       expect(result).toEqual({
         id: "map",
-        hasMap: true,
-        hasConfig: true,
-        hasGetSnapshot: true,
+        hasUI: true,
+        hasToJSON: true,
+        hasSetMode: true,
         hasDestroy: true,
         hasOn: true,
         hasOff: true,
@@ -193,22 +261,24 @@ test.describe("1. API", () => {
   });
 
   test.describe("Instance reuse and destroy semantics", () => {
-    test("reuses existing instance and ignores subsequent args", async ({
+    test("recreates existing instance on same id and applies incoming document", async ({
       page,
     }) => {
       const result = await page.evaluate(() => {
         const first = window.waymarkFixture.createInstance({
-          id: "map",
-          map: {
-            options: {
-              style: { version: 8, sources: {}, layers: [] },
-              zoom: 12,
+          config: {
+            id: "map",
+            map: {
+              options: {
+                style: { version: 8, sources: {}, layers: [] },
+                zoom: 12,
+              },
             },
           },
         });
 
-        const second = window.waymarkFixture.createInstance(
-          {
+        const second = window.waymarkFixture.createInstance({
+          config: {
             id: "map",
             map: {
               options: {
@@ -217,27 +287,37 @@ test.describe("1. API", () => {
               },
             },
           },
-          { type: "FeatureCollection", features: [] },
-        );
+          data: {
+            geojson: { type: "FeatureCollection", features: [] },
+          },
+        });
 
         first.destroy();
         const third = window.waymarkFixture.createInstance({
-          id: "map",
-          map: {
-            options: {
-              style: { version: 8, sources: {}, layers: [] },
+          config: {
+            id: "map",
+            map: {
+              options: {
+                style: { version: 8, sources: {}, layers: [] },
+              },
             },
           },
         });
 
         return {
-          same: first === second,
-          firstZoom: first.map.getZoom(),
-          thirdIsNew: third !== first,
+          secondIsNew: second !== first,
+          secondZoom: second.toJSON().state.map.zoom,
+          secondHasGeoJSON: Boolean(second.toJSON().data.geojson.geojson),
+          thirdIsNew: third !== second,
         };
       });
 
-      expect(result).toEqual({ same: true, firstZoom: 12, thirdIsNew: true });
+      expect(result).toEqual({
+        secondIsNew: true,
+        secondZoom: 5,
+        secondHasGeoJSON: true,
+        thirdIsNew: true,
+      });
     });
   });
 
@@ -253,10 +333,12 @@ test.describe("1. API", () => {
         });
 
         const instance = window.waymarkFixture.createInstance({
-          id: "map",
-          map: {
-            options: {
-              style: { version: 8, sources: {}, layers: [] },
+          config: {
+            id: "map",
+            map: {
+              options: {
+                style: { version: 8, sources: {}, layers: [] },
+              },
             },
           },
         });
@@ -272,7 +354,9 @@ test.describe("1. API", () => {
           });
         });
 
-        instance.map.fire("moveend", { source: "playwright", test: true });
+        window.waymarkFixture
+          .getRuntimeMap(instance.id)
+          .fire("moveend", { source: "playwright", test: true });
 
         return seen;
       });
@@ -289,36 +373,76 @@ test.describe("1. API", () => {
         },
       ]);
     });
-  });
 
-  test.describe("Snapshot shape", () => {
-    test("getSnapshot returns serialisable map/ui/data payload", async ({
+    test("emits waymark:ui.mode.changed with module payload", async ({
       page,
     }) => {
-      const snapshot = await page.evaluate(() => {
+      const detail = await page.evaluate(() => {
         const instance = window.waymarkFixture.createInstance({
-          id: "map",
-          map: {
-            options: {
-              style: { version: 8, sources: {}, layers: [] },
-              zoom: 9,
+          config: {
+            id: "map",
+            ui: { mode: "view" },
+            map: {
+              options: {
+                style: { version: 8, sources: {}, layers: [] },
+              },
             },
           },
         });
 
-        return instance.getSnapshot();
+        return new Promise((resolve) => {
+          instance.on("waymark:ui.mode.changed", (event) => {
+            resolve(event.detail);
+          });
+          instance.ui.setMode("debug");
+        });
       });
 
-      expect(snapshot).toEqual(
+      expect(detail).toEqual({
+        id: "map",
+        module: "ui",
+        event: "mode.changed",
+        previous: "view",
+        next: "debug",
+        source: "public:ui.setMode",
+      });
+    });
+  });
+
+  test.describe("Instance JSON shape", () => {
+    test("toJSON returns a serialisable config/state/data payload", async ({
+      page,
+    }) => {
+      const instanceJSON = await page.evaluate(() => {
+        const instance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+            map: {
+              options: {
+                style: { version: 8, sources: {}, layers: [] },
+                zoom: 9,
+              },
+            },
+          },
+        });
+
+        return instance.toJSON();
+      });
+
+      expect(instanceJSON).toEqual(
         expect.objectContaining({
-          version: 1,
-          map: expect.objectContaining({
-            center: expect.any(Array),
-            zoom: 9,
-            bearing: expect.any(Number),
-            pitch: expect.any(Number),
+          config: expect.objectContaining({
+            id: "map",
           }),
-          ui: expect.objectContaining({ mode: "view" }),
+          state: expect.objectContaining({
+            map: expect.objectContaining({
+              center: expect.any(Array),
+              zoom: 9,
+              bearing: expect.any(Number),
+              pitch: expect.any(Number),
+            }),
+            ui: expect.objectContaining({ mode: "view" }),
+          }),
           data: expect.objectContaining({
             geojson: expect.objectContaining({
               sourceId: expect.any(String),
@@ -331,13 +455,13 @@ test.describe("1. API", () => {
   });
 
   test.describe("Initial GeoJSON overlay", () => {
-    test("creates instance-scoped source and layer from third argument", async ({
+    test("creates instance-scoped source and layer from data.geojson", async ({
       page,
     }) => {
       const result = await page.evaluate(() => {
         window.waymarkFixture.createContainer("map-geojson-test");
-        const instance = window.waymarkFixture.createInstance(
-          {
+        const instance = window.waymarkFixture.createInstance({
+          config: {
             id: "map-geojson-test",
             map: {
               options: {
@@ -345,32 +469,33 @@ test.describe("1. API", () => {
               },
             },
           },
-          {
-            type: "FeatureCollection",
-            features: [],
+          data: {
+            geojson: {
+              type: "FeatureCollection",
+              features: [],
+            },
           },
-        );
+        });
 
         return new Promise((resolve) => {
+          const map = window.waymarkFixture.getRuntimeMap(instance.id);
           const check = () => {
             resolve({
               hasSource: Boolean(
-                instance.map.getSource(
-                  "waymark-map-geojson-test-geojson-source",
-                ),
+                map.getSource("waymark-map-geojson-test-geojson-source"),
               ),
               hasLayer: Boolean(
-                instance.map.getLayer("waymark-map-geojson-test-geojson-layer"),
+                map.getLayer("waymark-map-geojson-test-geojson-layer"),
               ),
             });
           };
 
-          if (instance.map.loaded()) {
+          if (map.loaded()) {
             check();
             return;
           }
 
-          instance.map.on("load", check);
+          map.on("load", check);
         });
       });
 

@@ -11,7 +11,7 @@ function normaliseMode(mode) {
 
 /**
  * @param {string} containerId
- * @param {{ events: { on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void }, getSnapshot: () => object | null, mode: 'view' | 'debug' }} options
+ * @param {{ events: { on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void }, getInstanceJSON: () => object | null, mode: 'view' | 'debug' }} options
  */
 export function createAppShell(containerId, options) {
   const container = document.getElementById(containerId);
@@ -20,12 +20,12 @@ export function createAppShell(containerId, options) {
     return null;
   }
 
-  const { events, getSnapshot } = options;
-  const snapshot = ref(null);
+  const { events, getInstanceJSON } = options;
+  const instanceJSON = ref(null);
   const mode = ref(normaliseMode(options.mode));
 
   const refresh = () => {
-    snapshot.value = getSnapshot() ?? null;
+    instanceJSON.value = getInstanceJSON() ?? null;
   };
 
   /**
@@ -46,7 +46,7 @@ export function createAppShell(containerId, options) {
       return () =>
         h(InstanceShell, {
           mode: mode.value,
-          snapshot: snapshot.value,
+          instanceJSON: instanceJSON.value,
         });
     },
   });

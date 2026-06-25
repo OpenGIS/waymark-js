@@ -1,11 +1,12 @@
 export const WAYMARK_INSTANCE_CREATED_EVENT = "waymark:instance.created";
-export const WAYMARK_INSTANCE_REUSED_EVENT = "waymark:instance.reused";
+export const WAYMARK_INSTANCE_RECREATED_EVENT = "waymark:instance.recreated";
 export const WAYMARK_INSTANCE_DESTROYED_EVENT = "waymark:instance.destroyed";
 export const WAYMARK_MAP_LOAD_EVENT = "waymark:map.load";
 export const WAYMARK_MAP_MOVEEND_EVENT = "waymark:map.moveend";
 export const WAYMARK_MAP_ZOOMEND_EVENT = "waymark:map.zoomend";
 export const WAYMARK_MAP_ROTATEEND_EVENT = "waymark:map.rotateend";
 export const WAYMARK_MAP_PITCHEND_EVENT = "waymark:map.pitchend";
+export const WAYMARK_UI_MODE_CHANGED_EVENT = "waymark:ui.mode.changed";
 
 export const FORWARDED_MAP_EVENTS = [
   ["load", WAYMARK_MAP_LOAD_EVENT],
@@ -21,6 +22,17 @@ export const FORWARDED_MAP_EVENTS = [
 
 /**
  * @typedef {{ id: string, mapEvent: string, originalEvent: unknown }} WaymarkInstanceMapEventDetail
+ */
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   module: string,
+ *   event: string,
+ *   previous: unknown,
+ *   next: unknown,
+ *   source: string,
+ * }} WaymarkInstanceModuleEventDetail
  */
 
 /**
@@ -63,7 +75,7 @@ export function createInstanceEvents(containerId) {
     container,
     /**
      * @param {string} type
-     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkInstanceMapEventDetail} detail
+     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkInstanceMapEventDetail | WaymarkInstanceModuleEventDetail} detail
      */
     emit(type, detail) {
       container.dispatchEvent(
