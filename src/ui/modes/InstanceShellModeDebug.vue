@@ -2,25 +2,25 @@
 import { computed } from "vue";
 
 const props = defineProps({
-  instanceJSON: {
+  debugPayload: {
     type: Object,
     default: null,
   },
 });
 
-const formattedInstanceJSON = computed(() => {
-  if (!props.instanceJSON) {
+const formattedDebugPayload = computed(() => {
+  if (!props.debugPayload) {
     return "{}";
   }
 
-  return JSON.stringify(props.instanceJSON, null, 2);
+  return JSON.stringify(props.debugPayload, null, 2);
 });
 </script>
 
 <template>
   <details open>
-    <summary>Instance JSON</summary>
-    <pre>{{ formattedInstanceJSON }}</pre>
+    <summary>Instance debug payload</summary>
+    <pre>{{ formattedDebugPayload }}</pre>
   </details>
 </template>
 

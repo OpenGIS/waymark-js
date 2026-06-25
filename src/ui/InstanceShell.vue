@@ -8,7 +8,7 @@ const props = defineProps({
     type: String,
     required: true,
   },
-  instanceJSON: {
+  debugPayload: {
     type: Object,
     default: null,
   },
@@ -25,7 +25,7 @@ const modeComponent = computed(() => {
 
 <template>
   <aside class="waymark-instance-shell" aria-live="polite">
-    <component :is="modeComponent" :key="mode" v-bind="{ instanceJSON }" />
+    <component :is="modeComponent" :key="mode" v-bind="{ debugPayload }" />
   </aside>
 </template>
 

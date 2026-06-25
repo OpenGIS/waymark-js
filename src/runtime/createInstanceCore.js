@@ -2,12 +2,13 @@ import { resolveConfig } from "../config/resolveConfig.js";
 import { createGeoJSONModule } from "../geojson/createGeoJSONModule.js";
 import { ensureContainer } from "../map/ensureContainer.js";
 import { createMap } from "../map/createMap.js";
-import {
-  createInstanceJSON,
-  getMapCameraState,
-} from "../state/createInstanceJSON.js";
-import { deleteCoreById, getCoreById, setCoreById } from "./runtimeRegistry.js";
 import { createAppShell } from "../ui/createAppShell.js";
+import {
+  normaliseMode,
+  serialiseInstanceDocument,
+} from "../document/instanceDocument.js";
+import { createInstanceDebugPayload } from "../debug/createInstanceDebugPayload.js";
+import { deleteCoreById, getCoreById, setCoreById } from "./runtimeRegistry.js";
 import {
   createInstanceEvents,
   forwardMapEventsToInstanceContainer,
@@ -22,21 +23,25 @@ import {
  */
 
 /**
- * @typedef {import('../config/resolveConfig.js').WaymarkConfig} WaymarkConfig
- */
-
-/**
- * @typedef {import('../instance/normaliseInstanceDocument.js').WaymarkInstanceDocument} WaymarkInstanceDocument
- */
-
-/**
  * @typedef {import('../config/resolveConfig.js').WaymarkResolvedConfig} WaymarkResolvedConfig
+ */
+
+/**
+ * @typedef {import('../document/instanceDocument.js').WaymarkInstanceDocument} WaymarkInstanceDocument
+ */
+
+/**
+ * @typedef {object} WaymarkMapState
+ * @property {[number, number]} center
+ * @property {number} zoom
+ * @property {number} bearing
+ * @property {number} pitch
  */
 
 /**
  * @typedef {object} WaymarkInstancePublicApi
  * @property {string} id
- * @property {() => import('../state/createInstanceJSON.js').WaymarkInstanceDocument} toJSON
+ * @property {() => WaymarkInstanceDocument} toJSON
  * @property {{ setMode: (mode: 'view' | 'debug') => void }} ui
  * @property {() => void} destroy
  * @property {(type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void} on
@@ -49,16 +54,31 @@ import {
  * @property {string} id
  * @property {WaymarkMap} map
  * @property {WaymarkResolvedConfig} config
- * @property {{ map: import('../state/createInstanceJSON.js').WaymarkMapState, ui: { mode: 'view' | 'debug' } }} state
+ * @property {{ map: WaymarkMapState, ui: { mode: 'view' | 'debug' } }} state
  * @property {WaymarkInstancePublicApi} publicApi
  * @property {{ container: HTMLElement, emit: (type: string, detail: import('./createInstanceEvents.js').WaymarkInstanceLifecycleEventDetail | import('./createInstanceEvents.js').WaymarkInstanceMapEventDetail | import('./createInstanceEvents.js').WaymarkInstanceModuleEventDetail) => void, on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void, once: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void }} events
- * @property {{ toJSON: () => import('../state/createInstanceJSON.js').WaymarkInstanceDocument }} instanceJSON
- * @property {{ mode: 'view' | 'debug' }} ui
+ * @property {{ toJSON: () => WaymarkInstanceDocument }} instanceDocument
+ * @property {{ toJSON: () => object }} debug
  * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, setMode: (mode: 'view' | 'debug') => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void }, mapEvents: { destroy: () => void }, stateSync: { destroy: () => void } }} modules
- * @property {{ phase: 'ready' | 'destroyed', destroy: () => void, setMode: (mode: 'view' | 'debug', source?: string) => void }} lifecycle
+ * @property {{ phase: 'ready' | 'destroyed', destroy: () => void }} lifecycle
  */
 
 const MAP_END_EVENTS = ["load", "moveend", "zoomend", "rotateend", "pitchend"];
+
+/**
+ * @param {WaymarkMap} map
+ * @returns {WaymarkMapState}
+ */
+function readMapCameraState(map) {
+  const center = map.getCenter();
+
+  return {
+    center: [center.lng, center.lat],
+    zoom: map.getZoom(),
+    bearing: map.getBearing(),
+    pitch: map.getPitch(),
+  };
+}
 
 /**
  * @param {string} id
@@ -87,14 +107,6 @@ function createModuleEventDetail(id, module, event, previous, next, source) {
 }
 
 /**
- * @param {unknown} mode
- * @returns {'view' | 'debug'}
- */
-function normaliseMode(mode) {
-  return mode === "debug" ? "debug" : "view";
-}
-
-/**
  * @param {WaymarkInstanceCore} core
  * @param {'view' | 'debug'} mode
  * @param {string} [source='core:lifecycle']
@@ -105,15 +117,13 @@ function setCoreMode(core, mode, source = "core:lifecycle") {
   }
 
   const nextMode = normaliseMode(mode);
-  const previousMode = core.ui.mode;
+  const previousMode = core.state.ui.mode;
 
   if (previousMode === nextMode) {
     return;
   }
 
-  core.ui.mode = nextMode;
   core.state.ui.mode = nextMode;
-  core.config.ui.mode = nextMode;
 
   core.events.emit(
     WAYMARK_UI_MODE_CHANGED_EVENT,
@@ -143,7 +153,7 @@ function createStateSyncModule(options) {
   const listeners = [];
 
   const syncMapState = () => {
-    core.state.map = getMapCameraState(map);
+    core.state.map = readMapCameraState(map);
   };
 
   for (const mapEvent of MAP_END_EVENTS) {
@@ -166,7 +176,7 @@ function createStateSyncModule(options) {
 }
 
 /**
- * @param {import('../instance/normaliseInstanceDocument.js').WaymarkInstanceDocumentStateMap} stateMap
+ * @param {import('../document/instanceDocument.js').WaymarkInstanceDocumentStateMap} stateMap
  */
 function toMapCameraOverrides(stateMap) {
   const overrides = {};
@@ -238,7 +248,7 @@ export function createInstanceCore(instanceDocument) {
   let core = null;
   const appShell = createAppShell(containerId, {
     events,
-    getInstanceJSON: () => core?.instanceJSON?.toJSON() ?? null,
+    getDebugPayload: () => core?.debug?.toJSON() ?? null,
     mode: resolvedConfig.ui.mode,
   });
   const geoJSONModule = createGeoJSONModule(
@@ -252,17 +262,15 @@ export function createInstanceCore(instanceDocument) {
     map,
     config: resolvedConfig,
     state: {
-      map: getMapCameraState(map),
+      map: readMapCameraState(map),
       ui: {
         mode: resolvedConfig.ui.mode,
       },
     },
     publicApi: null,
     events,
-    instanceJSON: null,
-    ui: {
-      mode: resolvedConfig.ui.mode,
-    },
+    instanceDocument: null,
+    debug: null,
     modules: {
       appShell,
       geoJSON: geoJSONModule,
@@ -276,7 +284,6 @@ export function createInstanceCore(instanceDocument) {
     lifecycle: {
       phase: "ready",
       destroy: () => destroyCore(core),
-      setMode: (mode, source) => setCoreMode(core, mode, source),
     },
   };
 
@@ -290,19 +297,44 @@ export function createInstanceCore(instanceDocument) {
     events: core.events,
   });
 
-  core.instanceJSON = createInstanceJSON({
-    getMapState: () => core.state.map,
-    getMode: () => core.ui.mode,
-    getConfig: () => ({
-      id: core.id,
-      map: {
-        options: core.config.map.options,
+  core.instanceDocument = {
+    toJSON: () =>
+      serialiseInstanceDocument({
+        config: {
+          id: core.id,
+          map: {
+            options: {
+              ...core.config.map.options,
+              ...toMapCameraOverrides(core.state.map),
+            },
+          },
+          ui: {
+            mode: core.state.ui.mode,
+          },
+        },
+        state: {
+          map: core.state.map,
+          ui: {
+            mode: core.state.ui.mode,
+          },
+        },
+        data: {
+          geojson: core.modules.geoJSON.geoJSON,
+        },
+      }),
+  };
+
+  core.debug = createInstanceDebugPayload({
+    getInstanceDocument: () => core.instanceDocument.toJSON(),
+    getRuntimeMetadata: () => ({
+      lifecycle: {
+        phase: core.lifecycle.phase,
       },
-      ui: {
-        mode: core.ui.mode,
+      geojson: {
+        sourceId: core.modules.geoJSON.sourceId,
+        layerId: core.modules.geoJSON.layerId,
       },
     }),
-    modules: core.modules,
   });
 
   if (core.modules.appShell) {
@@ -311,7 +343,7 @@ export function createInstanceCore(instanceDocument) {
 
   core.publicApi = {
     id: containerId,
-    toJSON: () => core.instanceJSON.toJSON(),
+    toJSON: () => core.instanceDocument.toJSON(),
     ui: {
       setMode: (mode) => setCoreMode(core, mode, "public:ui.setMode"),
     },

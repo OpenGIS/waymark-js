@@ -12,7 +12,7 @@ const defaultConfig = JSON.parse(
   ),
 );
 const instanceEventsSource = fs.readFileSync(
-  path.join(ROOT, "src", "core", "createInstanceEvents.js"),
+  path.join(ROOT, "src", "runtime", "createInstanceEvents.js"),
   "utf8",
 );
 

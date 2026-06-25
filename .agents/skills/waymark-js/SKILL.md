@@ -50,9 +50,9 @@ Waymark JS is a small JavaScript map library built on [MapLibre GL](https://mapl
 
 <!-- api-contract:signature:end -->
 
-| Parameter      | Type     | Required | Behaviour                                                                                                    |
-| -------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------ |
-| `instanceJSON` | `object` | No       | Instance document with strict top-level keys: `config`, `state`, `data`. Unknown top-level keys are ignored. |
+| Parameter      | Type     | Required | Behaviour                                                                                                                          |
+| -------------- | -------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `instanceJSON` | `object` | No       | Canonical serialisable InstanceDocument with strict top-level keys: `config`, `state`, `data`. Unknown top-level keys are ignored. |
 
 Canonical v1 shape:
 
@@ -82,9 +82,12 @@ Canonical v1 shape:
 
 ## Container resolution
 
+- `createInstance(...)` is a browser-runtime API. It requires DOM access and is not intended for server-only runtimes without a DOM.
 - A provided `instanceJSON.config.id` must already exist in the DOM.
 - If that element is missing, `createInstance(...)` throws `Waymark container "{id}" was not found.`.
 - If `instanceJSON.config.id` is omitted, Waymark generates an ID prefixed with `waymark-` and appends the container to `document.body`.
+
+In SSR applications, instantiate on the client only, after the container element exists.
 
 ## Config defaults and merge behaviour
 
@@ -108,7 +111,7 @@ Waymark resolves config with a deep merge:
 Accepted `ui.mode` values:
 
 - `"view"` (default): mounts the shell but renders no mode-specific content.
-- `"debug"`: renders the Instance JSON inspector panel.
+- `"debug"`: renders the runtime debug payload inspector panel.
 
 Any other value is normalised to `"view"`.
 
@@ -120,13 +123,15 @@ Waymark mounts a per-instance Vue shell in the target map container (`data-wayma
 - `src/ui/modes/InstanceShellModeView.vue`
 - `src/ui/modes/InstanceShellModeDebug.vue`
 
-In `"view"` mode, the shell is present but intentionally empty. In `"debug"` mode, the shell renders a `<details>` panel labelled **Instance JSON** with the latest serialised Instance JSON payload.
+In `"view"` mode, the shell is present but intentionally empty. In `"debug"` mode, the shell renders a `<details>` panel labelled **Instance debug payload** with canonical `instanceDocument` plus runtime-only metadata.
 
 For UI runtime boundaries and internal wiring, see [`docs/5.ui.md`](5.ui.md).
 
 ## Map options pass-through
 
-All map options are passed through via `instanceJSON.config.map.options` to `new Map(options)`, except `container`, which Waymark always controls from `instanceJSON.config.id`.
+Serialisable map options are passed through via `instanceJSON.config.map.options` to `new Map(options)`, except `container`, which Waymark always controls from `instanceJSON.config.id`.
+
+Non-serialisable option values are deterministically dropped during normalisation (for example functions, symbols, class instances). This keeps `createInstance(x).toJSON()` stable and re-usable.
 
 For map module boundaries and state-sync internals, see [`docs/4.map.md`](4.map.md).
 
@@ -177,6 +182,8 @@ createInstance({
 ## Instance event API
 
 Events are dispatched as `CustomEvent`s from the instance container.
+
+`on(...)`, `off(...)`, and `once(...)` follow browser `EventTarget` semantics because handlers are attached to the container element.
 
 - Use `on(type, handler, options?)`
 - Use `off(type, handler, options?)`
@@ -231,7 +238,7 @@ Module event payload shape:
 
 ## Instance JSON shape
 
-`instance.toJSON()` returns a serialisable Instance JSON object:
+`instance.toJSON()` returns a canonical serialisable InstanceDocument object:
 
 ```js
 {
@@ -256,16 +263,14 @@ Module event payload shape:
     }
   },
   data: {
-    geojson: {
-      sourceId: string,
-      layerId: string,
-      geojson: object | null
-    }
+    geojson: object | null
   }
 }
 ```
 
 `state.map` syncs on low-frequency map end events (`load`, `moveend`, `zoomend`, `rotateend`, `pitchend`).
+
+Runtime-enriched metadata (for example GeoJSON source/layer IDs and lifecycle phase) is intentionally excluded from `toJSON()` and available only in the debug payload used by the debug UI.
 
 Internal orchestration boundaries are documented in [`docs/3.instances.md`](3.instances.md).
 
@@ -309,12 +314,14 @@ GeoJSON source/layer IDs are instance-scoped to avoid collisions.
 
 `npm run build` still runs `node scripts/skill-md.js` before Vite build output, so skill docs stay in sync with `docs/*.md`.
 
+Vite config defines `process.env.NODE_ENV` as a build-time replacement for the dist bundle, preventing browser runtime errors like `process is not defined`.
+
 ## Conventions and definitions
 
 - **Instance**: public object returned by `createInstance(...)`.
-- **Runtime core**: internal lifecycle object in `src/core/createInstanceCore.js`.
-- **Runtime registry**: internal ID→core map in `src/core/runtimeRegistry.js`.
-- **Instance JSON**: serialisable payload from `instance.toJSON()`.
+- **Runtime core**: internal lifecycle object in `src/runtime/createInstanceCore.js`.
+- **Runtime registry**: internal ID→core map in `src/runtime/runtimeRegistry.js`.
+- **InstanceDocument**: canonical serialisable payload from `instance.toJSON()`.
 - **GeoJSON**: map data format and symbol naming (`createGeoJSONModule`, `geoJSON`).
 
 Keep runtime internals internal. Consumer docs and tests should target public API behaviour.
@@ -323,6 +330,8 @@ Keep runtime internals internal. Consumer docs and tests should target public AP
 
 - `tests/docs/*.test.js` (Vitest + jsdom): API contract tests without WebGL.
 - `tests/browser/*.test.js` (Playwright): browser API and dev-page smoke behaviour.
+
+Use jsdom tests to validate API contract behaviour, not as proof of non-browser runtime support. Browser tests are the runtime source of truth for instance behaviour.
 
 ## Dev page mode setup
 
@@ -335,13 +344,13 @@ This gives a stable baseline for browser smoke coverage in `tests/browser/2.deve
 
 - both containers and canvases render
 - view-mode shell stays empty
-- debug-mode shell renders the Instance JSON panel
+- debug-mode shell renders the runtime debug payload panel
 - two dev dropdowns exist: `#dev-instance-mode` (for `#map`) and `#dev-instance-mode-two` (for `#map-two`)
 
-`src/dev.js` wires both dropdowns via `instance.ui.setMode(nextMode)`. Browser smoke asserts independent mode switching in both UI and serialised instance documents:
+`src/dev.js` wires both dropdowns via `instance.ui.setMode(nextMode)`. Browser smoke asserts independent mode switching in both UI and serialised InstanceDocument payloads:
 
-- switching `#dev-instance-mode` to `debug` only changes `#map` to debug UI/Instance JSON state
-- switching `#dev-instance-mode-two` to `view` only changes `#map-two` to view UI/Instance JSON state
+- switching `#dev-instance-mode` to `debug` only changes `#map` to debug UI/InstanceDocument state
+- switching `#dev-instance-mode-two` to `view` only changes `#map-two` to view UI/InstanceDocument state
 - toggling either dropdown back restores each instance baseline without coupling
 
 Run:
@@ -450,26 +459,26 @@ Sync checklist:
 
 ## Anatomy at a glance
 
-`createInstance(instanceJSON?)` first normalises input via `normaliseInstanceDocument(...)`, then delegates the resulting instance document to `createInstanceCore(...)`, which assembles one runtime core for one resolved container ID.
+`createInstance(instanceJSON?)` first normalises input via `normaliseInstanceDocument(...)`, then delegates the resulting canonical InstanceDocument to `createInstanceCore(...)`, which assembles one runtime core for one resolved container ID.
 
 Key components:
 
-| Component                                   | Responsibility                                                                           |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `src/instance/normaliseInstanceDocument.js` | Normalises unknown input into the canonical `{ config, state, data }` instance document. |
-| `src/core/createInstanceCore.js`            | Core orchestration, lifecycle, public API assembly, reuse/destroy flow.                  |
-| `src/core/runtimeRegistry.js`               | Internal ID-scoped runtime storage (`get/set/delete`).                                   |
-| `src/core/createInstanceEvents.js`          | Container event bus (`on/off/once/emit`) and map-event forwarding.                       |
-| `src/config/resolveConfig.js`               | Consumer config deep-merge with defaults.                                                |
-| `src/state/createInstanceJSON.js`           | Instance JSON adapter for serialisable state output.                                     |
-| `src/map/*`, `src/geojson/*`                | Map and data module internals (documented in `docs/4.map.md`).                           |
-| `src/ui/*`                                  | UI shell and mode internals (documented in `docs/5.ui.md`).                              |
+| Component                                 | Responsibility                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------------- |
+| `src/document/instanceDocument.js`        | Canonical InstanceDocument shape, normalisation, serialisation, and validation. |
+| `src/runtime/createInstanceCore.js`       | Runtime core orchestration, lifecycle, public API assembly, reuse/destroy flow. |
+| `src/runtime/runtimeRegistry.js`          | Internal ID-scoped runtime storage (`get/set/delete`).                          |
+| `src/runtime/createInstanceEvents.js`     | Container event bus (`on/off/once/emit`) and map-event forwarding.              |
+| `src/config/resolveConfig.js`             | Consumer config deep-merge with defaults.                                       |
+| `src/debug/createInstanceDebugPayload.js` | Runtime debug payload builder for debug UI only.                                |
+| `src/map/*`, `src/geojson/*`              | Map and data module internals (documented in `docs/4.map.md`).                  |
+| `src/ui/*`                                | UI shell and mode internals (documented in `docs/5.ui.md`).                     |
 
 ## Internal orchestration boundaries
 
 - **Public boundary**: `createInstance(...)` in `src/entry.js` returns `WaymarkInstancePublicApi` only.
 - **Runtime boundary**: lifecycle phase, registry entries, and event-wiring handles stay internal.
-- **Instance JSON boundary**: `toJSON()` is canonical serialisable output; it is separate from runtime lifecycle state.
+- **InstanceDocument boundary**: `toJSON()` is canonical serialisable output; it is separate from runtime lifecycle state.
 
 Map and UI module-level details are documented separately:
 
@@ -490,7 +499,8 @@ This grouping is internal lifecycle wiring, not part of the consumer API.
 ## Module state boundaries
 
 - Runtime tracks map and UI state in `core.state`.
-- Serialisation reads state via `createInstanceJSON(...)` and exposes it through `toJSON()`.
+- Serialisation reads state via `serialiseInstanceDocument(...)` and exposes it through `toJSON()`.
+- Debug UI payloads are built separately via `createInstanceDebugPayload(...)`.
 - Internal mutators (for example, `lifecycle.setMode(...)`) are runtime wiring and test hooks, not public API.
 
 ## Lifecycle order
@@ -501,7 +511,7 @@ Create flow:
 2. If found, emit `waymark:instance.recreated`, teardown existing runtime, and clear registry entry.
 3. Resolve config and create map.
 4. Create event bus and runtime modules.
-5. Build the Instance JSON adapter and public API.
+5. Build the InstanceDocument adapter, debug payload adapter, and public API.
 6. Register runtime and emit `waymark:instance.created`.
 
 Destroy flow:
@@ -545,13 +555,16 @@ The map module owns MapLibre runtime behaviour per instance:
 - **Input config**: `instanceJSON.config.map.options`
 - **Input state overrides**: `instanceJSON.state.map` (`center`, `zoom`, `bearing`, `pitch`)
 - **Output state**: `toJSON().state.map`
-- **Output data metadata**: `toJSON().data.geojson.{sourceId, layerId, geojson}`
+- **Output data**: `toJSON().data.geojson`
+
+GeoJSON source/layer IDs are runtime metadata only and exposed in the debug payload, not in `toJSON()`.
 
 State camera values override config camera defaults when both are provided.
 
 ## Runtime behaviour
 
-- Waymark passes map options through to `new Map(options)` and always controls `container`.
+- Waymark passes serialisable map options through to `new Map(options)` and always controls `container`.
+- Non-serialisable map option values are dropped during document normalisation.
 - Camera state sync runs on end events: `load`, `moveend`, `zoomend`, `rotateend`, `pitchend`.
 - GeoJSON source/layer IDs are instance-scoped (`waymark-{id}-geojson-*`) to avoid collisions.
 
@@ -560,8 +573,8 @@ State camera values override config camera defaults when both are provided.
 - `src/map/ensureContainer.js`
 - `src/map/createMap.js`
 - `src/geojson/createGeoJSONModule.js`
-- `src/core/createInstanceEvents.js` (map event forwarding)
-- `src/core/createInstanceCore.js` (wiring)
+- `src/runtime/createInstanceEvents.js` (map event forwarding)
+- `src/runtime/createInstanceCore.js` (wiring)
 
 ## Related API sections
 
@@ -582,7 +595,7 @@ The UI module owns per-instance shell rendering and UI mode state:
 
 - mounts a Vue app shell in the map container
 - renders mode-specific UI (`view` or `debug`)
-- refreshes shell Instance JSON content from `instance.toJSON()`
+- refreshes shell debug payload content from the runtime debug adapter
 - applies runtime mode changes and emits module events
 
 ## Mode contract
@@ -595,13 +608,14 @@ The UI module owns per-instance shell rendering and UI mode state:
 
 - A shell mount (`data-waymark-app="true"`) is created per instance.
 - `view` mode keeps the shell mounted but renders no mode panel.
-- `debug` mode renders the **Instance JSON** panel.
+- `debug` mode renders the **Instance debug payload** panel.
 
 ## Runtime mode updates
 
 - Public mode changes flow through `instance.ui.setMode(...)`.
 - Mode updates emit `waymark:ui.mode.changed` with module payload (`id`, `module`, `event`, `previous`, `next`, `source`).
 - Public consumers should observe behaviour via `toJSON()` and events.
+- Debug UI consumes runtime metadata via `createInstanceDebugPayload(...)` rather than `toJSON()`.
 
 ## Internal files
 
@@ -609,7 +623,7 @@ The UI module owns per-instance shell rendering and UI mode state:
 - `src/ui/InstanceShell.vue`
 - `src/ui/modes/InstanceShellModeView.vue`
 - `src/ui/modes/InstanceShellModeDebug.vue`
-- `src/core/createInstanceCore.js` (mode lifecycle wiring)
+- `src/runtime/createInstanceCore.js` (mode lifecycle wiring)
 
 ## Related API sections
 
@@ -626,7 +640,7 @@ Developer documentation for Waymark JS.
 
 ## Reading order
 
-1. [API](1.api.md) - Consumer API contract for `createInstance(instanceJSON?)`, config defaults, UI mode behaviour, events, Instance JSON, and GeoJSON.
+1. [API](1.api.md) - Consumer API contract for `createInstance(instanceJSON?)`, including browser-runtime/DOM boundaries, config defaults, UI mode behaviour, events, canonical InstanceDocument serialisation, and GeoJSON.
 2. [Development](2.development.md) - Contributor workflow, dev-page mode baseline, testing strategy, and sync protocol.
 3. [Instances](3.instances.md) - Internal orchestration boundaries and lifecycle composition.
 4. [Map](4.map.md) - Map module responsibilities, state-sync boundaries, and GeoJSON wiring.

@@ -31,8 +31,11 @@ vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 
 import { createInstance } from "../../src/entry.js";
 import { resolveConfig } from "../../src/config/resolveConfig.js";
-import { normaliseInstanceDocument } from "../../src/instance/normaliseInstanceDocument.js";
-import { clearRuntimeRegistry } from "../../src/core/runtimeRegistry.js";
+import { normaliseInstanceDocument } from "../../src/document/instanceDocument.js";
+import {
+  clearRuntimeRegistry,
+  getCoreById,
+} from "../../src/runtime/runtimeRegistry.js";
 import { Map } from "maplibre-gl";
 
 function getLastMapInstance() {
@@ -83,7 +86,32 @@ describe("1. API", () => {
       const instance = createInstance({});
 
       expect(instance.id).toMatch(/^waymark-/);
-      expect(instance.toJSON().data.geojson.geojson).toBeNull();
+      expect(instance.toJSON().data.geojson).toBeNull();
+    });
+
+    it("supports strict round-trip serialisation", () => {
+      const first = createInstance({
+        config: {
+          id: "map",
+          ui: { mode: "debug" },
+          map: {
+            options: {
+              center: [-3, 55],
+              zoom: 9,
+            },
+          },
+        },
+        data: {
+          geojson: {
+            type: "FeatureCollection",
+            features: [],
+          },
+        },
+      });
+
+      const second = createInstance(first.toJSON());
+
+      expect(second.toJSON()).toEqual(first.toJSON());
     });
 
     it("normalises to strict top-level config/state/data keys", () => {
@@ -230,7 +258,7 @@ describe("1. API", () => {
       expect(shellMount.querySelector("details")).toBeNull();
     });
 
-    it("renders Instance JSON content in debug mode", async () => {
+    it("renders debug payload content in debug mode", async () => {
       createInstance({
         config: {
           id: "map",
@@ -247,8 +275,8 @@ describe("1. API", () => {
       );
       const summary = shellMount?.querySelector("summary");
 
-      expect(summary?.textContent).toContain("Instance JSON");
-      expect(shellMount?.textContent).toContain('"config"');
+      expect(summary?.textContent).toContain("Instance debug payload");
+      expect(shellMount?.textContent).toContain('"instanceDocument"');
     });
 
     it("switches mode by clearing and repopulating shell mode content", async () => {
@@ -307,6 +335,39 @@ describe("1. API", () => {
         }),
       );
     });
+
+    it("drops non-serialisable map options deterministically", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            options: {
+              zoom: 10,
+              transformRequest: () => ({ url: "x" }),
+              nested: {
+                onClick: () => {},
+                ok: true,
+              },
+            },
+          },
+        },
+      });
+
+      expect(instance.toJSON().config.map.options).toEqual(
+        expect.objectContaining({
+          zoom: 10,
+          nested: {
+            ok: true,
+          },
+        }),
+      );
+      expect(
+        instance.toJSON().config.map.options.transformRequest,
+      ).toBeUndefined();
+      expect(
+        instance.toJSON().config.map.options.nested.onClick,
+      ).toBeUndefined();
+    });
   });
 
   describe("Returned instance shape", () => {
@@ -353,7 +414,7 @@ describe("1. API", () => {
       expect(firstMap.remove).toHaveBeenCalledTimes(1);
       expect(Map).toHaveBeenCalledTimes(2);
       expect(secondMap._options.zoom).toBe(2);
-      expect(second.toJSON().data.geojson.geojson).toEqual({
+      expect(second.toJSON().data.geojson).toEqual({
         type: "FeatureCollection",
         features: [],
       });
@@ -604,13 +665,35 @@ describe("1. API", () => {
             },
           },
           data: {
-            geojson: expect.objectContaining({
-              sourceId: "waymark-map-geojson-source",
-              layerId: "waymark-map-geojson-layer",
-            }),
+            geojson: null,
           },
         }),
       );
+    });
+
+    it("keeps runtime metadata out of toJSON and exposes it in debug payload", () => {
+      createInstance({
+        config: {
+          id: "map",
+          ui: { mode: "debug" },
+        },
+        data: {
+          geojson: { type: "FeatureCollection", features: [] },
+        },
+      });
+
+      const core = getCoreById("map");
+      const instanceDocument = core?.publicApi.toJSON();
+      const debugPayload = core?.debug.toJSON();
+
+      expect(instanceDocument?.data.geojson).toEqual({
+        type: "FeatureCollection",
+        features: [],
+      });
+      expect(debugPayload?.runtime.geojson).toEqual({
+        sourceId: "waymark-map-geojson-source",
+        layerId: "waymark-map-geojson-layer",
+      });
     });
   });
 

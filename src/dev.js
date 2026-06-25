@@ -9,7 +9,7 @@ import {
   WAYMARK_MAP_ROTATEEND_EVENT,
   WAYMARK_MAP_ZOOMEND_EVENT,
   WAYMARK_UI_MODE_CHANGED_EVENT,
-} from "./core/createInstanceEvents.js";
+} from "./runtime/createInstanceEvents.js";
 
 const DEV_INSTANCE_CONTAINER_EVENTS = [
   WAYMARK_INSTANCE_CREATED_EVENT,

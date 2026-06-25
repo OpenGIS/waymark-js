@@ -61,12 +61,41 @@ test.describe("1. API", () => {
 
         return {
           id: instance.id,
-          hasGeoJSON: Boolean(instance.toJSON().data.geojson.geojson),
+          hasGeoJSON: Boolean(instance.toJSON().data.geojson),
         };
       });
 
       expect(result.id.startsWith("waymark-")).toBe(true);
       expect(result.hasGeoJSON).toBe(false);
+    });
+
+    test("supports round-trip instance document reuse", async ({ page }) => {
+      const result = await page.evaluate((inlineStyle) => {
+        const first = window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+            ui: { mode: "debug" },
+            map: {
+              options: {
+                style: inlineStyle,
+                zoom: 7,
+              },
+            },
+          },
+          data: {
+            geojson: { type: "FeatureCollection", features: [] },
+          },
+        });
+
+        const second = window.waymarkFixture.createInstance(first.toJSON());
+
+        return {
+          equal:
+            JSON.stringify(first.toJSON()) === JSON.stringify(second.toJSON()),
+        };
+      }, INLINE_STYLE);
+
+      expect(result.equal).toBe(true);
     });
   });
 
@@ -137,7 +166,7 @@ test.describe("1. API", () => {
   });
 
   test.describe("UI shell mode rendering", () => {
-    test("keeps shell mounted in view mode and renders Instance JSON panel in debug mode", async ({
+    test("keeps shell mounted in view mode and renders debug payload panel in debug mode", async ({
       page,
     }) => {
       const result = await page.evaluate((inlineStyle) => {
@@ -182,7 +211,7 @@ test.describe("1. API", () => {
       expect(result.hasShell).toBe(true);
       expect(result.viewHasDetails).toBe(false);
       expect(result.debugHasDetails).toBe(true);
-      expect(result.summary).toContain("Instance JSON");
+      expect(result.summary).toContain("Instance debug payload");
     });
   });
 
@@ -220,6 +249,31 @@ test.describe("1. API", () => {
       ]);
       expect(Number(result.zoom.toFixed(2))).toBe(10);
       expect(Number(result.bearing.toFixed(2))).toBe(25);
+    });
+
+    test("keeps serialisable map options only", async ({ page }) => {
+      const result = await page.evaluate((inlineStyle) => {
+        const instance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+            map: {
+              options: {
+                style: inlineStyle,
+                transformRequest: () => ({ url: "x" }),
+                nested: {
+                  onClick: () => {},
+                  ok: true,
+                },
+              },
+            },
+          },
+        });
+
+        return instance.toJSON().config.map.options;
+      }, INLINE_STYLE);
+
+      expect(result.transformRequest).toBeUndefined();
+      expect(result.nested).toEqual({ ok: true });
     });
   });
 
@@ -307,7 +361,7 @@ test.describe("1. API", () => {
         return {
           secondIsNew: second !== first,
           secondZoom: second.toJSON().state.map.zoom,
-          secondHasGeoJSON: Boolean(second.toJSON().data.geojson.geojson),
+          secondHasGeoJSON: Boolean(second.toJSON().data.geojson),
           thirdIsNew: third !== second,
         };
       });
@@ -444,10 +498,7 @@ test.describe("1. API", () => {
             ui: expect.objectContaining({ mode: "view" }),
           }),
           data: expect.objectContaining({
-            geojson: expect.objectContaining({
-              sourceId: expect.any(String),
-              layerId: expect.any(String),
-            }),
+            geojson: null,
           }),
         }),
       );
