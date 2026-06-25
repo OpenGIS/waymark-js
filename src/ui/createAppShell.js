@@ -42,6 +42,7 @@ export function createAppShell(containerId, options) {
   const instanceDocument = ref(null);
   const waymarkEvents = ref([]);
   const mode = ref(normaliseMode(options.mode));
+  // Shell-level modal visibility state for debug mode content.
   const isDebugOutputVisible = ref(true);
 
   const refresh = () => {

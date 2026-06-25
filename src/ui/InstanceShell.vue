@@ -5,6 +5,7 @@ import {
   CONTROL_POSITIONS,
   createEmptyControlsByPosition,
 } from "./controls/internalControls.js";
+import InstanceShellModal from "./modal/InstanceShellModal.vue";
 import InstanceShellModeDebug from "./modes/InstanceShellModeDebug.vue";
 import InstanceShellModeView from "./modes/InstanceShellModeView.vue";
 
@@ -38,6 +39,8 @@ const modeComponent = computed(() => {
 
   return InstanceShellModeView;
 });
+
+const isDebugMode = computed(() => props.mode === "debug");
 
 const controlsByPosition = computed(
   () => props.controls ?? createEmptyControlsByPosition(),
@@ -77,10 +80,23 @@ const hasControls = computed(() =>
       </div>
     </nav>
 
+    <InstanceShellModal
+      v-if="isDebugMode"
+      :is-visible="debugOutputVisible"
+      data-waymark-debug-panel="true"
+    >
+      <component
+        :is="modeComponent"
+        :key="mode"
+        v-bind="{ instanceDocument, waymarkEvents }"
+      />
+    </InstanceShellModal>
+
     <component
       :is="modeComponent"
+      v-else
       :key="mode"
-      v-bind="{ instanceDocument, waymarkEvents, debugOutputVisible }"
+      v-bind="{ instanceDocument, waymarkEvents }"
     />
   </aside>
 </template>

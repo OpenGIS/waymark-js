@@ -10,10 +10,6 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  debugOutputVisible: {
-    type: Boolean,
-    default: true,
-  },
 });
 
 const formattedInstanceDocument = computed(() => {
@@ -34,11 +30,7 @@ const formattedWaymarkEvents = computed(() => {
 </script>
 
 <template>
-  <section
-    v-if="debugOutputVisible"
-    class="waymark-instance-shell-debug-panel"
-    data-waymark-debug-panel="true"
-  >
+  <section class="waymark-instance-shell-debug-content">
     <section>
       <h2>Instance document</h2>
       <pre>{{ formattedInstanceDocument }}</pre>
@@ -52,26 +44,18 @@ const formattedWaymarkEvents = computed(() => {
 </template>
 
 <style scoped>
-.waymark-instance-shell-debug-panel {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  z-index: 1;
-  width: min(36rem, calc(100% - 1rem));
+.waymark-instance-shell-debug-content {
   margin: 0;
-  padding: 0.5rem;
   display: grid;
   gap: 0.5rem;
-  border-radius: 0.25rem;
-  background: rgb(255 255 255 / 92%);
-  pointer-events: auto;
 }
 
-.waymark-instance-shell-debug-panel section {
+.waymark-instance-shell-debug-content section {
   margin: 0;
+  min-width: 0;
 }
 
-.waymark-instance-shell-debug-panel h2 {
+.waymark-instance-shell-debug-content h2 {
   margin: 0;
   padding: 0 0 0.25rem;
   font-size: 0.75rem;
@@ -82,9 +66,11 @@ const formattedWaymarkEvents = computed(() => {
 pre {
   margin: 0;
   padding: 0.5rem;
+  max-width: 100%;
   max-height: 20vh;
   overflow: auto;
   border-radius: 0.25rem;
+  box-sizing: border-box;
   font-size: 0.6875rem;
   line-height: 1.4;
   background: rgb(255 255 255 / 95%);

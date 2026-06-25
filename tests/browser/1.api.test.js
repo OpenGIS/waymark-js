@@ -325,6 +325,9 @@ test.describe("1. API", () => {
         const viewHasDebugPanel = Boolean(
           viewShell?.querySelector('[data-waymark-debug-panel="true"]'),
         );
+        const viewHasModal = Boolean(
+          viewShell?.querySelector('[data-waymark-modal="true"]'),
+        );
 
         window.waymarkFixture.createInstance({
           config: {
@@ -349,6 +352,9 @@ test.describe("1. API", () => {
         const debugPanel = debugShell?.querySelector(
           '[data-waymark-debug-panel="true"]',
         );
+        const debugModal = debugShell?.querySelector(
+          '[data-waymark-modal="true"]',
+        );
         const debugControl = debugShell?.querySelector(
           '[data-waymark-control="debug-output-toggle"]',
         );
@@ -366,7 +372,9 @@ test.describe("1. API", () => {
         return {
           hasShell: Boolean(viewShell),
           viewHasDebugPanel,
+          viewHasModal,
           hasDebugPanel: Boolean(debugPanel),
+          hasDebugModal: Boolean(debugModal),
           hasDebugControl: Boolean(debugControl),
           headingTexts,
           eventsLength: events.length,
@@ -377,7 +385,9 @@ test.describe("1. API", () => {
 
       expect(result.hasShell).toBe(true);
       expect(result.viewHasDebugPanel).toBe(false);
+      expect(result.viewHasModal).toBe(false);
       expect(result.hasDebugPanel).toBe(true);
+      expect(result.hasDebugModal).toBe(true);
       expect(result.hasDebugControl).toBe(true);
       expect(result.headingTexts).toEqual([
         "Instance document",
@@ -421,11 +431,17 @@ test.describe("1. API", () => {
         const hasPanelInitially = Boolean(
           shell?.querySelector('[data-waymark-debug-panel="true"]'),
         );
+        const hasModalInitially = Boolean(
+          shell?.querySelector('[data-waymark-modal="true"]'),
+        );
 
         control?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await Promise.resolve();
         const hasPanelAfterFirstClick = Boolean(
           shell?.querySelector('[data-waymark-debug-panel="true"]'),
+        );
+        const hasModalAfterFirstClick = Boolean(
+          shell?.querySelector('[data-waymark-modal="true"]'),
         );
 
         control?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -433,20 +449,29 @@ test.describe("1. API", () => {
         const hasPanelAfterSecondClick = Boolean(
           shell?.querySelector('[data-waymark-debug-panel="true"]'),
         );
+        const hasModalAfterSecondClick = Boolean(
+          shell?.querySelector('[data-waymark-modal="true"]'),
+        );
 
         return {
           hasControl: Boolean(control),
           hasPanelInitially,
+          hasModalInitially,
           hasPanelAfterFirstClick,
+          hasModalAfterFirstClick,
           hasPanelAfterSecondClick,
+          hasModalAfterSecondClick,
         };
       }, INLINE_STYLE);
 
       expect(result).toEqual({
         hasControl: true,
         hasPanelInitially: true,
+        hasModalInitially: true,
         hasPanelAfterFirstClick: false,
+        hasModalAfterFirstClick: false,
         hasPanelAfterSecondClick: true,
+        hasModalAfterSecondClick: true,
       });
     });
   });

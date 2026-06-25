@@ -16,11 +16,17 @@ test.describe("2. Development smoke", () => {
     await expect(
       page.locator('#map [data-waymark-debug-panel="true"]'),
     ).toHaveCount(0);
+    await expect(page.locator('#map [data-waymark-modal="true"]')).toHaveCount(
+      0,
+    );
     await expect(
       page.locator('#map [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(0);
     await expect(
       page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-modal="true"]'),
     ).toHaveCount(1);
     await expect(
       page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
@@ -215,11 +221,20 @@ test.describe("2. Development smoke", () => {
 
     await expect(debugOutputToggle).toBeVisible();
     await expect(debugPanel).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-modal="true"]'),
+    ).toHaveCount(1);
 
     await debugOutputToggle.click();
     await expect(debugPanel).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-modal="true"]'),
+    ).toHaveCount(0);
 
     await debugOutputToggle.click();
     await expect(debugPanel).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-modal="true"]'),
+    ).toHaveCount(1);
   });
 });

@@ -432,6 +432,9 @@ describe("1. API", () => {
 
       expect(shellMount).toBeTruthy();
       expect(
+        shellMount?.querySelector('[data-waymark-modal="true"]'),
+      ).toBeNull();
+      expect(
         shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
       ).toBeNull();
     });
@@ -454,10 +457,12 @@ describe("1. API", () => {
       const panel = shellMount?.querySelector(
         '[data-waymark-debug-panel="true"]',
       );
+      const modal = shellMount?.querySelector('[data-waymark-modal="true"]');
       const debugControl = shellMount?.querySelector(
         '[data-waymark-control="debug-output-toggle"]',
       );
 
+      expect(modal).toBeTruthy();
       expect(panel).toBeTruthy();
       expect(debugControl).toBeTruthy();
       expect(panel?.textContent).toContain("Instance document");
