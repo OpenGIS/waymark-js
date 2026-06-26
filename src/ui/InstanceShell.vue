@@ -50,6 +50,10 @@ const props = defineProps({
     type: Function,
     default: null,
   },
+  onSetActiveVectorBasemap: {
+    type: Function,
+    default: null,
+  },
 });
 
 const controlsByPosition = computed(
@@ -122,6 +126,7 @@ const hasControls = computed(() =>
             basemapSnapshot,
             onSetRasterOpacity,
             onReorderRasterBasemaps,
+            onSetActiveVectorBasemap,
           }"
         />
       </section>

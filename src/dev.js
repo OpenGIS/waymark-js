@@ -110,10 +110,14 @@ const waymarkInstance = createInstance({
           {
             title: "OpenFreeMap Bright (active)",
             styleURL: "https://tiles.openfreemap.org/styles/bright",
+            attributionHTML:
+              "<a href='https://openfreemap.org'>© OpenFreeMap</a>",
           },
           {
             title: "OpenFreeMap Liberty (inactive demo entry)",
             styleURL: "https://tiles.openfreemap.org/styles/liberty",
+            attributionHTML:
+              "<a href='https://openfreemap.org'>© OpenFreeMap</a>",
           },
         ],
         raster: [
@@ -121,7 +125,7 @@ const waymarkInstance = createInstance({
             title: "OpenTopoMap raster overlay",
             tileURLTemplates: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
             attributionHTML:
-              "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap",
+              "Map data: <a href='https://www.openstreetmap.org/copyright'>© OpenStreetMap contributors</a>, <a href='https://www.opentopomap.org'>SRTM</a> | Map style: <a href='https://www.opentopomap.org'>© OpenTopoMap</a>",
             opacity: 0.5,
           },
           {
@@ -129,7 +133,8 @@ const waymarkInstance = createInstance({
             tileURLTemplates: [
               "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             ],
-            attributionHTML: "© ESRI",
+            attributionHTML:
+              "Imagery: <a href='https://www.esri.com'>© Esri</a>",
             opacity: 0.5,
           },
         ],
@@ -156,14 +161,15 @@ const waymarkInstanceTwo = createInstance({
             tileURLTemplates: [
               "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             ],
-            attributionHTML: "© OpenStreetMap contributors",
+            attributionHTML:
+              "<a href='https://www.openstreetmap.org/copyright'>© OpenStreetMap contributors</a>",
             opacity: 1,
           },
           {
             title: "OpenTopoMap raster overlay",
             tileURLTemplates: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
             attributionHTML:
-              "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap",
+              "Map data: <a href='https://www.openstreetmap.org/copyright'>© OpenStreetMap contributors</a>, <a href='https://www.opentopomap.org'>SRTM</a> | Map style: <a href='https://www.opentopomap.org'>© OpenTopoMap</a>",
             opacity: 0.4,
           },
         ],

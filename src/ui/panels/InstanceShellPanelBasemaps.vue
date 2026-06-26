@@ -19,6 +19,10 @@ const props = defineProps({
     type: Function,
     default: null,
   },
+  onSetActiveVectorBasemap: {
+    type: Function,
+    default: null,
+  },
 });
 
 const vectorBasemaps = computed(() =>
@@ -45,6 +49,13 @@ const handleSetRasterOpacity = (payload) => {
 const handleReorderRasterBasemaps = (orderedBasemapIds) => {
   props.onReorderRasterBasemaps?.(orderedBasemapIds);
 };
+
+/**
+ * @param {string} basemapId
+ */
+const handleSetActiveVectorBasemap = (basemapId) => {
+  props.onSetActiveVectorBasemap?.(basemapId);
+};
 </script>
 
 <template>
@@ -57,7 +68,10 @@ const handleReorderRasterBasemaps = (orderedBasemapIds) => {
       @reorder-raster-basemaps="handleReorderRasterBasemaps"
     />
 
-    <BasemapsVectorList :vector-basemaps="vectorBasemaps" />
+    <BasemapsVectorList
+      :vector-basemaps="vectorBasemaps"
+      @set-active-vector-basemap="handleSetActiveVectorBasemap"
+    />
   </section>
 </template>
 

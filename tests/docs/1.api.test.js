@@ -2,16 +2,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 
 vi.mock("maplibre-gl", () => {
+  const EMPTY_STYLE = {
+    version: 8,
+    sources: {},
+    layers: [],
+  };
+
+  /**
+   * @param {string | object | undefined} style
+   */
+  const normaliseStyle = (style) => {
+    if (typeof style === "object" && style !== null) {
+      return structuredClone(style);
+    }
+
+    return structuredClone(EMPTY_STYLE);
+  };
+
   const MockMap = vi.fn(function (options) {
     this._options = options;
-    this._style =
-      typeof options.style === "object"
-        ? structuredClone(options.style)
-        : {
-            version: 8,
-            sources: {},
-            layers: [],
-          };
+    this._style = normaliseStyle(options.style);
     this._view = {
       center: options.center ?? [0, 0],
       zoom: options.zoom ?? 2,
@@ -22,6 +32,19 @@ vi.mock("maplibre-gl", () => {
     this.on = vi.fn();
     this.off = vi.fn();
     this.remove = vi.fn();
+    this.fire = vi.fn((eventName, event = {}) => {
+      for (const [registeredEventName, handler] of this.on.mock.calls) {
+        if (registeredEventName === eventName) {
+          handler(event);
+        }
+      }
+    });
+    this.setStyle = vi.fn((style) => {
+      this._style = normaliseStyle(style);
+      this.fire("style.load", {
+        type: "style.load",
+      });
+    });
     this.addSource = vi.fn((id, source) => {
       this._style.sources = {
         ...this._style.sources,
@@ -105,13 +128,6 @@ vi.mock("maplibre-gl", () => {
     this.getZoom = vi.fn(() => this._view.zoom);
     this.getBearing = vi.fn(() => this._view.bearing);
     this.getPitch = vi.fn(() => this._view.pitch);
-    this.fire = vi.fn((eventName, event = {}) => {
-      for (const [registeredEventName, handler] of this.on.mock.calls) {
-        if (registeredEventName === eventName) {
-          handler(event);
-        }
-      }
-    });
   });
   return { Map: MockMap, setWorkerUrl: vi.fn() };
 });
@@ -656,7 +672,7 @@ describe("1. API", () => {
       ).toBeNull();
     });
 
-    it("renders configured vector basemaps in the basemaps panel", async () => {
+    it("renders configured vector basemaps as selectable radios in the basemaps panel", async () => {
       createInstance({
         config: {
           id: "map",
@@ -669,10 +685,14 @@ describe("1. API", () => {
                 {
                   title: "OpenFreeMap Bright",
                   styleURL: "https://tiles.openfreemap.org/styles/bright",
+                  attributionHTML:
+                    "<a href='https://openfreemap.org'>© OpenFreeMap</a>",
                 },
                 {
                   title: "OpenFreeMap Liberty",
                   styleURL: "https://tiles.openfreemap.org/styles/liberty",
+                  attributionHTML:
+                    "<a href='https://openfreemap.org'>© OpenFreeMap</a>",
                 },
               ],
             },
@@ -698,12 +718,106 @@ describe("1. API", () => {
         ...(shellMount?.querySelectorAll(
           '[data-waymark-basemaps-vector-item="true"]',
         ) ?? []),
-      ].map((item) => item.textContent?.trim());
+      ].map((item) => item.textContent?.replace(/\s+/g, " ").trim());
 
-      expect(vectorItems).toEqual([
-        "OpenFreeMap Bright",
-        "OpenFreeMap Liberty",
+      const vectorRadios = [
+        ...(shellMount?.querySelectorAll("[data-waymark-vector-radio]") ?? []),
+      ];
+
+      const checkedVectorRadios = vectorRadios.filter((radio) => radio.checked);
+      const firstAttribution = shellMount?.querySelector(
+        '[data-waymark-basemaps-vector-item="true"] [class$="__attribution"]',
+      );
+
+      expect(vectorItems[0]).toContain("OpenFreeMap Bright");
+      expect(vectorItems[0]).toContain("Active");
+      expect(vectorItems[1]).toContain("OpenFreeMap Liberty");
+      expect(vectorItems[1]).toContain("Active");
+      expect(vectorRadios).toHaveLength(2);
+      expect(checkedVectorRadios).toHaveLength(1);
+      expect(
+        checkedVectorRadios[0].getAttribute("data-waymark-vector-radio"),
+      ).toBe("vector-0");
+      expect(firstAttribution?.innerHTML).toBe(
+        '<a href="https://openfreemap.org">© OpenFreeMap</a>',
+      );
+    });
+
+    it("dispatches vector basemap selection from the basemaps panel and updates active state", async () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "view",
+          },
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  title: "Vector A",
+                  styleURL: "https://example.com/vector-a-style.json",
+                },
+                {
+                  title: "Vector B",
+                  styleURL: "https://example.com/vector-b-style.json",
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      await nextTick();
+
+      const map = getLastMapInstance();
+      const core = getCoreById("map");
+      const setActiveVectorBasemapSpy = vi.spyOn(
+        core.commands.basemaps,
+        "setActiveVectorBasemap",
+      );
+
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+      const basemapsControl = shellMount?.querySelector(
+        '[data-waymark-control="basemaps-toggle"]',
+      );
+
+      basemapsControl?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+      await nextTick();
+
+      const inactiveVectorRadio = shellMount?.querySelector(
+        '[data-waymark-vector-radio="vector-1"]',
+      );
+      expect(inactiveVectorRadio).toBeTruthy();
+
+      inactiveVectorRadio.checked = true;
+      inactiveVectorRadio?.dispatchEvent(
+        new Event("change", { bubbles: true }),
+      );
+      await nextTick();
+
+      expect(setActiveVectorBasemapSpy).toHaveBeenCalledWith("vector-1");
+      expect(map.setStyle).toHaveBeenCalledWith(
+        "https://example.com/vector-b-style.json",
+      );
+      expect(instance.toJSON().config.map.basemaps.vector).toEqual([
+        expect.objectContaining({
+          title: "Vector B",
+          styleURL: "https://example.com/vector-b-style.json",
+        }),
+        expect.objectContaining({
+          title: "Vector A",
+          styleURL: "https://example.com/vector-a-style.json",
+        }),
       ]);
+
+      const checkedVectorRadio = shellMount?.querySelector(
+        '[data-waymark-vector-radio="vector-1"]',
+      );
+      expect(checkedVectorRadio?.checked).toBe(true);
     });
 
     it("renders raster basemaps section before vector section in the basemaps panel", async () => {
@@ -1352,6 +1466,242 @@ describe("1. API", () => {
           tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
         }),
       ]);
+    });
+
+    it("sets the active vector basemap through core commands and emits a vector mutation event", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  title: "Vector A",
+                  styleURL: "https://example.com/vector-a-style.json",
+                },
+                {
+                  title: "Vector B",
+                  styleURL: "https://example.com/vector-b-style.json",
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const map = getLastMapInstance();
+      const core = getCoreById("map");
+      const basemapEvents = [];
+
+      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
+        basemapEvents.push(event.detail);
+      });
+
+      core.commands.basemaps.setActiveVectorBasemap("vector-1");
+
+      expect(map.setStyle).toHaveBeenCalledWith(
+        "https://example.com/vector-b-style.json",
+      );
+
+      expect(basemapEvents).toEqual([
+        {
+          id: "map",
+          mutation: "vector_changed",
+          changed: {
+            basemapIds: ["vector-1"],
+            orderedBasemapIds: ["vector-1", "vector-0"],
+          },
+          basemaps: {
+            vector: [
+              expect.objectContaining({
+                basemapId: "vector-1",
+                title: "Vector B",
+                styleURL: "https://example.com/vector-b-style.json",
+              }),
+              expect.objectContaining({
+                basemapId: "vector-0",
+                title: "Vector A",
+                styleURL: "https://example.com/vector-a-style.json",
+              }),
+            ],
+            raster: [],
+          },
+        },
+      ]);
+
+      expect(instance.toJSON().config.map.basemaps.vector).toEqual([
+        expect.objectContaining({
+          title: "Vector B",
+          styleURL: "https://example.com/vector-b-style.json",
+        }),
+        expect.objectContaining({
+          title: "Vector A",
+          styleURL: "https://example.com/vector-a-style.json",
+        }),
+      ]);
+    });
+
+    it("no-ops vector basemap activation when id is invalid or already active", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  title: "Vector A",
+                  styleURL: "https://example.com/vector-a-style.json",
+                },
+                {
+                  title: "Vector B",
+                  styleURL: "https://example.com/vector-b-style.json",
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const core = getCoreById("map");
+      const basemapEvents = [];
+
+      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
+        basemapEvents.push(event.detail);
+      });
+
+      core.commands.basemaps.setActiveVectorBasemap("missing");
+      core.commands.basemaps.setActiveVectorBasemap("vector-0");
+
+      expect(basemapEvents).toEqual([]);
+      expect(instance.toJSON().config.map.basemaps.vector).toEqual([
+        expect.objectContaining({
+          title: "Vector A",
+          styleURL: "https://example.com/vector-a-style.json",
+        }),
+        expect.objectContaining({
+          title: "Vector B",
+          styleURL: "https://example.com/vector-b-style.json",
+        }),
+      ]);
+    });
+
+    it("keeps raster overlays live after a vector style switch", () => {
+      createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  title: "Vector A",
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "a-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+                {
+                  title: "Vector B",
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "b-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+              ],
+              raster: [
+                {
+                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+                  opacity: 0.4,
+                },
+                {
+                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+                  opacity: 0.7,
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const map = getLastMapInstance();
+      const core = getCoreById("map");
+
+      map.fire("load", { source: "test" });
+      expect(map.addLayer).toHaveBeenCalledTimes(2);
+
+      core.commands.basemaps.setActiveVectorBasemap("vector-1");
+      expect(map.setStyle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          layers: [expect.objectContaining({ id: "b-label", type: "symbol" })],
+        }),
+      );
+      expect(map.addLayer).toHaveBeenCalledTimes(4);
+
+      core.commands.basemaps.setRasterOpacity("raster-0", 0.9);
+      core.commands.basemaps.reorderRasterBasemaps(["raster-1", "raster-0"]);
+
+      expect(map.setPaintProperty).toHaveBeenCalledWith(
+        "waymark-map-basemap-raster-layer-0",
+        "raster-opacity",
+        0.9,
+      );
+      expect(map.moveLayer).toHaveBeenCalledWith(
+        "waymark-map-basemap-raster-layer-1",
+        "b-label",
+      );
+      expect(map.moveLayer).toHaveBeenCalledWith(
+        "waymark-map-basemap-raster-layer-0",
+        "waymark-map-basemap-raster-layer-1",
+      );
+    });
+
+    it("no-ops vector style switching when map/styleURL is unavailable", () => {
+      createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  title: "Vector A",
+                  styleURL: "https://example.com/vector-a-style.json",
+                },
+                {
+                  title: "Vector B",
+                  styleURL: "https://example.com/vector-b-style.json",
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const map = getLastMapInstance();
+      const core = getCoreById("map");
+      map.setStyle = undefined;
+
+      expect(() => {
+        core.commands.basemaps.setActiveVectorBasemap("vector-1");
+      }).not.toThrow();
+
+      map.setStyle = vi.fn();
+      core.basemaps.vector[1].styleURL = undefined;
+
+      expect(() => {
+        core.commands.basemaps.setActiveVectorBasemap("vector-0");
+      }).not.toThrow();
+      expect(map.setStyle).not.toHaveBeenCalled();
     });
 
     it("keeps empty raster basemap state unchanged for live mutation commands", () => {

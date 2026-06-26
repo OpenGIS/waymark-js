@@ -338,6 +338,24 @@ test.describe("2. Development smoke", () => {
     await expect(
       page.locator('#map [data-waymark-basemaps-vector-item="true"]').first(),
     ).toContainText("OpenFreeMap Bright");
+    await expect(
+      page.locator('#map [data-waymark-vector-radio="vector-0"]'),
+    ).toBeChecked();
+
+    await page.locator('#map [data-waymark-vector-radio="vector-1"]').click();
+    await expect(
+      page.locator('#map [data-waymark-vector-radio="vector-1"]'),
+    ).toBeChecked();
+
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          () =>
+            window.waymarkInstance?.toJSON().config.map.basemaps.vector[0]
+              ?.title,
+        ),
+      )
+      .toBe("OpenFreeMap Liberty (inactive demo entry)");
 
     await page
       .locator('#map-two [data-waymark-control="basemaps-toggle"]')

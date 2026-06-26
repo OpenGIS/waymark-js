@@ -44,6 +44,7 @@ export function createRasterBasemapModule(map, id, rasterBasemaps) {
   }
 
   let attachedLoadHandler = null;
+  let attachedStyleLoadHandler = null;
   let hasMountedLayers = false;
 
   const addRasterBasemaps = () => {
@@ -137,6 +138,12 @@ export function createRasterBasemapModule(map, id, rasterBasemaps) {
     map.on("load", attachedLoadHandler);
   }
 
+  attachedStyleLoadHandler = () => {
+    hasMountedLayers = false;
+    addRasterBasemaps();
+  };
+  map.on("style.load", attachedStyleLoadHandler);
+
   return {
     /**
      * @param {string} basemapId
@@ -180,6 +187,11 @@ export function createRasterBasemapModule(map, id, rasterBasemaps) {
       if (attachedLoadHandler) {
         map.off("load", attachedLoadHandler);
         attachedLoadHandler = null;
+      }
+
+      if (attachedStyleLoadHandler) {
+        map.off("style.load", attachedStyleLoadHandler);
+        attachedStyleLoadHandler = null;
       }
     },
   };

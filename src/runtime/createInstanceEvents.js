@@ -27,7 +27,7 @@ export const FORWARDED_MAP_EVENTS = [
  */
 
 /**
- * @typedef {'opacity_changed' | 'reordered'} WaymarkBasemapsMutationType
+ * @typedef {'opacity_changed' | 'reordered' | 'vector_changed'} WaymarkBasemapsMutationType
  */
 
 /**
@@ -40,7 +40,14 @@ export const FORWARDED_MAP_EVENTS = [
  *     orderedBasemapIds?: string[],
  *   },
  *   basemaps: {
- *     vector: object[],
+ *     vector: Array<{
+ *       basemapId: string,
+ *       styleURL: string | object,
+ *       title?: string,
+ *       attributionHTML?: string,
+ *       maxZoom?: number,
+ *       opacity?: number,
+ *     }>,
  *     raster: Array<{
  *       basemapId: string,
  *       tileURLTemplates: string[],

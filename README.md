@@ -98,7 +98,7 @@ Shell refresh is driven by forwarded container events (`waymark:map.load`, `waym
 - **InstanceDocument**: canonical serialisable plain object returned by `instance.toJSON()`.
 - **GeoJSON**: the map data format; canonical JSON key is `data.geoJSON` in the InstanceDocument.
 
-Set basemaps with `map.basemaps.vector[]` and `map.basemaps.raster[]`:
+Set basemaps with `map.basemaps.raster[]` and `map.basemaps.vector[]` (canonical readable order):
 
 ```js
 createInstance({
@@ -106,9 +106,23 @@ createInstance({
     id: "map",
     map: {
       basemaps: {
+        raster: [
+          {
+            tileURLTemplates: [
+              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ],
+            title: "OpenStreetMap raster",
+            attributionHTML:
+              '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>',
+            opacity: 0.75,
+          },
+        ],
         vector: [
           {
             styleURL: "https://example.com/style.json",
+            title: "Example vector style",
+            attributionHTML:
+              '<a href="https://example.com/tiles">© Example Maps</a>',
           },
         ],
       },
@@ -118,6 +132,15 @@ createInstance({
 ```
 
 ## Documentation
+
+### Feature slices
+
+Basemaps is the canonical cross-module slice for this codebase:
+
+- Public contract (config, events, serialisation): [`docs/1.api.md`](docs/1.api.md#map-options-pass-through)
+- Runtime mechanics (MapLibre wiring + mutation flow): [`docs/4.map.md`](docs/4.map.md#runtime-behaviour)
+- UI interaction flow (panel + controls): [`docs/5.ui.md`](docs/5.ui.md#basemaps-panel-composition)
+- Contributor sync checklist: [`docs/2.development.md`](docs/2.development.md#basemaps-cross-module-contract-checklist)
 
 - [API](docs/1.api.md)
 - [Development guide](docs/2.development.md)

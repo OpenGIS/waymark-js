@@ -70,7 +70,7 @@ function normaliseBasemapSnapshot(snapshot) {
 
 /**
  * @param {string} containerId
- * @param {{ events: { on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void }, getInstanceDocument: () => object | null, getBasemapSnapshot?: () => { vector: object[], raster: Array<{ basemapId: string, tileURLTemplates: string[], title?: string, attributionHTML?: string, tileSize?: number, minZoom?: number, maxZoom?: number, opacity?: number }> } | null, onSetRasterOpacity?: (basemapId: string, opacity: number) => void, onReorderRasterBasemaps?: (orderedBasemapIds: string[]) => void, mode: 'view' | 'debug', onBasemapsPanelOpen?: () => void, onBasemapsPanelClose?: () => void }} options
+ * @param {{ events: { on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void }, getInstanceDocument: () => object | null, getBasemapSnapshot?: () => { vector: object[], raster: Array<{ basemapId: string, tileURLTemplates: string[], title?: string, attributionHTML?: string, tileSize?: number, minZoom?: number, maxZoom?: number, opacity?: number }> } | null, onSetRasterOpacity?: (basemapId: string, opacity: number) => void, onReorderRasterBasemaps?: (orderedBasemapIds: string[]) => void, onSetActiveVectorBasemap?: (basemapId: string) => void, mode: 'view' | 'debug', onBasemapsPanelOpen?: () => void, onBasemapsPanelClose?: () => void }} options
  */
 export function createAppShell(containerId, options) {
   const container = document.getElementById(containerId);
@@ -285,6 +285,7 @@ export function createAppShell(containerId, options) {
           basemapSnapshot: basemapSnapshot.value,
           onSetRasterOpacity: options.onSetRasterOpacity,
           onReorderRasterBasemaps: options.onReorderRasterBasemaps,
+          onSetActiveVectorBasemap: options.onSetActiveVectorBasemap,
         });
     },
   });

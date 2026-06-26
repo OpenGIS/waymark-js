@@ -40,6 +40,16 @@ import {
  */
 
 /**
+ * @typedef {object} WaymarkRuntimeVectorBasemap
+ * @property {string} basemapId
+ * @property {string | object} styleURL
+ * @property {string} [title]
+ * @property {string} [attributionHTML]
+ * @property {number} [maxZoom]
+ * @property {number} [opacity]
+ */
+
+/**
  * @typedef {object} WaymarkRuntimeRasterBasemap
  * @property {string} basemapId
  * @property {string[]} tileURLTemplates
@@ -67,13 +77,13 @@ import {
  * @property {string} id
  * @property {WaymarkMap} map
  * @property {WaymarkResolvedConfig} config
- * @property {{ vector: object[], raster: WaymarkRuntimeRasterBasemap[] }} basemaps
+ * @property {{ vector: WaymarkRuntimeVectorBasemap[], raster: WaymarkRuntimeRasterBasemap[] }} basemaps
  * @property {{ map: WaymarkMapState, ui: { mode: 'view' | 'debug' } }} state
  * @property {WaymarkInstancePublicApi} publicApi
  * @property {{ container: HTMLElement, emit: (type: string, detail: import('./createInstanceEvents.js').WaymarkInstanceLifecycleEventDetail | import('./createInstanceEvents.js').WaymarkInstanceMapEventDetail | import('./createInstanceEvents.js').WaymarkInstanceModuleEventDetail | import('./createInstanceEvents.js').WaymarkBasemapsChangedEventDetail) => void, on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void, once: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void }} events
  * @property {{ toJSON: () => WaymarkInstanceDocument }} instanceDocument
  * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, setMode: (mode: 'view' | 'debug') => void, openBasemapsPanel: () => void, closeBasemapsPanel: () => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void }, rasterBasemaps: { setRasterOpacity: (basemapId: string, opacity: number) => void, reorderRasterBasemaps: (orderedBasemapIds: string[]) => void, destroy: () => void }, mapEvents: { destroy: () => void }, stateSync: { destroy: () => void } }} modules
- * @property {{ basemaps: { setRasterOpacity: (basemapId: string, opacity: number) => void, reorderRasterBasemaps: (orderedBasemapIds: string[]) => void }, ui: { openBasemapsPanel: () => void, closeBasemapsPanel: () => void } }} commands
+ * @property {{ basemaps: { setRasterOpacity: (basemapId: string, opacity: number) => void, reorderRasterBasemaps: (orderedBasemapIds: string[]) => void, setActiveVectorBasemap: (basemapId: string) => void }, ui: { openBasemapsPanel: () => void, closeBasemapsPanel: () => void } }} commands
  * @property {{ phase: 'ready' | 'destroyed', destroy: () => void }} lifecycle
  */
 
@@ -128,6 +138,24 @@ function createRuntimeRasterBasemapId(index) {
 }
 
 /**
+ * @param {number} index
+ */
+function createRuntimeVectorBasemapId(index) {
+  return `vector-${index}`;
+}
+
+/**
+ * @param {import('../document/instanceDocument.js').WaymarkVectorBasemap[]} vectorBasemaps
+ * @returns {WaymarkRuntimeVectorBasemap[]}
+ */
+function createRuntimeVectorBasemaps(vectorBasemaps) {
+  return vectorBasemaps.map((vectorBasemap, index) => ({
+    basemapId: createRuntimeVectorBasemapId(index),
+    ...vectorBasemap,
+  }));
+}
+
+/**
  * @param {import('../document/instanceDocument.js').WaymarkRasterBasemap[]} rasterBasemaps
  * @returns {WaymarkRuntimeRasterBasemap[]}
  */
@@ -148,6 +176,24 @@ function serialiseRuntimeRasterBasemaps(rasterBasemaps) {
 }
 
 /**
+ * @param {WaymarkRuntimeVectorBasemap[]} vectorBasemaps
+ */
+function serialiseRuntimeVectorBasemaps(vectorBasemaps) {
+  return vectorBasemaps.map(({ basemapId: _basemapId, ...vectorBasemap }) => ({
+    ...vectorBasemap,
+  }));
+}
+
+/**
+ * @param {WaymarkRuntimeVectorBasemap[]} vectorBasemaps
+ */
+function snapshotRuntimeVectorBasemaps(vectorBasemaps) {
+  return vectorBasemaps.map((vectorBasemap) => ({
+    ...vectorBasemap,
+  }));
+}
+
+/**
  * @param {WaymarkRuntimeRasterBasemap[]} rasterBasemaps
  */
 function snapshotRuntimeRasterBasemaps(rasterBasemaps) {
@@ -162,7 +208,7 @@ function snapshotRuntimeRasterBasemaps(rasterBasemaps) {
  */
 function createBasemapSnapshot(core) {
   return {
-    vector: core.basemaps.vector.map((vectorBasemap) => ({ ...vectorBasemap })),
+    vector: snapshotRuntimeVectorBasemaps(core.basemaps.vector),
     raster: snapshotRuntimeRasterBasemaps(core.basemaps.raster),
   };
 }
@@ -304,6 +350,52 @@ function reorderCoreRasterBasemaps(core, orderedBasemapIds) {
 }
 
 /**
+ * @param {WaymarkInstanceCore} core
+ * @param {string} basemapId
+ */
+function setCoreActiveVectorBasemap(core, basemapId) {
+  if (core.lifecycle.phase === "destroyed") {
+    return;
+  }
+
+  if (core.basemaps.vector.length === 0) {
+    return;
+  }
+
+  const currentActiveBasemapId = core.basemaps.vector[0]?.basemapId;
+
+  if (currentActiveBasemapId === basemapId) {
+    return;
+  }
+
+  const selectedIndex = core.basemaps.vector.findIndex(
+    (vectorBasemap) => vectorBasemap.basemapId === basemapId,
+  );
+
+  if (selectedIndex < 0) {
+    return;
+  }
+
+  const [selectedBasemap] = core.basemaps.vector.splice(selectedIndex, 1);
+  core.basemaps.vector = [selectedBasemap, ...core.basemaps.vector];
+
+  if (
+    core.map &&
+    selectedBasemap?.styleURL !== undefined &&
+    typeof core.map.setStyle === "function"
+  ) {
+    core.map.setStyle(selectedBasemap.styleURL);
+  }
+
+  emitCoreBasemapsChanged(core, "vector_changed", {
+    basemapIds: [basemapId],
+    orderedBasemapIds: core.basemaps.vector.map(
+      (vectorBasemap) => vectorBasemap.basemapId,
+    ),
+  });
+}
+
+/**
  * @param {{
  *   core: WaymarkInstanceCore,
  *   map: WaymarkMap,
@@ -352,7 +444,7 @@ function toMapCameraOverrides(stateMap) {
 }
 
 /**
- * @param {{ vector: object[], raster: object[] }} basemaps
+ * @param {{ vector: WaymarkRuntimeVectorBasemap[], raster: WaymarkRuntimeRasterBasemap[] }} basemaps
  */
 function serialiseAuthoredBasemaps(basemaps) {
   const serialised = {};
@@ -362,7 +454,7 @@ function serialiseAuthoredBasemaps(basemaps) {
   }
 
   if (basemaps.vector.length > 0) {
-    serialised.vector = basemaps.vector;
+    serialised.vector = serialiseRuntimeVectorBasemaps(basemaps.vector);
   }
 
   return serialised;
@@ -416,7 +508,7 @@ export function createInstanceCore(instanceDocument) {
     instanceDocument.config;
   const authoredBasemaps = instanceDocument.config.map.basemaps;
   const coreBasemaps = {
-    vector: [...authoredBasemaps.vector],
+    vector: createRuntimeVectorBasemaps(authoredBasemaps.vector),
     raster: createRuntimeRasterBasemaps(authoredBasemaps.raster),
   };
   const resolvedConfig = resolveConfig(configOverrides);
@@ -439,6 +531,9 @@ export function createInstanceCore(instanceDocument) {
     },
     onReorderRasterBasemaps: (orderedBasemapIds) => {
       core?.commands.basemaps.reorderRasterBasemaps(orderedBasemapIds);
+    },
+    onSetActiveVectorBasemap: (basemapId) => {
+      core?.commands.basemaps.setActiveVectorBasemap(basemapId);
     },
     mode: resolvedConfig.ui.mode,
   });
@@ -481,6 +576,7 @@ export function createInstanceCore(instanceDocument) {
       basemaps: {
         setRasterOpacity: () => {},
         reorderRasterBasemaps: () => {},
+        setActiveVectorBasemap: () => {},
       },
       ui: {
         openBasemapsPanel: () => {},
@@ -507,6 +603,9 @@ export function createInstanceCore(instanceDocument) {
   };
   core.commands.basemaps.reorderRasterBasemaps = (orderedBasemapIds) => {
     reorderCoreRasterBasemaps(core, orderedBasemapIds);
+  };
+  core.commands.basemaps.setActiveVectorBasemap = (basemapId) => {
+    setCoreActiveVectorBasemap(core, basemapId);
   };
   core.commands.ui.openBasemapsPanel = () => {
     core.modules.appShell?.openBasemapsPanel();
