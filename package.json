@@ -13,8 +13,9 @@
     "dist"
   ],
   "scripts": {
-    "dev": "vite",
-    "build": "node scripts/skill-md.js && vite build",
+    "dev": "vite --config vite.config.dev.js",
+    "dev:browser-tests": "vite --config vite.config.dev.js --host 127.0.0.1 --port 4173 --strictPort",
+    "build": "node scripts/skill-md.js && vite build --config vite.config.lib.js",
     "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

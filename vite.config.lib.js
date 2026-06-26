@@ -7,16 +7,12 @@ export default defineConfig({
   define: {
     "process.env.NODE_ENV": JSON.stringify("production"),
   },
+  publicDir: false,
   build: {
     lib: {
       entry: resolve(import.meta.dirname, "src/entry.js"),
       fileName: "waymark",
       formats: ["es"],
     },
-  },
-  test: {
-    environment: "jsdom",
-    include: ["tests/docs/**/*.test.js"],
-    setupFiles: ["tests/setup.js"],
   },
 });

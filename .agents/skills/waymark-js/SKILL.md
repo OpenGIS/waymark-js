@@ -124,7 +124,9 @@ Canonical v1 shape:
     }
   },
   data: {
-    geoJSON: object | null
+    layers: Array<{
+      geoJSON: object | null
+    }>
   }
 }
 ```
@@ -173,16 +175,24 @@ Waymark mounts a per-instance Vue shell in the target map container (`data-wayma
 - `src/ui/modes/InstanceShellModeView.vue`
 - `src/ui/modes/InstanceShellModeDebug.vue`
 
-In `"view"` mode, the shell is present but intentionally empty. In `"debug"` mode, the shell renders a debug control (`debug-output-toggle`) and a shell-level modal that is visible by default. The debug control toggles modal visibility. When visible, the modal renders two debug sections:
+UI shell routing is state-driven:
+
+- internal controls emit panel intent (`debug-output-toggle`, `basemaps-toggle`)
+- `ui.activePanel` selects modal panel content (`debug-output` or `basemaps`)
+- `ui.panelContext` carries optional route metadata (for example trigger source)
+
+In `"view"` mode, the shell stays mounted with no default panel content. In `"debug"` mode, runtime opens the `debug-output` panel by default. The debug control toggles that panel route on/off, and the shared modal is visible whenever any panel is active. When `debug-output` is active, the modal renders two debug sections:
 
 - **Instance document**: current `instance.toJSON()` snapshot.
-- **Waymark events (last 25)**: bounded event history for core Waymark events only (`waymark:instance.*`, `waymark:ui.mode.changed`, forwarded `waymark:map.*`) with sanitised summaries.
+- **Waymark events (last 25)**: bounded event history for lifecycle/module/map events plus canonical runtime state events (`waymark:state.changed`, `waymark:state.*`) with sanitised summaries.
 
-The debug control remains clickable while the debug panel is visible.
+The debug control remains clickable while the panel is visible.
 
 There is no separate public debug payload contract; debug output is derived from the canonical instance document and event summaries.
 
 Event-feed appends are intentionally decoupled from full instance-document refreshes so frequent forwarded map events can update debug history with lower UI overhead.
+
+`ui.activePanel` and `ui.panelContext` are runtime-only UI routing fields; they are not persisted in `instance.toJSON()`.
 
 For UI runtime boundaries and internal wiring, see [`docs/5.ui.md`](5.ui.md).
 
@@ -374,6 +384,49 @@ Basemaps changed payload shape (`waymark:map.basemaps.changed`):
 }
 ```
 
+Canonical runtime state events:
+
+- `waymark:state.changed`
+- `waymark:state.ui.mode.changed`
+- `waymark:state.ui.panel.changed`
+- `waymark:state.map.camera.changed`
+- `waymark:state.map.basemaps.changed`
+
+No-op runtime dispatches emit no state events.
+
+State event payload shape:
+
+```js
+{
+  id: string,
+  command: string,
+  scope: string,
+  previous: unknown,
+  next: unknown,
+  meta?: unknown,
+  source: string,
+  snapshot: {
+    map: {
+      camera: {
+        center: [number, number],
+        zoom: number,
+        bearing: number,
+        pitch: number
+      },
+      basemaps: {
+        vector: unknown[],
+        raster: unknown[]
+      }
+    },
+    ui: {
+      mode: "view" | "debug",
+      activePanel: string | null,
+      panelContext: unknown
+    }
+  }
+}
+```
+
 ## InstanceDocument shape
 
 `instance.toJSON()` returns a canonical serialisable InstanceDocument object:
@@ -409,7 +462,9 @@ Basemaps changed payload shape (`waymark:map.basemaps.changed`):
     ui?: { mode?: "view" | "debug" }
   },
   data: {
-    geoJSON: object | null
+    layers: Array<{
+      geoJSON: object | null
+    }>
   }
 }
 ```
@@ -420,7 +475,9 @@ Basemaps changed payload shape (`waymark:map.basemaps.changed`):
 - `state.map.basemaps` appears only when basemaps are mutated at runtime.
 - `state.ui.mode` appears only when runtime mode diverges from config baseline.
 
-Camera sync still observes low-frequency map end events (`load`, `moveend`, `zoomend`, `rotateend`, `pitchend`).
+Camera sync observes low-frequency map end events (`load`, `moveend`, `zoomend`, `rotateend`, `pitchend`) and dispatches state commands. State events emit only when camera values change.
+
+In debug mode, the **Instance document** panel is refreshed from runtime-state events, so camera changes visible in the map are reflected through the same state pipeline.
 
 `instance.toJSON()` is intentionally strict and serialisable so that `createInstance(instance.toJSON())` can be reused as canonical input.
 
@@ -434,7 +491,19 @@ Internal orchestration boundaries are documented in [`docs/3.instances.md`](3.in
 
 ## Initial GeoJSON overlay
 
-When `data.geoJSON` is provided in `instanceDocument`, Waymark adds an instance-scoped GeoJSON source and line layer on load (or immediately if the map is already loaded).
+When `data.layers` is provided in `instanceDocument`, Waymark adds one instance-scoped GeoJSON source/layer per entry with `{ geoJSON }` on load (or immediately if the map is already loaded).
+
+- Multiple GeoJSON layers are supported.
+- Data-layer stack order is top-first: `layers[0]` is visually on top.
+- Data layers are inserted after raster basemaps and before symbol layers.
+- Geometry families are rendered by layer type:
+  - `Point` and `MultiPoint` → `circle`
+  - `LineString` and `MultiLineString` → `line`
+  - `Polygon` and `MultiPolygon` → `fill`
+- Default family paint is stable and minimal:
+  - circle: `circle-color: #2563eb`, `circle-radius: 5`
+  - line: `line-color: #2563eb`, `line-width: 3`
+  - fill: `fill-color: #2563eb`, `fill-opacity: 0.35`
 
 ```js
 createInstance({
@@ -442,10 +511,17 @@ createInstance({
     id: "map",
   },
   data: {
-    geoJSON: {
-      type: "FeatureCollection",
-      features: [],
-    },
+    layers: [
+      {
+        geoJSON: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      },
+      {
+        geoJSON: null,
+      },
+    ],
   },
 });
 
@@ -472,7 +548,9 @@ GeoJSON source/layer IDs are instance-scoped to avoid collisions.
 
 `npm run build` still runs `node scripts/skill-md.js` before Vite build output, so skill docs stay in sync with `docs/*.md`.
 
-Vite config defines `process.env.NODE_ENV` as a build-time replacement for the dist bundle, preventing browser runtime errors like `process is not defined`.
+Vite config is split by role: `vite.config.dev.js` for local dev server, `vite.config.lib.js` for library builds, and `vitest.config.js` for tests.
+
+`vite.config.lib.js` defines `process.env.NODE_ENV` as a build-time replacement for the dist bundle, preventing browser runtime errors like `process is not defined`.
 
 ## Conventions and definitions
 
@@ -481,6 +559,7 @@ Vite config defines `process.env.NODE_ENV` as a build-time replacement for the d
 - **Runtime registry**: internal ID→core map in `src/runtime/runtimeRegistry.js`.
 - **InstanceDocument**: canonical serialisable payload from `instance.toJSON()`.
 - **GeoJSON**: map data format and symbol naming (`createGeoJSONModule`, `geoJSON`).
+- **Data layers**: canonical InstanceDocument data shape is `data.layers: Array<{ geoJSON: object | null }>`.
 
 Keep runtime internals internal. Consumer docs and tests should target public API behaviour.
 
@@ -519,31 +598,35 @@ For basemap ordering, use these canonical rules in docs/tests/fixtures:
 - `config.map.basemaps` key order: `raster` then `vector` (for readability and `toJSON()` parity).
 - raster stack order is top-first: `raster[0]` is visually on top.
 
-## Cross-module sync pattern (core-owned state)
+For data-layer ordering, use these canonical rules in docs/tests/fixtures:
+
+- `data.layers` is the canonical data envelope (not `data.geoJSON`).
+- data-layer stack order is top-first: `layers[0]` is visually on top.
+- insertion position is after raster basemaps and before symbol layers.
+
+## Cross-module sync pattern (runtime-state owned)
 
 Use this pattern when UI and map modules must stay in sync.
 
-1. **Core owns mutable state**
-   - Keep authoritative state in `src/runtime/createInstanceCore.js` (`core.state`, `core.basemaps`).
-   - UI modules consume snapshots; they do not become a second source of truth.
-2. **Expose explicit commands**
-   - Route mutations through named commands (`core.commands.basemaps.setRasterOpacity`, `core.commands.basemaps.reorderRasterBasemaps`, `core.commands.basemaps.setActiveVectorBasemap`).
-   - UI emits intent via callbacks; core validates, mutates state, then applies map-side effects.
-3. **Emit one aggregate change event**
-   - Event: `waymark:map.basemaps.changed`.
-   - Detail shape (high level):
-     - `id`
-     - `mutation` (`"opacity_changed" | "reordered" | "vector_changed"`)
-     - `changed` (target basemap ids + mutation-specific deltas)
-     - `basemaps` (post-mutation vector/raster snapshot)
-
-For module-scoped state changes that do not need full aggregate snapshots, emit `waymark:ui.mode.changed` with module event detail (`module`, `event`, `previous`, `next`, `source`).
+1. **Runtime state owns mutable state**
+   - Keep authoritative mutable state in `src/runtime/state/createInstanceState.js`.
+   - `createInstanceCore(...)` owns lifecycle orchestration and commands, not duplicate mutable state copies.
+   - UI shell modules consume snapshots and never become a second source of truth.
+2. **Dispatch named commands**
+   - Route mutations through explicit dispatch paths (for example `map.camera.set`, `map.basemaps.raster.opacity.set`, `ui.activePanel.set`).
+   - UI emits intent via callbacks; runtime commands dispatch state changes, then adapters apply map-side effects.
+3. **Emit canonical state events**
+   - Every real state mutation emits `waymark:state.changed` plus a scoped state event (`waymark:state.map.camera.changed`, `waymark:state.map.basemaps.changed`, `waymark:state.ui.mode.changed`, `waymark:state.ui.panel.changed`).
+   - No-op dispatches emit nothing.
+4. **Emit aggregate module events only where useful**
+   - Basemaps still emits `waymark:map.basemaps.changed` for mutation-specific snapshot payloads consumed by tooling/UI.
+   - `waymark:ui.mode.changed` remains the module-level mode event.
 
 Guidance for future sync features:
 
 - keep mutation logic in runtime core, not in Vue/map adapters
 - keep commands idempotent and no-op on invalid/unchanged input
-- emit events after state mutation succeeds
+- emit events only after state mutation succeeds
 - prefer one aggregate event per mutation path over multiple partial events
 - ensure `instance.toJSON()` reflects the same post-mutation state as emitted events
 - for vector selection, ensure the active basemap is always serialised as `basemaps.vector[0]`
@@ -563,13 +646,16 @@ Use this checklist when changing basemap behaviour across API/map/UI/docs/tests.
 ## Testing strategy
 
 - `tests/docs/*.test.js` (Vitest + jsdom): API contract tests without WebGL.
+- `tests/docs/runtime/createInstanceState.test.js`: runtime-state module contract (`getSnapshot`, command dispatch, scoped/global state events, no-op behaviour).
 - `tests/browser/*.test.js` (Playwright): browser API and dev-page smoke behaviour.
 
 Use jsdom tests to validate API contract behaviour, not as proof of non-browser runtime support. Browser tests are the runtime source of truth for instance behaviour.
 
 ## Dev page mode setup
 
-`src/dev.js` intentionally boots two instances with one mode per instance:
+The development playground now lives under `dev/` (`dev/index.html`, `dev/dev.js`, and static assets in `dev/public/`).
+
+`dev/dev.js` intentionally boots two instances with one mode per instance:
 
 - `#map` uses `ui.mode: "view"`
 - `#map-two` uses `ui.mode: "debug"`
@@ -584,7 +670,7 @@ This gives a stable baseline for browser smoke coverage in `tests/browser/2.deve
 - shared modal routing allows direct switch between debug and basemaps panels
 - two dev dropdowns exist: `#dev-instance-mode` (for `#map`) and `#dev-instance-mode-two` (for `#map-two`)
 
-`src/dev.js` wires both dropdowns via `instance.ui.setMode(nextMode)`. Browser smoke asserts independent mode switching in both UI and serialised InstanceDocument payloads:
+`dev/dev.js` wires both dropdowns via `instance.ui.setMode(nextMode)`. Browser smoke asserts independent mode switching in both UI and serialised InstanceDocument payloads:
 
 - switching `#dev-instance-mode` to `debug` only changes `#map` to debug UI/InstanceDocument state
 - switching `#dev-instance-mode-two` to `view` only changes `#map-two` to view UI/InstanceDocument state
@@ -700,15 +786,16 @@ Sync checklist:
 
 Key components:
 
-| Component                             | Responsibility                                                                  |
-| ------------------------------------- | ------------------------------------------------------------------------------- |
-| `src/document/instanceDocument.js`    | Canonical InstanceDocument shape, normalisation, serialisation, and validation. |
-| `src/runtime/createInstanceCore.js`   | Runtime core orchestration, lifecycle, public API assembly, reuse/destroy flow. |
-| `src/runtime/runtimeRegistry.js`      | Internal ID-scoped runtime storage (`get/set/delete`).                          |
-| `src/runtime/createInstanceEvents.js` | Container event bus (`on/off/once/emit`) and map-event forwarding.              |
-| `src/config/resolveConfig.js`         | Consumer config deep-merge with defaults.                                       |
-| `src/map/*`, `src/geojson/*`          | Map and data module internals (documented in `docs/4.map.md`).                  |
-| `src/ui/*`                            | UI shell and mode internals (documented in `docs/5.ui.md`).                     |
+| Component                                  | Responsibility                                                                                                 |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `src/document/instanceDocument.js`         | Canonical InstanceDocument shape, normalisation, serialisation, and validation.                                |
+| `src/runtime/createInstanceCore.js`        | Runtime core orchestration, lifecycle, public API assembly, reuse/destroy flow.                                |
+| `src/runtime/runtimeRegistry.js`           | Internal ID-scoped runtime storage (`get/set/delete`).                                                         |
+| `src/runtime/createInstanceEvents.js`      | Container event bus (`on/off/once/emit`) and map-event forwarding.                                             |
+| `src/runtime/state/createInstanceState.js` | Canonical runtime-state store (`getSnapshot`, `dispatch`, `subscribe`) and scoped/global state-event emission. |
+| `src/config/resolveConfig.js`              | Consumer config deep-merge with defaults.                                                                      |
+| `src/map/*`, `src/geojson/*`               | Map and data module internals (documented in `docs/4.map.md`).                                                 |
+| `src/ui/*`                                 | UI shell and mode internals (documented in `docs/5.ui.md`).                                                    |
 
 ## Internal orchestration boundaries
 
@@ -730,14 +817,16 @@ Map and UI module-level details are documented separately:
 - `rasterBasemaps`
 - `mapEvents`
 - `stateSync`
+- `basemapStateSync`
 
 This grouping is internal lifecycle wiring, not part of the consumer API.
 
 ## Module state boundaries
 
-- Runtime tracks mutable camera/UI state in `core.state` and keeps stable authored/default intent in `core.baseline`.
-- Serialisation emits a stable `config` baseline and a minimal `state` delta in `toJSON()` (unchanged branches omitted).
-- Camera persistence is emitted from `core.state.map.options` as delta-only values, while basemap persistence is derived from runtime basemap snapshots vs baseline basemaps.
+- Runtime mutable state lives in `core.runtimeState` (state module snapshot + dispatch).
+- `core.baseline` keeps stable authored/default intent for delta generation.
+- Serialisation emits a stable `config` baseline and a minimal `state` delta in `toJSON()` (unchanged branches omitted), using runtime-state snapshots as the current source.
+- UI routing fields (`ui.activePanel`, `ui.panelContext`) are runtime-only and intentionally excluded from `toJSON()`.
 - Internal mutators (for example, `setCoreMode(...)`) are runtime wiring and not public API.
 
 ## Lifecycle order
@@ -747,14 +836,15 @@ Create flow:
 1. Resolve container from `instanceDocument.config.id` (or auto-create one) and check registry for same-ID recreate.
 2. If found, emit `waymark:instance.recreated`, teardown existing runtime, and clear registry entry.
 3. Resolve config and create map.
-4. Create event bus and runtime modules.
-5. Build the InstanceDocument adapter and public API.
-6. Register runtime and emit `waymark:instance.created`.
+4. Create event bus and runtime state (`createInstanceState(...)`) with initial camera, basemaps, and UI panel state.
+5. Wire runtime modules (UI shell, map-event/state sync, basemap state sync, GeoJSON/raster adapters).
+6. Build the InstanceDocument adapter and public API.
+7. Register runtime and emit `waymark:instance.created`.
 
 Destroy flow:
 
 1. Mark lifecycle destroyed and emit `waymark:instance.destroyed`.
-2. Destroy `geoJSON`, `rasterBasemaps`, `mapEvents`, `stateSync`, then app shell listeners/mount.
+2. Destroy `geoJSON`, `rasterBasemaps`, `mapEvents`, `stateSync`, `basemapStateSync`, then app shell listeners/mount.
 3. Remove map and delete runtime registry entry.
 
 ## Extension notes
@@ -787,7 +877,7 @@ The map module owns MapLibre runtime behaviour per instance:
 - camera delta sync into `instance.toJSON().state.map.options`
 - basemap delta sync into `instance.toJSON().state.map.basemaps`
 - forwarded map lifecycle events on the instance container
-- optional GeoJSON source/layer bootstrapping from `instanceDocument.data.geoJSON`
+- optional GeoJSON source/layer bootstrapping from `instanceDocument.data.layers[]`
 
 ## Input and output boundaries
 
@@ -797,7 +887,7 @@ The map module owns MapLibre runtime behaviour per instance:
 - **Output state**:
   - `toJSON().state.map.options` (camera delta only)
   - `toJSON().state.map.basemaps` (runtime basemap delta only)
-- **Output data**: `toJSON().data.geoJSON`
+- **Output data**: `toJSON().data.layers[]`
 
 GeoJSON source/layer IDs are runtime metadata only and not included in `toJSON()`.
 
@@ -806,13 +896,20 @@ State camera values override config camera defaults when both are provided.
 ## Runtime behaviour
 
 - Waymark passes serialisable map options through to `new Map(options)` and always controls `container`.
+- Camera sync listens to map end events (`load`, `moveend`, `zoomend`, `rotateend`, `pitchend`) and dispatches `map.camera.set` into runtime state.
+- Camera state events are emitted only on real camera changes (no-op end events produce no state events).
 - Runtime basemap state is command-driven in core (`setRasterOpacity`, `reorderRasterBasemaps`, `setActiveVectorBasemap`) and then applied to map adapters.
 - Raster layers are mounted and reordered with top-first semantics (`raster[0]` is visually on top).
+- Data layers support multiple GeoJSON entries and are mounted with top-first semantics (`layers[0]` is visually on top).
+- Data layers are inserted after raster basemaps and before symbol layers.
+- Data layers render by GeoJSON geometry family:
+  - `Point`/`MultiPoint` use `circle` layers
+  - `LineString`/`MultiLineString` use `line` layers
+  - `Polygon`/`MultiPolygon` use `fill` layers
 - Vector switching updates MapLibre style via `map.setStyle(...)` and keeps the selected vector as runtime index `vector[0]`.
 - Basemap mutations emit one aggregate `waymark:map.basemaps.changed` event containing `mutation`, `changed`, and full post-mutation `basemaps` snapshot.
 - `instance.toJSON().config` stays stable, while live basemap mutations are serialised into `state.map.basemaps` (including runtime mutation order/values).
-- Camera state sync runs on end events: `load`, `moveend`, `zoomend`, `rotateend`, `pitchend`.
-- GeoJSON source/layer IDs are instance-scoped (`waymark-{id}-geojson-*`) to avoid collisions.
+- GeoJSON source/layer IDs are instance-scoped (`waymark-{id}-geojson-source-{index}`, `waymark-{id}-geojson-layer-{index}`) to avoid collisions.
 
 For public config validation/defaults and event payload contracts, treat [`docs/1.api.md`](1.api.md) as the source of truth.
 
@@ -848,8 +945,16 @@ The UI module owns per-instance shell rendering and UI mode state:
 - mounts internal controls from `src/ui/controls/internalControls.js`
 - renders mode-specific UI (`view` or `debug`)
 - renders basemaps controls/panel in both modes
-- refreshes shell instance snapshot on state-changing UI/basemap updates and keeps Waymark event feed updates lightweight
+- refreshes shell render refs from runtime-state snapshots and keeps Waymark event feed updates lightweight
 - applies runtime mode changes and emits module events
+
+## Controls vs panels
+
+- **Controls** are compact always-available triggers (for example `debug-output-toggle`, `basemaps-toggle`).
+- **Panels** are modal content routes selected by runtime state (`ui.activePanel`).
+- Controls emit intent only; they do not contain persisted state.
+- Panels render from snapshots and can be swapped without rebuilding controls.
+- `ui.panelContext` is optional routing metadata for panel consumers (for example which internal control opened the panel).
 
 ## Mode contract
 
@@ -867,7 +972,7 @@ The UI module owns per-instance shell rendering and UI mode state:
 - `src/ui/modes/InstanceShellModeDebug.vue` and `src/ui/panels/InstanceShellPanelBasemaps.vue` are both modal content routes.
 - When visible, debug output includes two sections:
   - **Instance document** from the current `instance.toJSON()` equivalent snapshot
-  - **Waymark events (last 25)** filtered to `waymark:instance.*`, `waymark:ui.mode.changed`, and forwarded `waymark:map.*`
+  - **Waymark events (last 25)** filtered to lifecycle/module/map events plus canonical runtime state events (`waymark:state.changed`, `waymark:state.*`)
 - Basemaps panel can replace debug panel without unmounting controls, so debug and basemaps toggles can switch modal content directly.
 - The debug toggle remains interactive while the panel is open because shell controls are layered above panel content.
 - Debug output does not use a dedicated payload module; it is assembled from the instance document plus sanitised event summaries.
@@ -875,16 +980,55 @@ The UI module owns per-instance shell rendering and UI mode state:
 
 ## Shared panel/modal routing
 
-- Panel routing is not debug-specific. `activePanel` selects modal content for both debug and basemaps.
+- Panel routing is not debug-specific. `ui.activePanel` selects modal content for both debug and basemaps.
 - Current internal panel ids:
   - `debug-output`
   - `basemaps`
-- `createAppShell(...)` manages `openPanel(...)`, `closePanel(...)`, and panel-specific toggles.
+- `ui.panelContext` carries optional route metadata for panel consumers (for example trigger source), without creating extra panel IDs.
+- UI controls dispatch panel intent commands through runtime state (`ui.activePanel.set`, `ui.panelContext.set`).
 - Mode transitions still apply guard rails:
   - leaving debug closes `debug-output` when active
   - entering debug opens `debug-output` if no panel is active
 
+`ui.activePanel` and `ui.panelContext` are intentionally runtime-only. They drive shell routing but are not serialised in `instance.toJSON()`.
+
 Use this same route-through-modal pattern for future internal panels.
+
+## State ownership boundaries
+
+- Runtime state module (`src/runtime/state/createInstanceState.js`) owns canonical mutable state.
+- UI shell (`src/ui/createAppShell.js`) keeps ephemeral render refs (`mode`, `activePanel`, snapshots) derived from runtime-state events.
+- Shell refs are projections only; all durable mutations must flow through runtime-state dispatch.
+- `createInstanceCore(...)` owns command handlers and delegates all mutable state writes through `runtimeState.dispatch(...)`.
+
+## Canonical runtime state events
+
+- Global: `waymark:state.changed`
+- Scoped:
+  - `waymark:state.ui.mode.changed`
+  - `waymark:state.ui.panel.changed`
+  - `waymark:state.map.camera.changed`
+  - `waymark:state.map.basemaps.changed`
+
+State event payload shape:
+
+```js
+{
+  id: string,
+  command: string,
+  scope: string,
+  previous: unknown,
+  next: unknown,
+  meta?: unknown,
+  source: string,
+  snapshot: {
+    map: { camera: object, basemaps: object },
+    ui: { mode: "view" | "debug", activePanel: string | null, panelContext: unknown }
+  }
+}
+```
+
+This payload is the canonical bridge between map/UI/runtime layers.
 
 ## Layering contract (`z-index`)
 
@@ -921,8 +1065,14 @@ Use this same route-through-modal pattern for future internal panels.
 1. User opens basemaps panel from the shared internal control toggle.
 2. User mutates raster/vector basemaps through row controls (slider, drag reorder, radio select).
 3. Panel emits intent callbacks to runtime core commands.
-4. Core applies map-side effects and emits one aggregate `waymark:map.basemaps.changed` event.
-5. App shell refreshes snapshot state so panel rows and `instance.toJSON()` remain aligned.
+4. Core dispatches runtime-state commands, applies map-side effects, and emits aggregate `waymark:map.basemaps.changed`.
+5. App shell refreshes from runtime-state snapshots so panel rows and `instance.toJSON()` remain aligned.
+
+Debug output demonstrates the same pattern:
+
+1. Map end events dispatch `map.camera.set`.
+2. Runtime state emits `waymark:state.map.camera.changed` only when values changed.
+3. Shell subscription refreshes **Instance document** so camera deltas appear in debug output.
 
 ## Minimal UI philosophy
 
@@ -969,10 +1119,10 @@ Developer documentation for Waymark JS.
 
 ## Reading order
 
-1. [API](1.api.md) - Consumer API contract for `createInstance(...)`, including browser-runtime/DOM boundaries, config defaults, UI mode behaviour, events, canonical InstanceDocument serialisation, and GeoJSON.
+1. [API](1.api.md) - Consumer API contract for `createInstance(...)`, including browser-runtime/DOM boundaries, config defaults, UI mode behaviour, events, canonical InstanceDocument serialisation, and `data.layers` GeoJSON documents.
 2. [Development](2.development.md) - Contributor workflow, dev-page mode baseline, testing strategy, and sync protocol.
 3. [Instances](3.instances.md) - Internal orchestration boundaries, lifecycle composition, and baseline-vs-delta serialisation semantics.
-4. [Map](4.map.md) - Map module responsibilities, state-sync boundaries, and GeoJSON wiring.
+4. [Map](4.map.md) - Map module responsibilities, state-sync boundaries, and `data.layers` GeoJSON wiring.
 5. [UI](5.ui.md) - UI shell responsibilities, mode state contract, and runtime mode updates.
 
 ## Scope

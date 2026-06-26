@@ -1,4 +1,4 @@
-import { createInstance } from "./entry.js";
+import { createInstance } from "../src/entry.js";
 import {
   WAYMARK_INSTANCE_CREATED_EVENT,
   WAYMARK_INSTANCE_DESTROYED_EVENT,
@@ -9,7 +9,7 @@ import {
   WAYMARK_MAP_ROTATEEND_EVENT,
   WAYMARK_MAP_ZOOMEND_EVENT,
   WAYMARK_UI_MODE_CHANGED_EVENT,
-} from "./runtime/createInstanceEvents.js";
+} from "../src/runtime/createInstanceEvents.js";
 
 const DEV_INSTANCE_CONTAINER_EVENTS = [
   WAYMARK_INSTANCE_CREATED_EVENT,
