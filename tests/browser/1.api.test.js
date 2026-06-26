@@ -1332,5 +1332,142 @@ test.describe("1. API", () => {
         },
       ]);
     });
+
+    test("keeps GeoJSON sources/layers after vector basemap style reload and preserves top-first order", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        window.waymarkFixture.createContainer("map-geojson-style-reload-test");
+        const styleOne = {
+          version: 8,
+          sources: {},
+          layers: [{ id: "background", type: "background" }],
+        };
+        const styleTwo = {
+          version: 8,
+          sources: {},
+          layers: [{ id: "background", type: "background" }],
+        };
+        const instance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map-geojson-style-reload-test",
+            map: {
+              basemaps: {
+                vector: [{ styleURL: styleOne }, { styleURL: styleTwo }],
+              },
+            },
+          },
+          data: {
+            layers: [
+              { geoJSON: { type: "FeatureCollection", features: [] } },
+              {
+                geoJSON: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "LineString",
+                        coordinates: [
+                          [0, 0],
+                          [1, 1],
+                        ],
+                      },
+                      properties: {},
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        });
+
+        const map = window.waymarkFixture.getRuntimeMap(instance.id);
+        const core = window.waymarkFixture.getRuntimeCore(instance.id);
+        const dataLayerIds = [
+          "waymark-map-geojson-style-reload-test-geojson-layer-1",
+          "waymark-map-geojson-style-reload-test-geojson-layer-0",
+        ];
+        const dataSourceIds = [
+          "waymark-map-geojson-style-reload-test-geojson-source-0",
+          "waymark-map-geojson-style-reload-test-geojson-source-1",
+        ];
+
+        const readSnapshot = () => {
+          const style = map.getStyle() ?? { sources: {}, layers: [] };
+          const layerIds = (style.layers ?? []).map((layer) => layer.id);
+
+          return {
+            hasSources: dataSourceIds.every((sourceId) =>
+              Boolean(map.getSource(sourceId)),
+            ),
+            hasLayers: dataLayerIds.every((layerId) =>
+              Boolean(map.getLayer(layerId)),
+            ),
+            dataLayerOrder: layerIds.filter((layerId) =>
+              dataLayerIds.includes(layerId),
+            ),
+            allLayerIds: layerIds,
+          };
+        };
+
+        return new Promise((resolve) => {
+          const timeoutMs = 5000;
+          const intervalMs = 50;
+
+          const waitForDataLayers = () =>
+            new Promise((resolveWait) => {
+              const startedAt = Date.now();
+
+              const poll = () => {
+                const snapshot = readSnapshot();
+                const complete = snapshot.hasSources && snapshot.hasLayers;
+                if (complete || Date.now() - startedAt >= timeoutMs) {
+                  resolveWait(snapshot);
+                  return;
+                }
+                setTimeout(poll, intervalMs);
+              };
+
+              poll();
+            });
+
+          const run = async () => {
+            const initial = await waitForDataLayers();
+
+            core.commands.basemaps.setActiveVectorBasemap("vector-1");
+            const afterStyleReload = await waitForDataLayers();
+
+            resolve({ initial, afterStyleReload });
+          };
+
+          run();
+        });
+      });
+
+      expect(result.initial.hasSources).toBe(true);
+      expect(result.initial.hasLayers).toBe(true);
+      expect(result.initial.dataLayerOrder).toEqual([
+        "waymark-map-geojson-style-reload-test-geojson-layer-1",
+        "waymark-map-geojson-style-reload-test-geojson-layer-0",
+      ]);
+      expect(result.initial.allLayerIds).toEqual([
+        "background",
+        "waymark-map-geojson-style-reload-test-geojson-layer-1",
+        "waymark-map-geojson-style-reload-test-geojson-layer-0",
+      ]);
+
+      expect(result.afterStyleReload.hasSources).toBe(true);
+      expect(result.afterStyleReload.hasLayers).toBe(true);
+      expect(result.afterStyleReload.dataLayerOrder).toEqual([
+        "waymark-map-geojson-style-reload-test-geojson-layer-1",
+        "waymark-map-geojson-style-reload-test-geojson-layer-0",
+      ]);
+      expect(result.afterStyleReload.allLayerIds).toEqual([
+        "background",
+        "waymark-map-geojson-style-reload-test-geojson-layer-1",
+        "waymark-map-geojson-style-reload-test-geojson-layer-0",
+      ]);
+    });
   });
 });

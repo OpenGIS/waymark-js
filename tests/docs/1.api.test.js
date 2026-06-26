@@ -2703,5 +2703,114 @@ describe("1. API", () => {
         { geoJSON: secondLayer },
       ]);
     });
+
+    it("keeps GeoJSON data layers mounted and top-first after vector style reload", () => {
+      const styleOne = {
+        version: 8,
+        sources: {},
+        layers: [
+          {
+            id: "background",
+            type: "background",
+          },
+          {
+            id: "poi-label",
+            type: "symbol",
+          },
+        ],
+      };
+      const styleTwo = {
+        version: 8,
+        sources: {},
+        layers: [
+          {
+            id: "background",
+            type: "background",
+          },
+          {
+            id: "poi-label",
+            type: "symbol",
+          },
+        ],
+      };
+
+      createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [{ styleURL: styleOne }, { styleURL: styleTwo }],
+            },
+          },
+        },
+        data: {
+          layers: [
+            {
+              geoJSON: { type: "FeatureCollection", features: [] },
+            },
+            {
+              geoJSON: {
+                type: "FeatureCollection",
+                features: [
+                  {
+                    type: "Feature",
+                    geometry: {
+                      type: "LineString",
+                      coordinates: [
+                        [0, 0],
+                        [1, 1],
+                      ],
+                    },
+                    properties: {},
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+
+      const map = getLastMapInstance();
+      map.fire("load", { source: "test" });
+
+      const getDataLayerOrder = () =>
+        map
+          .getStyle()
+          .layers.map((layer) => layer.id)
+          .filter((layerId) =>
+            layerId.startsWith("waymark-map-geojson-layer-"),
+          );
+
+      expect(
+        Boolean(map.getStyle().sources["waymark-map-geojson-source-0"]),
+      ).toBe(true);
+      expect(
+        Boolean(map.getStyle().sources["waymark-map-geojson-source-1"]),
+      ).toBe(true);
+      expect(getDataLayerOrder()).toEqual([
+        "waymark-map-geojson-layer-1",
+        "waymark-map-geojson-layer-0",
+      ]);
+
+      const core = getCoreById("map");
+      core.commands.basemaps.setActiveVectorBasemap("vector-1");
+
+      expect(
+        Boolean(map.getStyle().sources["waymark-map-geojson-source-0"]),
+      ).toBe(true);
+      expect(
+        Boolean(map.getStyle().sources["waymark-map-geojson-source-1"]),
+      ).toBe(true);
+      expect(getDataLayerOrder()).toEqual([
+        "waymark-map-geojson-layer-1",
+        "waymark-map-geojson-layer-0",
+      ]);
+      expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
+        "background",
+        "waymark-map-geojson-layer-1",
+        "waymark-map-geojson-layer-0",
+        "poi-label",
+      ]);
+    });
   });
 });

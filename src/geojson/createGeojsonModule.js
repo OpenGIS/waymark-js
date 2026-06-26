@@ -145,15 +145,14 @@ export function createGeoJSONModule(map, instanceId, layers = []) {
     geoJSON: layer.geoJSON,
   }));
 
-  let hasRendered = false;
-  let detachLoadListener = null;
+  let hasMountedLayers = false;
+  let attachedLoadHandler = null;
+  let attachedStyleLoadHandler = null;
 
-  function renderGeoJSONLayers() {
-    if (hasRendered) {
+  function mountGeoJSONLayers() {
+    if (hasMountedLayers) {
       return;
     }
-
-    hasRendered = true;
 
     let beforeLayerId = findFirstSymbolLayerId(map);
 
@@ -162,22 +161,38 @@ export function createGeoJSONModule(map, instanceId, layers = []) {
         continue;
       }
 
-      map.addSource(layerRecord.sourceId, {
-        type: "geojson",
-        data: layerRecord.geoJSON,
-      });
+      const hasSource =
+        typeof map.getSource === "function"
+          ? Boolean(map.getSource(layerRecord.sourceId))
+          : false;
 
-      map.addLayer(
-        {
-          id: layerRecord.layerId,
-          ...resolveLayerStyle(layerRecord.geoJSON),
-          source: layerRecord.sourceId,
-        },
-        beforeLayerId,
-      );
+      if (!hasSource) {
+        map.addSource(layerRecord.sourceId, {
+          type: "geojson",
+          data: layerRecord.geoJSON,
+        });
+      }
+
+      const hasLayer =
+        typeof map.getLayer === "function"
+          ? Boolean(map.getLayer(layerRecord.layerId))
+          : false;
+
+      if (!hasLayer) {
+        map.addLayer(
+          {
+            id: layerRecord.layerId,
+            ...resolveLayerStyle(layerRecord.geoJSON),
+            source: layerRecord.sourceId,
+          },
+          beforeLayerId,
+        );
+      }
 
       beforeLayerId = layerRecord.layerId;
     }
+
+    hasMountedLayers = true;
   }
 
   const hasRenderableLayer = layerRecords.some((layer) =>
@@ -186,24 +201,34 @@ export function createGeoJSONModule(map, instanceId, layers = []) {
 
   if (hasRenderableLayer) {
     if (typeof map.loaded === "function" && map.loaded()) {
-      renderGeoJSONLayers();
+      mountGeoJSONLayers();
     } else {
-      map.on("load", renderGeoJSONLayers);
-      detachLoadListener = () => {
-        if (typeof map.off === "function") {
-          map.off("load", renderGeoJSONLayers);
-        }
+      attachedLoadHandler = () => {
+        mountGeoJSONLayers();
+        attachedLoadHandler = null;
       };
+      map.on("load", attachedLoadHandler);
     }
+
+    attachedStyleLoadHandler = () => {
+      hasMountedLayers = false;
+      mountGeoJSONLayers();
+    };
+    map.on("style.load", attachedStyleLoadHandler);
   }
 
   return {
     map,
     layers: layerRecords,
     destroy() {
-      if (detachLoadListener) {
-        detachLoadListener();
-        detachLoadListener = null;
+      if (attachedLoadHandler) {
+        map.off("load", attachedLoadHandler);
+        attachedLoadHandler = null;
+      }
+
+      if (attachedStyleLoadHandler) {
+        map.off("style.load", attachedStyleLoadHandler);
+        attachedStyleLoadHandler = null;
       }
     },
   };
