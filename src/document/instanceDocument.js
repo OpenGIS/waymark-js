@@ -352,8 +352,8 @@ function normaliseRasterBasemapEntry(entry, index) {
 function normaliseBasemaps(rawBasemaps) {
   if (rawBasemaps === undefined) {
     return {
-      vector: [],
       raster: [],
+      vector: [],
     };
   }
 
@@ -377,11 +377,11 @@ function normaliseBasemaps(rawBasemaps) {
   }
 
   return {
-    vector: (rawBasemaps.vector ?? []).map((entry, index) =>
-      normaliseVectorBasemapEntry(entry, index),
-    ),
     raster: (rawBasemaps.raster ?? []).map((entry, index) =>
       normaliseRasterBasemapEntry(entry, index),
+    ),
+    vector: (rawBasemaps.vector ?? []).map((entry, index) =>
+      normaliseVectorBasemapEntry(entry, index),
     ),
   };
 }

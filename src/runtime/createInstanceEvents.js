@@ -7,6 +7,8 @@ export const WAYMARK_MAP_ZOOMEND_EVENT = "waymark:map.zoomend";
 export const WAYMARK_MAP_ROTATEEND_EVENT = "waymark:map.rotateend";
 export const WAYMARK_MAP_PITCHEND_EVENT = "waymark:map.pitchend";
 export const WAYMARK_UI_MODE_CHANGED_EVENT = "waymark:ui.mode.changed";
+export const WAYMARK_MAP_BASEMAPS_CHANGED_EVENT =
+  "waymark:map.basemaps.changed";
 
 export const FORWARDED_MAP_EVENTS = [
   ["load", WAYMARK_MAP_LOAD_EVENT],
@@ -22,6 +24,35 @@ export const FORWARDED_MAP_EVENTS = [
 
 /**
  * @typedef {{ id: string, mapEvent: string, originalEvent: unknown }} WaymarkInstanceMapEventDetail
+ */
+
+/**
+ * @typedef {'opacity_changed' | 'reordered'} WaymarkBasemapsMutationType
+ */
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   mutation: WaymarkBasemapsMutationType,
+ *   changed: {
+ *     basemapIds: string[],
+ *     opacity?: Record<string, number>,
+ *     orderedBasemapIds?: string[],
+ *   },
+ *   basemaps: {
+ *     vector: object[],
+ *     raster: Array<{
+ *       basemapId: string,
+ *       tileURLTemplates: string[],
+ *       title?: string,
+ *       attributionHTML?: string,
+ *       tileSize?: number,
+ *       minZoom?: number,
+ *       maxZoom?: number,
+ *       opacity?: number,
+ *     }>,
+ *   },
+ * }} WaymarkBasemapsChangedEventDetail
  */
 
 /**
@@ -75,7 +106,7 @@ export function createInstanceEvents(containerId) {
     container,
     /**
      * @param {string} type
-     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkInstanceMapEventDetail | WaymarkInstanceModuleEventDetail} detail
+     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkInstanceMapEventDetail | WaymarkInstanceModuleEventDetail | WaymarkBasemapsChangedEventDetail} detail
      */
     emit(type, detail) {
       container.dispatchEvent(

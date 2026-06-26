@@ -124,6 +124,14 @@ const waymarkInstance = createInstance({
               "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap",
             opacity: 0.5,
           },
+          {
+            title: "ESRI Satellite",
+            tileURLTemplates: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            ],
+            attributionHTML: "© ESRI",
+            opacity: 0.5,
+          },
         ],
       },
       options: {

@@ -549,7 +549,7 @@ test.describe("1. API", () => {
       expect(result.nested).toEqual({ ok: true });
     });
 
-    test("uses the first vector basemap and stacks raster overlays in listed order", async ({
+    test("uses the first vector basemap and stacks raster overlays with index 0 on top", async ({
       page,
     }) => {
       const result = await page.evaluate(() => {
@@ -610,14 +610,14 @@ test.describe("1. API", () => {
       expect(result).toEqual([
         { id: "background", type: "background", opacity: undefined },
         {
-          id: "waymark-map-basemap-raster-layer-0",
-          type: "raster",
-          opacity: 0.6,
-        },
-        {
           id: "waymark-map-basemap-raster-layer-1",
           type: "raster",
           opacity: 0.3,
+        },
+        {
+          id: "waymark-map-basemap-raster-layer-0",
+          type: "raster",
+          opacity: 0.6,
         },
       ]);
     });
@@ -908,7 +908,13 @@ test.describe("1. API", () => {
                     styleURL: "https://tiles.openfreemap.org/styles/bright",
                   },
                 ],
-                raster: [],
+                raster: [
+                  {
+                    tileURLTemplates: [
+                      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    ],
+                  },
+                ],
               },
             },
           },
@@ -917,13 +923,24 @@ test.describe("1. API", () => {
         return {
           defaultBasemaps: defaultInstance.toJSON().config.map.basemaps,
           explicitBasemaps: explicitInstance.toJSON().config.map.basemaps,
+          explicitBasemapKeys: Object.keys(
+            explicitInstance.toJSON().config.map.basemaps,
+          ),
         };
       });
 
       expect(result.defaultBasemaps).toBeUndefined();
       expect(result.explicitBasemaps).toEqual({
+        raster: [
+          {
+            tileURLTemplates: [
+              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ],
+          },
+        ],
         vector: [{ styleURL: "https://tiles.openfreemap.org/styles/bright" }],
       });
+      expect(result.explicitBasemapKeys).toEqual(["raster", "vector"]);
     });
   });
 

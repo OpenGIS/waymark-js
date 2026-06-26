@@ -23,6 +23,9 @@ test.describe("2. Development smoke", () => {
       page.locator('#map [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(0);
     await expect(
+      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
       page.locator('#map-two [data-waymark-debug-panel="true"]'),
     ).toHaveCount(1);
     await expect(
@@ -31,24 +34,41 @@ test.describe("2. Development smoke", () => {
     await expect(
       page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator(
+        '#map [data-waymark-controls-position="bottomLeft"] [data-waymark-control="basemaps-toggle"]',
+      ),
+    ).toHaveCount(1);
+    await expect(
+      page.locator(
+        '#map-two [data-waymark-controls-position="bottomLeft"] [data-waymark-control="basemaps-toggle"]',
+      ),
+    ).toHaveCount(1);
 
     const basemapConfig = await page.evaluate(() => ({
       map: window.waymarkInstance?.toJSON().config.map.basemaps,
       mapTwo: window.waymarkInstanceTwo?.toJSON().config.map.basemaps,
+      mapKeys: Object.keys(
+        window.waymarkInstance?.toJSON().config.map.basemaps,
+      ),
     }));
 
     expect(basemapConfig).toEqual({
       map: {
+        raster: expect.any(Array),
         vector: expect.arrayContaining([
           expect.objectContaining({
             styleURL: "https://tiles.openfreemap.org/styles/bright",
           }),
         ]),
-        raster: expect.any(Array),
       },
       mapTwo: {
         raster: expect.any(Array),
       },
+      mapKeys: ["raster", "vector"],
     });
   });
 
@@ -70,10 +90,16 @@ test.describe("2. Development smoke", () => {
       page.locator('#map [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(0);
     await expect(
+      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
       page.locator('#map-two [data-waymark-debug-panel="true"]'),
     ).toHaveCount(1);
     await expect(
       page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
     ).toHaveCount(1);
 
     const modes = await page.evaluate(() => ({
@@ -93,6 +119,9 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(1);
     await expect(
       page.locator('#map [data-waymark-control="debug-output-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
     ).toHaveCount(1);
     await expect(
       page.locator('#map-two [data-waymark-debug-panel="true"]'),
@@ -122,6 +151,9 @@ test.describe("2. Development smoke", () => {
     await expect(
       page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
+    ).toHaveCount(1);
 
     const afterMapTwoView = await page.evaluate(() => ({
       map: window.waymarkInstance?.toJSON().state.ui.mode,
@@ -142,11 +174,17 @@ test.describe("2. Development smoke", () => {
       page.locator('#map [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(0);
     await expect(
+      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
       page.locator('#map-two [data-waymark-debug-panel="true"]'),
     ).toHaveCount(0);
     await expect(
       page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
+    ).toHaveCount(1);
 
     const afterMapView = await page.evaluate(() => ({
       map: window.waymarkInstance?.toJSON().state.ui.mode,
@@ -167,10 +205,16 @@ test.describe("2. Development smoke", () => {
       page.locator('#map [data-waymark-control="debug-output-toggle"]'),
     ).toHaveCount(0);
     await expect(
+      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
       page.locator('#map-two [data-waymark-debug-panel="true"]'),
     ).toHaveCount(1);
     await expect(
       page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
     ).toHaveCount(1);
 
     const finalModes = await page.evaluate(() => ({
@@ -236,5 +280,98 @@ test.describe("2. Development smoke", () => {
     await expect(
       page.locator('#map-two [data-waymark-modal="true"]'),
     ).toHaveCount(1);
+  });
+
+  test("shared modal routes between debug and basemaps content", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const debugOutputToggle = page.locator(
+      '#map-two [data-waymark-control="debug-output-toggle"]',
+    );
+    const basemapsToggle = page.locator(
+      '#map-two [data-waymark-control="basemaps-toggle"]',
+    );
+
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-panel="basemaps"]'),
+    ).toHaveCount(0);
+
+    await basemapsToggle.click();
+    await expect(
+      page.locator('#map-two [data-waymark-modal="true"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#map-two [data-waymark-panel="basemaps"]'),
+    ).toHaveCount(1);
+
+    await debugOutputToggle.click();
+    await expect(
+      page.locator('#map-two [data-waymark-debug-panel="true"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#map-two [data-waymark-panel="basemaps"]'),
+    ).toHaveCount(0);
+  });
+
+  test("basemaps panel renders vectors and applies raster opacity/reorder live", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    await page.locator('#map [data-waymark-control="basemaps-toggle"]').click();
+
+    await expect(
+      page.locator('#map [data-waymark-panel="basemaps"] h3'),
+    ).toHaveText(["Raster", "Vector"]);
+
+    await expect(
+      page.locator('#map [data-waymark-basemaps-vector-item="true"]'),
+    ).toHaveCount(2);
+    await expect(
+      page.locator('#map [data-waymark-basemaps-vector-item="true"]').first(),
+    ).toContainText("OpenFreeMap Bright");
+
+    await page
+      .locator('#map-two [data-waymark-control="basemaps-toggle"]')
+      .click();
+
+    await page
+      .locator('#map-two [data-waymark-raster-opacity-input="raster-1"]')
+      .evaluate((input) => {
+        input.value = "0.8";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          () =>
+            window.waymarkInstanceTwo?.toJSON().config.map.basemaps.raster[1]
+              ?.opacity,
+        ),
+      )
+      .toBe(0.8);
+
+    await page
+      .locator('#map-two [data-waymark-raster-item="raster-0"]')
+      .dragTo(page.locator('#map-two [data-waymark-raster-item="raster-1"]'));
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() =>
+          window.waymarkInstanceTwo
+            ?.toJSON()
+            .config.map.basemaps.raster.map((basemap) => basemap.title),
+        ),
+      )
+      .toEqual(["OpenTopoMap raster overlay", "OpenStreetMap raster"]);
   });
 });

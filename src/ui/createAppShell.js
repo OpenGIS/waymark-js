@@ -4,9 +4,13 @@ import {
   WAYMARK_INSTANCE_CREATED_EVENT,
   WAYMARK_INSTANCE_DESTROYED_EVENT,
   WAYMARK_INSTANCE_RECREATED_EVENT,
+  WAYMARK_MAP_BASEMAPS_CHANGED_EVENT,
   WAYMARK_UI_MODE_CHANGED_EVENT,
 } from "../runtime/createInstanceEvents.js";
-import { resolveInternalControls } from "./controls/internalControls.js";
+import {
+  PANEL_IDS,
+  resolveInternalControls,
+} from "./controls/internalControls.js";
 import InstanceShell from "./InstanceShell.vue";
 
 const WAYMARK_DEBUG_EVENT_TYPES = [
@@ -28,8 +32,45 @@ function normaliseMode(mode) {
 }
 
 /**
+ * @returns {{ vector: object[], raster: Array<{ basemapId: string, tileURLTemplates: string[], title?: string, attributionHTML?: string, tileSize?: number, minZoom?: number, maxZoom?: number, opacity?: number }> }}
+ */
+function createEmptyBasemapSnapshot() {
+  return {
+    vector: [],
+    raster: [],
+  };
+}
+
+/**
+ * @param {unknown} snapshot
+ * @returns {{ vector: object[], raster: Array<{ basemapId: string, tileURLTemplates: string[], title?: string, attributionHTML?: string, tileSize?: number, minZoom?: number, maxZoom?: number, opacity?: number }> }}
+ */
+function normaliseBasemapSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return createEmptyBasemapSnapshot();
+  }
+
+  const vector = Array.isArray(snapshot.vector)
+    ? snapshot.vector.map((vectorBasemap) => ({ ...vectorBasemap }))
+    : [];
+  const raster = Array.isArray(snapshot.raster)
+    ? snapshot.raster.map((rasterBasemap) => ({
+        ...rasterBasemap,
+        tileURLTemplates: Array.isArray(rasterBasemap.tileURLTemplates)
+          ? [...rasterBasemap.tileURLTemplates]
+          : [],
+      }))
+    : [];
+
+  return {
+    vector,
+    raster,
+  };
+}
+
+/**
  * @param {string} containerId
- * @param {{ events: { on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void }, getInstanceDocument: () => object | null, mode: 'view' | 'debug' }} options
+ * @param {{ events: { on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void }, getInstanceDocument: () => object | null, getBasemapSnapshot?: () => { vector: object[], raster: Array<{ basemapId: string, tileURLTemplates: string[], title?: string, attributionHTML?: string, tileSize?: number, minZoom?: number, maxZoom?: number, opacity?: number }> } | null, onSetRasterOpacity?: (basemapId: string, opacity: number) => void, onReorderRasterBasemaps?: (orderedBasemapIds: string[]) => void, mode: 'view' | 'debug', onBasemapsPanelOpen?: () => void, onBasemapsPanelClose?: () => void }} options
  */
 export function createAppShell(containerId, options) {
   const container = document.getElementById(containerId);
@@ -40,13 +81,19 @@ export function createAppShell(containerId, options) {
 
   const { events, getInstanceDocument } = options;
   const instanceDocument = ref(null);
+  const basemapSnapshot = ref(createEmptyBasemapSnapshot());
   const waymarkEvents = ref([]);
   const mode = ref(normaliseMode(options.mode));
-  // Shell-level modal visibility state for debug mode content.
-  const isDebugOutputVisible = ref(true);
+  const activePanel = ref(
+    mode.value === "debug" ? PANEL_IDS.debugOutput : null,
+  );
+  const panelContext = ref({});
 
   const refresh = () => {
     instanceDocument.value = getInstanceDocument() ?? null;
+    basemapSnapshot.value = normaliseBasemapSnapshot(
+      options.getBasemapSnapshot?.(),
+    );
   };
 
   /**
@@ -132,15 +179,87 @@ export function createAppShell(containerId, options) {
   };
 
   /**
-   * @param {'view' | 'debug'} nextMode
+   * @param {CustomEvent} event
    */
-  const setMode = (nextMode) => {
-    mode.value = normaliseMode(nextMode);
+  const onBasemapsChanged = (event) => {
+    basemapSnapshot.value = normaliseBasemapSnapshot(event.detail?.basemaps);
     refresh();
   };
 
-  const toggleDebugOutput = () => {
-    isDebugOutputVisible.value = !isDebugOutputVisible.value;
+  /**
+   * @param {'view' | 'debug'} nextMode
+   */
+  const setMode = (nextMode) => {
+    const previousMode = mode.value;
+    mode.value = normaliseMode(nextMode);
+
+    if (mode.value !== "debug" && activePanel.value === PANEL_IDS.debugOutput) {
+      closePanel(PANEL_IDS.debugOutput);
+    }
+
+    if (
+      previousMode !== "debug" &&
+      mode.value === "debug" &&
+      activePanel.value === null
+    ) {
+      openPanel(PANEL_IDS.debugOutput, { source: "internal:mode-default" });
+    }
+
+    refresh();
+  };
+
+  /**
+   * @param {string} panelId
+   * @param {Record<string, unknown>} [nextPanelContext={}]
+   */
+  const openPanel = (panelId, nextPanelContext = {}) => {
+    activePanel.value = panelId;
+    panelContext.value = {
+      ...nextPanelContext,
+    };
+  };
+
+  /**
+   * @param {string} [panelId]
+   */
+  const closePanel = (panelId) => {
+    if (panelId && activePanel.value !== panelId) {
+      return;
+    }
+
+    activePanel.value = null;
+    panelContext.value = {};
+  };
+
+  const toggleDebugOutputPanel = () => {
+    if (activePanel.value === PANEL_IDS.debugOutput) {
+      closePanel(PANEL_IDS.debugOutput);
+      return;
+    }
+
+    openPanel(PANEL_IDS.debugOutput, { source: "internal:debug-control" });
+  };
+
+  const openBasemapsPanel = () => {
+    if (activePanel.value !== PANEL_IDS.basemaps) {
+      openPanel(PANEL_IDS.basemaps, { source: "internal:basemaps-control" });
+    }
+
+    options.onBasemapsPanelOpen?.();
+  };
+
+  const closeBasemapsPanel = () => {
+    closePanel(PANEL_IDS.basemaps);
+    options.onBasemapsPanelClose?.();
+  };
+
+  const toggleBasemapsPanel = () => {
+    if (activePanel.value === PANEL_IDS.basemaps) {
+      closeBasemapsPanel();
+      return;
+    }
+
+    openBasemapsPanel();
   };
 
   const mountElement = document.createElement("div");
@@ -157,10 +276,15 @@ export function createAppShell(containerId, options) {
           waymarkEvents: waymarkEvents.value,
           controls: resolveInternalControls({
             mode: mode.value,
-            isDebugOutputVisible: isDebugOutputVisible.value,
-            toggleDebugOutput,
+            activePanel: activePanel.value,
+            toggleDebugOutputPanel,
+            toggleBasemapsPanel,
           }),
-          debugOutputVisible: isDebugOutputVisible.value,
+          activePanel: activePanel.value,
+          panelContext: panelContext.value,
+          basemapSnapshot: basemapSnapshot.value,
+          onSetRasterOpacity: options.onSetRasterOpacity,
+          onReorderRasterBasemaps: options.onReorderRasterBasemaps,
         });
     },
   });
@@ -168,6 +292,7 @@ export function createAppShell(containerId, options) {
   for (const eventName of WAYMARK_DEBUG_EVENT_TYPES) {
     events.on(eventName, onWaymarkEvent);
   }
+  events.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, onBasemapsChanged);
 
   refresh();
 
@@ -178,10 +303,13 @@ export function createAppShell(containerId, options) {
     mountElement,
     refresh,
     setMode,
+    openBasemapsPanel,
+    closeBasemapsPanel,
     destroy() {
       for (const eventName of WAYMARK_DEBUG_EVENT_TYPES) {
         events.off(eventName, onWaymarkEvent);
       }
+      events.off(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, onBasemapsChanged);
     },
   };
 }

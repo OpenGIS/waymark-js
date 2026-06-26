@@ -46,6 +46,56 @@ vi.mock("maplibre-gl", () => {
 
       this._style.layers = layers;
     });
+    this.moveLayer = vi.fn((layerId, beforeId) => {
+      const layers = [...(this._style.layers ?? [])];
+      const currentIndex = layers.findIndex(
+        (existing) => existing.id === layerId,
+      );
+
+      if (currentIndex < 0) {
+        return;
+      }
+
+      const [layer] = layers.splice(currentIndex, 1);
+
+      if (!beforeId) {
+        layers.push(layer);
+        this._style.layers = layers;
+        return;
+      }
+
+      const beforeIndex = layers.findIndex(
+        (existing) => existing.id === beforeId,
+      );
+
+      if (beforeIndex < 0) {
+        layers.push(layer);
+      } else {
+        layers.splice(beforeIndex, 0, layer);
+      }
+
+      this._style.layers = layers;
+    });
+    this.setPaintProperty = vi.fn((layerId, name, value) => {
+      const layers = [...(this._style.layers ?? [])];
+      const layerIndex = layers.findIndex(
+        (existing) => existing.id === layerId,
+      );
+
+      if (layerIndex < 0) {
+        return;
+      }
+
+      const layer = layers[layerIndex];
+      layers[layerIndex] = {
+        ...layer,
+        paint: {
+          ...(layer.paint ?? {}),
+          [name]: value,
+        },
+      };
+      this._style.layers = layers;
+    });
     this.loaded = vi.fn(() => this._loaded);
     this.getStyle = vi.fn(() => this._style);
     this.getCenter = vi.fn(() => ({
@@ -75,6 +125,7 @@ import {
   clearRuntimeRegistry,
   getCoreById,
 } from "../../src/runtime/runtimeRegistry.js";
+import { WAYMARK_MAP_BASEMAPS_CHANGED_EVENT } from "../../src/runtime/createInstanceEvents.js";
 import { Map } from "maplibre-gl";
 
 function getLastMapInstance() {
@@ -211,6 +262,35 @@ describe("1. API", () => {
 
       expect(instance.toJSON().state.map.zoom).toBe(12);
       expect(instance.toJSON().state.map.center).toEqual([-0.1276, 51.5074]);
+    });
+
+    it("normalises basemap keys in raster-then-vector order", () => {
+      const normalised = normaliseInstanceDocument({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: "https://tiles.openfreemap.org/styles/bright",
+                },
+              ],
+              raster: [
+                {
+                  tileURLTemplates: [
+                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      expect(Object.keys(normalised.config.map.basemaps)).toEqual([
+        "raster",
+        "vector",
+      ]);
     });
   });
 
@@ -416,7 +496,7 @@ describe("1. API", () => {
   });
 
   describe("UI shell mode rendering", () => {
-    it("keeps the shell mounted and hidden in view mode", () => {
+    it("keeps the shell mounted and renders the basemaps control in view mode", () => {
       createInstance({
         config: {
           id: "map",
@@ -429,8 +509,20 @@ describe("1. API", () => {
       const shellMount = document.querySelector(
         '#map [data-waymark-app="true"]',
       );
+      const basemapsControl = shellMount?.querySelector(
+        '[data-waymark-control="basemaps-toggle"]',
+      );
+      const bottomLeftPosition = shellMount?.querySelector(
+        '[data-waymark-controls-position="bottomLeft"]',
+      );
 
       expect(shellMount).toBeTruthy();
+      expect(basemapsControl).toBeTruthy();
+      expect(
+        bottomLeftPosition?.querySelector(
+          '[data-waymark-control="basemaps-toggle"]',
+        ),
+      ).toBeTruthy();
       expect(
         shellMount?.querySelector('[data-waymark-modal="true"]'),
       ).toBeNull();
@@ -461,10 +553,14 @@ describe("1. API", () => {
       const debugControl = shellMount?.querySelector(
         '[data-waymark-control="debug-output-toggle"]',
       );
+      const basemapsControl = shellMount?.querySelector(
+        '[data-waymark-control="basemaps-toggle"]',
+      );
 
       expect(modal).toBeTruthy();
       expect(panel).toBeTruthy();
       expect(debugControl).toBeTruthy();
+      expect(basemapsControl).toBeTruthy();
       expect(panel?.textContent).toContain("Instance document");
       expect(panel?.textContent).toContain("Waymark events (last 25)");
       expect(panel?.textContent).toContain('"config"');
@@ -506,6 +602,354 @@ describe("1. API", () => {
       expect(
         shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
       ).toBeTruthy();
+    });
+
+    it("routes shared modal content between debug and basemaps panels", async () => {
+      createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "debug",
+          },
+        },
+      });
+
+      await nextTick();
+
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+      const debugControl = shellMount?.querySelector(
+        '[data-waymark-control="debug-output-toggle"]',
+      );
+      const basemapsControl = shellMount?.querySelector(
+        '[data-waymark-control="basemaps-toggle"]',
+      );
+
+      expect(
+        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
+      ).toBeTruthy();
+
+      basemapsControl?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+      await nextTick();
+
+      expect(
+        shellMount?.querySelector('[data-waymark-modal="true"]'),
+      ).toBeTruthy();
+      expect(
+        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
+      ).toBeNull();
+      expect(
+        shellMount?.querySelector('[data-waymark-panel="basemaps"]'),
+      ).toBeTruthy();
+
+      debugControl?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await nextTick();
+
+      expect(
+        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
+      ).toBeTruthy();
+      expect(
+        shellMount?.querySelector('[data-waymark-panel="basemaps"]'),
+      ).toBeNull();
+    });
+
+    it("renders configured vector basemaps in the basemaps panel", async () => {
+      createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "view",
+          },
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  title: "OpenFreeMap Bright",
+                  styleURL: "https://tiles.openfreemap.org/styles/bright",
+                },
+                {
+                  title: "OpenFreeMap Liberty",
+                  styleURL: "https://tiles.openfreemap.org/styles/liberty",
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      await nextTick();
+
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+      const basemapsControl = shellMount?.querySelector(
+        '[data-waymark-control="basemaps-toggle"]',
+      );
+
+      basemapsControl?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+      await nextTick();
+
+      const vectorItems = [
+        ...(shellMount?.querySelectorAll(
+          '[data-waymark-basemaps-vector-item="true"]',
+        ) ?? []),
+      ].map((item) => item.textContent?.trim());
+
+      expect(vectorItems).toEqual([
+        "OpenFreeMap Bright",
+        "OpenFreeMap Liberty",
+      ]);
+    });
+
+    it("renders raster basemaps section before vector section in the basemaps panel", async () => {
+      createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "view",
+          },
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: "https://tiles.openfreemap.org/styles/bright",
+                },
+              ],
+              raster: [
+                {
+                  tileURLTemplates: [
+                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      await nextTick();
+
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+      const basemapsControl = shellMount?.querySelector(
+        '[data-waymark-control="basemaps-toggle"]',
+      );
+
+      basemapsControl?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+      await nextTick();
+
+      const sectionHeadings = [
+        ...(shellMount?.querySelectorAll(
+          "[data-waymark-panel='basemaps'] h3",
+        ) ?? []),
+      ].map((heading) => heading.textContent?.trim());
+
+      expect(sectionHeadings).toEqual(["Raster", "Vector"]);
+    });
+
+    it("dispatches raster opacity updates from the basemaps panel and applies them live", async () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "view",
+          },
+          map: {
+            basemaps: {
+              raster: [
+                {
+                  title: "Raster A",
+                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+                  opacity: 0.3,
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      await nextTick();
+
+      const map = getLastMapInstance();
+      const core = getCoreById("map");
+      expect(core).toBeTruthy();
+      const setRasterOpacitySpy = vi.spyOn(
+        core.commands.basemaps,
+        "setRasterOpacity",
+      );
+      const basemapEvents = [];
+
+      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
+        basemapEvents.push(event.detail);
+      });
+
+      map.fire("load", { source: "test" });
+
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+      const basemapsControl = shellMount?.querySelector(
+        '[data-waymark-control="basemaps-toggle"]',
+      );
+
+      basemapsControl?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+      await nextTick();
+
+      const opacityInput = shellMount?.querySelector(
+        '[data-waymark-raster-opacity-input="raster-0"]',
+      );
+      expect(opacityInput).toBeTruthy();
+
+      opacityInput.value = "0.8";
+      opacityInput.dispatchEvent(new Event("input", { bubbles: true }));
+      await nextTick();
+
+      expect(setRasterOpacitySpy).toHaveBeenCalledWith("raster-0", 0.8);
+      expect(map.setPaintProperty).toHaveBeenCalledWith(
+        "waymark-map-basemap-raster-layer-0",
+        "raster-opacity",
+        0.8,
+      );
+      expect(basemapEvents).toHaveLength(1);
+      expect(basemapEvents[0]).toEqual(
+        expect.objectContaining({
+          mutation: "opacity_changed",
+        }),
+      );
+    });
+
+    it("dispatches raster reorder updates from drag and drop and reflects the new order", async () => {
+      createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "view",
+          },
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "background",
+                        type: "background",
+                      },
+                      {
+                        id: "poi-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+              ],
+              raster: [
+                {
+                  title: "Raster A",
+                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+                },
+                {
+                  title: "Raster B",
+                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      await nextTick();
+
+      const map = getLastMapInstance();
+      const core = getCoreById("map");
+      expect(core).toBeTruthy();
+      const reorderSpy = vi.spyOn(
+        core.commands.basemaps,
+        "reorderRasterBasemaps",
+      );
+
+      map.fire("load", { source: "test" });
+
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+      const basemapsControl = shellMount?.querySelector(
+        '[data-waymark-control="basemaps-toggle"]',
+      );
+
+      basemapsControl?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+      await nextTick();
+
+      const firstRasterItem = shellMount?.querySelector(
+        '[data-waymark-raster-item="raster-0"]',
+      );
+      const secondRasterItem = shellMount?.querySelector(
+        '[data-waymark-raster-item="raster-1"]',
+      );
+      expect(firstRasterItem).toBeTruthy();
+      expect(secondRasterItem).toBeTruthy();
+
+      firstRasterItem?.dispatchEvent(new Event("dragstart", { bubbles: true }));
+      secondRasterItem?.dispatchEvent(new Event("dragover", { bubbles: true }));
+      secondRasterItem?.dispatchEvent(new Event("drop", { bubbles: true }));
+      firstRasterItem?.dispatchEvent(new Event("dragend", { bubbles: true }));
+      await nextTick();
+
+      expect(reorderSpy).toHaveBeenCalledWith(["raster-1", "raster-0"]);
+
+      const rasterLayerIds = map
+        .getStyle()
+        .layers.filter((layer) => layer.type === "raster")
+        .map((layer) => layer.id);
+
+      expect(rasterLayerIds).toEqual([
+        "waymark-map-basemap-raster-layer-0",
+        "waymark-map-basemap-raster-layer-1",
+      ]);
+    });
+
+    it("exposes core/app-shell callbacks for basemaps panel open and close", async () => {
+      createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "view",
+          },
+        },
+      });
+
+      await nextTick();
+
+      const core = getCoreById("map");
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+
+      core?.commands.ui.openBasemapsPanel();
+      await nextTick();
+      expect(
+        shellMount?.querySelector('[data-waymark-panel="basemaps"]'),
+      ).toBeTruthy();
+
+      core?.commands.ui.closeBasemapsPanel();
+      await nextTick();
+      expect(
+        shellMount?.querySelector('[data-waymark-modal="true"]'),
+      ).toBeNull();
     });
 
     it("keeps a bounded sanitised feed of Waymark events in debug mode", async () => {
@@ -650,7 +1094,7 @@ describe("1. API", () => {
       );
     });
 
-    it("stacks raster basemaps in listed order below the first symbol layer", () => {
+    it("stacks raster basemaps with index 0 on top below the first symbol layer", () => {
       createInstance({
         config: {
           id: "map",
@@ -708,10 +1152,223 @@ describe("1. API", () => {
         },
         {
           id: "waymark-map-basemap-raster-layer-1",
-          beforeId: "poi-label",
+          beforeId: "waymark-map-basemap-raster-layer-0",
           opacity: 0.3,
         },
       ]);
+    });
+
+    it("updates raster opacity live through core basemap commands", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "background",
+                        type: "background",
+                      },
+                    ],
+                  },
+                },
+              ],
+              raster: [
+                {
+                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+                  opacity: 0.6,
+                },
+                {
+                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+                  opacity: 0.3,
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const map = getLastMapInstance();
+      const core = getCoreById("map");
+      const basemapEvents = [];
+
+      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
+        basemapEvents.push(event.detail);
+      });
+
+      map.fire("load", { source: "test" });
+
+      core.commands.basemaps.setRasterOpacity("raster-1", 0.9);
+      core.commands.basemaps.setRasterOpacity("missing", 0.2);
+
+      expect(map.setPaintProperty).toHaveBeenCalledTimes(1);
+      expect(map.setPaintProperty).toHaveBeenCalledWith(
+        "waymark-map-basemap-raster-layer-1",
+        "raster-opacity",
+        0.9,
+      );
+
+      expect(basemapEvents).toEqual([
+        {
+          id: "map",
+          mutation: "opacity_changed",
+          changed: {
+            basemapIds: ["raster-1"],
+            opacity: {
+              "raster-1": 0.9,
+            },
+          },
+          basemaps: {
+            vector: [
+              expect.objectContaining({
+                styleURL: expect.any(Object),
+              }),
+            ],
+            raster: [
+              expect.objectContaining({
+                basemapId: "raster-0",
+                opacity: 0.6,
+              }),
+              expect.objectContaining({
+                basemapId: "raster-1",
+                opacity: 0.9,
+              }),
+            ],
+          },
+        },
+      ]);
+
+      expect(instance.toJSON().config.map.basemaps.raster).toEqual([
+        expect.objectContaining({ opacity: 0.6 }),
+        expect.objectContaining({ opacity: 0.9 }),
+      ]);
+    });
+
+    it("reorders raster basemaps live through core basemap commands", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "background",
+                        type: "background",
+                      },
+                      {
+                        id: "poi-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+              ],
+              raster: [
+                {
+                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+                },
+                {
+                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const map = getLastMapInstance();
+      const core = getCoreById("map");
+      const basemapEvents = [];
+
+      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
+        basemapEvents.push(event.detail);
+      });
+
+      map.fire("load", { source: "test" });
+      core.commands.basemaps.reorderRasterBasemaps(["raster-1", "raster-0"]);
+
+      expect(map.moveLayer).toHaveBeenCalledWith(
+        "waymark-map-basemap-raster-layer-1",
+        "poi-label",
+      );
+      expect(map.moveLayer).toHaveBeenCalledWith(
+        "waymark-map-basemap-raster-layer-0",
+        "waymark-map-basemap-raster-layer-1",
+      );
+
+      const rasterLayerIds = map
+        .getStyle()
+        .layers.filter((layer) => layer.type === "raster")
+        .map((layer) => layer.id);
+
+      expect(rasterLayerIds).toEqual([
+        "waymark-map-basemap-raster-layer-0",
+        "waymark-map-basemap-raster-layer-1",
+      ]);
+
+      expect(basemapEvents).toEqual([
+        {
+          id: "map",
+          mutation: "reordered",
+          changed: {
+            basemapIds: ["raster-1", "raster-0"],
+            orderedBasemapIds: ["raster-1", "raster-0"],
+          },
+          basemaps: {
+            vector: [
+              expect.objectContaining({
+                styleURL: expect.any(Object),
+              }),
+            ],
+            raster: [
+              expect.objectContaining({
+                basemapId: "raster-1",
+                tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+              }),
+              expect.objectContaining({
+                basemapId: "raster-0",
+                tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+              }),
+            ],
+          },
+        },
+      ]);
+
+      expect(instance.toJSON().config.map.basemaps.raster).toEqual([
+        expect.objectContaining({
+          tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+        }),
+        expect.objectContaining({
+          tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+        }),
+      ]);
+    });
+
+    it("keeps empty raster basemap state unchanged for live mutation commands", () => {
+      createInstance({
+        config: {
+          id: "map",
+        },
+      });
+
+      const core = getCoreById("map");
+
+      core.commands.basemaps.setRasterOpacity("raster-0", 0.5);
+      core.commands.basemaps.reorderRasterBasemaps(["raster-0"]);
+
+      expect(
+        core.instanceDocument.toJSON().config.map.basemaps,
+      ).toBeUndefined();
     });
   });
 
@@ -1075,12 +1732,6 @@ describe("1. API", () => {
       });
 
       expect(instance.toJSON().config.map.basemaps).toEqual({
-        vector: [
-          {
-            styleURL: "https://tiles.openfreemap.org/styles/bright",
-            title: "OpenFreeMap Bright",
-          },
-        ],
         raster: [
           {
             tileURLTemplates: [
@@ -1089,7 +1740,18 @@ describe("1. API", () => {
             opacity: 0.5,
           },
         ],
+        vector: [
+          {
+            styleURL: "https://tiles.openfreemap.org/styles/bright",
+            title: "OpenFreeMap Bright",
+          },
+        ],
       });
+
+      expect(Object.keys(instance.toJSON().config.map.basemaps)).toEqual([
+        "raster",
+        "vector",
+      ]);
     });
 
     it("omits empty basemap arrays from toJSON output", () => {

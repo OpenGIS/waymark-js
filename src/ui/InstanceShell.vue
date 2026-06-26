@@ -3,11 +3,12 @@ import { computed } from "vue";
 import InstanceControlButton from "./controls/InstanceControlButton.vue";
 import {
   CONTROL_POSITIONS,
+  PANEL_IDS,
   createEmptyControlsByPosition,
 } from "./controls/internalControls.js";
 import InstanceShellModal from "./modal/InstanceShellModal.vue";
 import InstanceShellModeDebug from "./modes/InstanceShellModeDebug.vue";
-import InstanceShellModeView from "./modes/InstanceShellModeView.vue";
+import InstanceShellPanelBasemaps from "./panels/InstanceShellPanelBasemaps.vue";
 
 const props = defineProps({
   mode: {
@@ -26,25 +27,54 @@ const props = defineProps({
     type: Object,
     default: () => createEmptyControlsByPosition(),
   },
-  debugOutputVisible: {
-    type: Boolean,
-    default: true,
+  activePanel: {
+    type: String,
+    default: null,
+  },
+  panelContext: {
+    type: Object,
+    default: () => ({}),
+  },
+  basemapSnapshot: {
+    type: Object,
+    default: () => ({
+      vector: [],
+      raster: [],
+    }),
+  },
+  onSetRasterOpacity: {
+    type: Function,
+    default: null,
+  },
+  onReorderRasterBasemaps: {
+    type: Function,
+    default: null,
   },
 });
-
-const modeComponent = computed(() => {
-  if (props.mode === "debug") {
-    return InstanceShellModeDebug;
-  }
-
-  return InstanceShellModeView;
-});
-
-const isDebugMode = computed(() => props.mode === "debug");
 
 const controlsByPosition = computed(
   () => props.controls ?? createEmptyControlsByPosition(),
 );
+
+const modalPanelComponent = computed(() => {
+  if (props.activePanel === PANEL_IDS.debugOutput && props.mode === "debug") {
+    return InstanceShellModeDebug;
+  }
+
+  if (props.activePanel === PANEL_IDS.basemaps) {
+    return InstanceShellPanelBasemaps;
+  }
+
+  return null;
+});
+
+const isModalVisible = computed(() => Boolean(modalPanelComponent.value));
+
+const modalPanelAttributes = computed(() => ({
+  "data-waymark-panel": props.activePanel,
+  "data-waymark-debug-panel":
+    props.activePanel === PANEL_IDS.debugOutput ? "true" : null,
+}));
 
 const hasControls = computed(() =>
   CONTROL_POSITIONS.some(
@@ -80,24 +110,22 @@ const hasControls = computed(() =>
       </div>
     </nav>
 
-    <InstanceShellModal
-      v-if="isDebugMode"
-      :is-visible="debugOutputVisible"
-      data-waymark-debug-panel="true"
-    >
-      <component
-        :is="modeComponent"
-        :key="mode"
-        v-bind="{ instanceDocument, waymarkEvents }"
-      />
+    <InstanceShellModal :is-visible="isModalVisible">
+      <section v-if="modalPanelComponent" v-bind="modalPanelAttributes">
+        <component
+          :is="modalPanelComponent"
+          :key="activePanel"
+          v-bind="{
+            instanceDocument,
+            waymarkEvents,
+            panelContext,
+            basemapSnapshot,
+            onSetRasterOpacity,
+            onReorderRasterBasemaps,
+          }"
+        />
+      </section>
     </InstanceShellModal>
-
-    <component
-      :is="modeComponent"
-      v-else
-      :key="mode"
-      v-bind="{ instanceDocument, waymarkEvents }"
-    />
   </aside>
 </template>
 

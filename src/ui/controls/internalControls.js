@@ -9,6 +9,11 @@ export const CONTROL_POSITIONS = [
   "topLeft",
 ];
 
+export const PANEL_IDS = {
+  debugOutput: "debug-output",
+  basemaps: "basemaps",
+};
+
 /**
  * @returns {Record<string, Array<object>>}
  */
@@ -22,12 +27,24 @@ export function createEmptyControlsByPosition() {
 /**
  * @param {{
  *   mode: 'view' | 'debug',
- *   isDebugOutputVisible: boolean,
- *   toggleDebugOutput: () => void,
+ *   activePanel: string | null,
+ *   toggleDebugOutputPanel: () => void,
+ *   toggleBasemapsPanel: () => void,
  * }} options
  */
 export function resolveInternalControls(options) {
   const controlsByPosition = createEmptyControlsByPosition();
+
+  controlsByPosition.bottomLeft.push({
+    id: "basemaps-toggle",
+    title:
+      options.activePanel === PANEL_IDS.basemaps
+        ? "Hide basemaps"
+        : "Show basemaps",
+    icon: "🗺",
+    isActive: options.activePanel === PANEL_IDS.basemaps,
+    onClick: options.toggleBasemapsPanel,
+  });
 
   if (options.mode !== "debug") {
     return controlsByPosition;
@@ -35,12 +52,13 @@ export function resolveInternalControls(options) {
 
   controlsByPosition.topRight.push({
     id: "debug-output-toggle",
-    title: options.isDebugOutputVisible
-      ? "Hide debug output"
-      : "Show debug output",
+    title:
+      options.activePanel === PANEL_IDS.debugOutput
+        ? "Hide debug output"
+        : "Show debug output",
     icon: "🐞",
-    isActive: options.isDebugOutputVisible,
-    onClick: options.toggleDebugOutput,
+    isActive: options.activePanel === PANEL_IDS.debugOutput,
+    onClick: options.toggleDebugOutputPanel,
   });
 
   return controlsByPosition;

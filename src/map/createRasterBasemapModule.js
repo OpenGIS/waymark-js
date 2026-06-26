@@ -10,25 +10,57 @@ function findFirstSymbolLayerId(map) {
 /**
  * @param {import('maplibre-gl').Map} map
  * @param {string} id
- * @param {Array<{ tileURLTemplates: string[], attributionHTML?: string, tileSize?: number, minZoom?: number, maxZoom?: number, opacity?: number }>} rasterBasemaps
+ * @param {Array<{ basemapId: string, tileURLTemplates: string[], attributionHTML?: string, tileSize?: number, minZoom?: number, maxZoom?: number, opacity?: number }>} rasterBasemaps
  */
 export function createRasterBasemapModule(map, id, rasterBasemaps) {
   const hasRasterBasemaps = rasterBasemaps.length > 0;
 
+  /**
+   * @type {Record<string, { sourceId: string, layerId: string, basemap: { basemapId: string, tileURLTemplates: string[], attributionHTML?: string, tileSize?: number, minZoom?: number, maxZoom?: number, opacity?: number } }>}
+   */
+  const basemapRecords = {};
+
+  /** @type {string[]} */
+  let orderedBasemapIds = [];
+
+  rasterBasemaps.forEach((rasterBasemap, index) => {
+    const basemapId = rasterBasemap.basemapId;
+    orderedBasemapIds.push(basemapId);
+    basemapRecords[basemapId] = {
+      sourceId: `waymark-${id}-basemap-raster-source-${index}`,
+      layerId: `waymark-${id}-basemap-raster-layer-${index}`,
+      basemap: {
+        ...rasterBasemap,
+      },
+    };
+  });
+
   if (!hasRasterBasemaps) {
     return {
+      setRasterOpacity() {},
+      reorderRasterBasemaps() {},
       destroy() {},
     };
   }
 
   let attachedLoadHandler = null;
+  let hasMountedLayers = false;
 
   const addRasterBasemaps = () => {
-    const beforeLayerId = findFirstSymbolLayerId(map);
+    if (hasMountedLayers) {
+      return;
+    }
 
-    for (const [index, rasterBasemap] of rasterBasemaps.entries()) {
-      const sourceId = `waymark-${id}-basemap-raster-source-${index}`;
-      const layerId = `waymark-${id}-basemap-raster-layer-${index}`;
+    let beforeLayerId = findFirstSymbolLayerId(map);
+
+    for (const basemapId of orderedBasemapIds) {
+      const record = basemapRecords[basemapId];
+
+      if (!record) {
+        continue;
+      }
+
+      const { sourceId, layerId, basemap: rasterBasemap } = record;
 
       map.addSource(sourceId, {
         type: "raster",
@@ -58,6 +90,40 @@ export function createRasterBasemapModule(map, id, rasterBasemaps) {
         },
         beforeLayerId,
       );
+
+      beforeLayerId = layerId;
+    }
+
+    hasMountedLayers = true;
+  };
+
+  /**
+   * @param {number} opacity
+   * @param {string} layerId
+   */
+  const applyRasterOpacity = (opacity, layerId) => {
+    map.setPaintProperty(layerId, "raster-opacity", opacity);
+  };
+
+  /**
+   * @param {string[]} nextOrderedBasemapIds
+   */
+  const applyRasterReorder = (nextOrderedBasemapIds) => {
+    if (nextOrderedBasemapIds.length === 0) {
+      return;
+    }
+
+    let beforeLayerId = findFirstSymbolLayerId(map);
+
+    for (const basemapId of nextOrderedBasemapIds) {
+      const record = basemapRecords[basemapId];
+
+      if (!record) {
+        continue;
+      }
+
+      map.moveLayer(record.layerId, beforeLayerId);
+      beforeLayerId = record.layerId;
     }
   };
 
@@ -72,6 +138,44 @@ export function createRasterBasemapModule(map, id, rasterBasemaps) {
   }
 
   return {
+    /**
+     * @param {string} basemapId
+     * @param {number} opacity
+     */
+    setRasterOpacity(basemapId, opacity) {
+      const record = basemapRecords[basemapId];
+
+      if (!record) {
+        return;
+      }
+
+      record.basemap.opacity = opacity;
+
+      if (hasMountedLayers) {
+        applyRasterOpacity(opacity, record.layerId);
+      }
+    },
+    /**
+     * @param {string[]} nextOrderedBasemapIds
+     */
+    reorderRasterBasemaps(nextOrderedBasemapIds) {
+      const requestedOrder = Array.isArray(nextOrderedBasemapIds)
+        ? nextOrderedBasemapIds
+        : [];
+
+      const remainingBasemapIds = orderedBasemapIds.filter(
+        (basemapId) => !requestedOrder.includes(basemapId),
+      );
+
+      orderedBasemapIds = [
+        ...requestedOrder.filter((basemapId) => basemapRecords[basemapId]),
+        ...remainingBasemapIds,
+      ];
+
+      if (hasMountedLayers) {
+        applyRasterReorder(orderedBasemapIds);
+      }
+    },
     destroy() {
       if (attachedLoadHandler) {
         map.off("load", attachedLoadHandler);
