@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { defaultBasemapVector } from "../../src/config/defaults.js";
 
 const INLINE_STYLE = {
   version: 8,
@@ -60,7 +61,7 @@ test.describe("1. API", () => {
 
         return {
           id: instance.id,
-          zoom: instance.toJSON().state.map.zoom,
+          zoom: instance.toJSON().config.map.options.zoom,
         };
       });
 
@@ -159,8 +160,8 @@ test.describe("1. API", () => {
         });
 
         return {
-          zoom: instance.toJSON().state.map.zoom,
-          center: instance.toJSON().state.map.center,
+          zoom: instance.toJSON().config.map.options.zoom,
+          center: instance.toJSON().config.map.options.center,
         };
       });
 
@@ -237,7 +238,7 @@ test.describe("1. API", () => {
           },
         });
 
-        return instance.toJSON().state.ui.mode;
+        return instance.toJSON().config.ui.mode;
       });
 
       expect(mode).toBe("view");
@@ -404,6 +405,61 @@ test.describe("1. API", () => {
       );
     });
 
+    test("updates debug instance document camera output after map moveend", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async (inlineStyle) => {
+        const instance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map",
+            ui: { mode: "debug" },
+            map: {
+              options: {
+                center: [10, 20],
+                zoom: 4,
+                bearing: 5,
+                pitch: 6,
+              },
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: inlineStyle,
+                  },
+                ],
+              },
+            },
+          },
+        });
+
+        const map = window.waymarkFixture.getRuntimeMap(instance.id);
+        map?.jumpTo({
+          center: [11, 21],
+          zoom: 7,
+          bearing: 9,
+          pitch: 12,
+        });
+        map?.fire("moveend", {
+          type: "moveend",
+          source: "browser-test",
+        });
+
+        await Promise.resolve();
+
+        const shell = document.querySelector('#map [data-waymark-app="true"]');
+        const instanceDocumentJSON =
+          shell?.querySelectorAll("pre")?.[0]?.textContent ?? "{}";
+
+        return JSON.parse(instanceDocumentJSON)?.state?.map?.options ?? null;
+      }, INLINE_STYLE);
+
+      expect(result).toEqual({
+        center: [11, 21],
+        zoom: 7,
+        bearing: 9,
+        pitch: 12,
+      });
+    });
+
     test("toggles debug outputs from the internal debug control", async ({
       page,
     }) => {
@@ -452,6 +508,9 @@ test.describe("1. API", () => {
         const hasModalAfterSecondClick = Boolean(
           shell?.querySelector('[data-waymark-modal="true"]'),
         );
+        const eventsJSON =
+          shell?.querySelectorAll("pre")?.[1]?.textContent ?? "[]";
+        const eventTypes = JSON.parse(eventsJSON).map((entry) => entry.type);
 
         return {
           hasControl: Boolean(control),
@@ -461,6 +520,7 @@ test.describe("1. API", () => {
           hasModalAfterFirstClick,
           hasPanelAfterSecondClick,
           hasModalAfterSecondClick,
+          eventTypes,
         };
       }, INLINE_STYLE);
 
@@ -472,6 +532,10 @@ test.describe("1. API", () => {
         hasModalAfterFirstClick: false,
         hasPanelAfterSecondClick: true,
         hasModalAfterSecondClick: true,
+        eventTypes: expect.arrayContaining([
+          "waymark:state.changed",
+          "waymark:state.ui.panel.changed",
+        ]),
       });
     });
   });
@@ -504,9 +568,9 @@ test.describe("1. API", () => {
 
         return {
           hasCanvas: Boolean(map.querySelector("canvas")),
-          center: instance.toJSON().state.map.center,
-          zoom: instance.toJSON().state.map.zoom,
-          bearing: instance.toJSON().state.map.bearing,
+          center: instance.toJSON().config.map.options.center,
+          zoom: instance.toJSON().config.map.options.zoom,
+          bearing: instance.toJSON().config.map.options.bearing,
         };
       }, INLINE_STYLE);
 
@@ -729,7 +793,7 @@ test.describe("1. API", () => {
 
         return {
           secondIsNew: second !== first,
-          secondZoom: second.toJSON().state.map.zoom,
+          secondZoom: second.toJSON().config.map.options.zoom,
           secondHasGeoJSON: Boolean(second.toJSON().data.geoJSON),
           thirdIsNew: third !== second,
         };
@@ -871,23 +935,18 @@ test.describe("1. API", () => {
           config: expect.objectContaining({
             id: "map",
           }),
-          state: expect.objectContaining({
-            map: expect.objectContaining({
-              center: expect.any(Array),
-              zoom: 9,
-              bearing: expect.any(Number),
-              pitch: expect.any(Number),
-            }),
-            ui: expect.objectContaining({ mode: "view" }),
-          }),
+          state: {},
           data: expect.objectContaining({
             geoJSON: null,
           }),
         }),
       );
+      expect(instanceDocument.config.map.options.zoom).toBe(9);
+      expect(instanceDocument.state.map).toBeUndefined();
+      expect(instanceDocument.state.ui).toBeUndefined();
     });
 
-    test("omits runtime-injected defaults and keeps authored basemaps", async ({
+    test("keeps resolved defaults and authored basemaps stable in config", async ({
       page,
     }) => {
       const result = await page.evaluate(() => {
@@ -929,7 +988,14 @@ test.describe("1. API", () => {
         };
       });
 
-      expect(result.defaultBasemaps).toBeUndefined();
+      expect(result.defaultBasemaps).toEqual({
+        vector: [
+          {
+            title: defaultBasemapVector.title,
+            styleURL: defaultBasemapVector.styleURL,
+          },
+        ],
+      });
       expect(result.explicitBasemaps).toEqual({
         raster: [
           {
@@ -938,7 +1004,7 @@ test.describe("1. API", () => {
             ],
           },
         ],
-        vector: [{ styleURL: "https://tiles.openfreemap.org/styles/bright" }],
+        vector: [{ styleURL: defaultBasemapVector.styleURL }],
       });
       expect(result.explicitBasemapKeys).toEqual(["raster", "vector"]);
     });

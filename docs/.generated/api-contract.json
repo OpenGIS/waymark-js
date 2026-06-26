@@ -4,7 +4,7 @@
     "center": [0, 0],
     "zoom": 2,
     "attributionControl": false,
-    "runtimeDefaultVectorStyleURL": "https://tiles.openfreemap.org/styles/bright"
+    "defaultBasemapVectorStyleURL": "https://tiles.openfreemap.org/styles/bright"
   },
   "lifecycleEvents": [
     "waymark:instance.created",

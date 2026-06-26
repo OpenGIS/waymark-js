@@ -193,8 +193,13 @@ const waymarkInstanceTwo = createInstance({
 
 const { mapModeSelect, mapTwoModeSelect } = createDevModeDropdowns();
 
-mapModeSelect.value = waymarkInstance.toJSON().state.ui.mode;
-mapTwoModeSelect.value = waymarkInstanceTwo.toJSON().state.ui.mode;
+function getInstanceMode(instance) {
+  const instanceDocument = instance.toJSON();
+  return instanceDocument.state.ui?.mode ?? instanceDocument.config.ui.mode;
+}
+
+mapModeSelect.value = getInstanceMode(waymarkInstance);
+mapTwoModeSelect.value = getInstanceMode(waymarkInstanceTwo);
 
 wireDevModeDropdown(mapModeSelect, waymarkInstance);
 wireDevModeDropdown(mapTwoModeSelect, waymarkInstanceTwo);

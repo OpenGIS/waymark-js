@@ -9,6 +9,15 @@ export const WAYMARK_MAP_PITCHEND_EVENT = "waymark:map.pitchend";
 export const WAYMARK_UI_MODE_CHANGED_EVENT = "waymark:ui.mode.changed";
 export const WAYMARK_MAP_BASEMAPS_CHANGED_EVENT =
   "waymark:map.basemaps.changed";
+export const WAYMARK_STATE_CHANGED_EVENT = "waymark:state.changed";
+export const WAYMARK_STATE_UI_MODE_CHANGED_EVENT =
+  "waymark:state.ui.mode.changed";
+export const WAYMARK_STATE_UI_PANEL_CHANGED_EVENT =
+  "waymark:state.ui.panel.changed";
+export const WAYMARK_STATE_MAP_CAMERA_CHANGED_EVENT =
+  "waymark:state.map.camera.changed";
+export const WAYMARK_STATE_MAP_BASEMAPS_CHANGED_EVENT =
+  "waymark:state.map.basemaps.changed";
 
 export const FORWARDED_MAP_EVENTS = [
   ["load", WAYMARK_MAP_LOAD_EVENT],
@@ -74,6 +83,44 @@ export const FORWARDED_MAP_EVENTS = [
  */
 
 /**
+ * @typedef {{
+ *   id: string,
+ *   command: string,
+ *   scope: string,
+ *   previous: unknown,
+ *   next: unknown,
+ *   meta?: {
+ *     mutation?: string,
+ *     changed?: {
+ *       basemapIds?: string[],
+ *       opacity?: Record<string, number>,
+ *       orderedBasemapIds?: string[],
+ *     },
+ *   },
+ *   source: string,
+ *   snapshot: {
+ *     map: {
+ *       camera: {
+ *         center: [number, number],
+ *         zoom: number,
+ *         bearing: number,
+ *         pitch: number,
+ *       },
+ *       basemaps: {
+ *         vector: unknown[],
+ *         raster: unknown[],
+ *       },
+ *     },
+ *     ui: {
+ *       mode: 'view' | 'debug',
+ *       activePanel: string | null,
+ *       panelContext: unknown,
+ *     },
+ *   },
+ * }} WaymarkStateChangedEventDetail
+ */
+
+/**
  * @param {string} containerId
  */
 function resolveContainer(containerId) {
@@ -113,7 +160,7 @@ export function createInstanceEvents(containerId) {
     container,
     /**
      * @param {string} type
-     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkInstanceMapEventDetail | WaymarkInstanceModuleEventDetail | WaymarkBasemapsChangedEventDetail} detail
+     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkInstanceMapEventDetail | WaymarkInstanceModuleEventDetail | WaymarkBasemapsChangedEventDetail | WaymarkStateChangedEventDetail} detail
      */
     emit(type, detail) {
       container.dispatchEvent(

@@ -1,6 +1,5 @@
-import defaultConfig from "./defaultConfig.json";
+import { defaultConfig, resolveRuntimeBasemapDefaults } from "./defaults.js";
 import { deepMerge } from "../utils/deepMerge.js";
-import { resolveRuntimeBasemaps } from "../map/basemaps.js";
 
 /**
  * @typedef {object} WaymarkConfig
@@ -40,7 +39,7 @@ export function resolveConfig(config = {}) {
     ...resolved,
     map: {
       ...resolvedMap,
-      basemaps: resolveRuntimeBasemaps({
+      basemaps: resolveRuntimeBasemapDefaults({
         vector: Array.isArray(resolvedBasemaps.vector)
           ? resolvedBasemaps.vector
           : [],

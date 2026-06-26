@@ -135,13 +135,20 @@ vi.mock("maplibre-gl", () => {
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 
 import { createInstance } from "../../src/entry.js";
+import {
+  defaultBasemapVector,
+  defaultConfig,
+} from "../../src/config/defaults.js";
 import { resolveConfig } from "../../src/config/resolveConfig.js";
 import { normaliseInstanceDocument } from "../../src/document/instanceDocument.js";
 import {
   clearRuntimeRegistry,
   getCoreById,
 } from "../../src/runtime/runtimeRegistry.js";
-import { WAYMARK_MAP_BASEMAPS_CHANGED_EVENT } from "../../src/runtime/createInstanceEvents.js";
+import {
+  WAYMARK_MAP_BASEMAPS_CHANGED_EVENT,
+  WAYMARK_STATE_MAP_CAMERA_CHANGED_EVENT,
+} from "../../src/runtime/createInstanceEvents.js";
 import { Map } from "maplibre-gl";
 
 function getLastMapInstance() {
@@ -227,11 +234,13 @@ describe("1. API", () => {
         },
         state: {
           map: {
-            center: [-3, 55],
-            zoom: 8,
-            bearing: 20,
-            pitch: 30,
-            ignored: true,
+            options: {
+              center: [-3, 55],
+              zoom: 8,
+              bearing: 20,
+              pitch: 30,
+              ignored: true,
+            },
           },
           ui: {
             mode: "invalid",
@@ -246,10 +255,12 @@ describe("1. API", () => {
 
       expect(Object.keys(normalised)).toEqual(["config", "state", "data"]);
       expect(normalised.state.map).toEqual({
-        center: [-3, 55],
-        zoom: 8,
-        bearing: 20,
-        pitch: 30,
+        options: {
+          center: [-3, 55],
+          zoom: 8,
+          bearing: 20,
+          pitch: 30,
+        },
       });
       expect(normalised.state.ui.mode).toBe("view");
       expect(normalised.data).toEqual({
@@ -270,14 +281,18 @@ describe("1. API", () => {
         },
         state: {
           map: {
-            zoom: 12,
-            center: [-0.1276, 51.5074],
+            options: {
+              zoom: 12,
+              center: [-0.1276, 51.5074],
+            },
           },
         },
       });
 
-      expect(instance.toJSON().state.map.zoom).toBe(12);
-      expect(instance.toJSON().state.map.center).toEqual([-0.1276, 51.5074]);
+      expect(instance.toJSON().state.map.options.zoom).toBe(12);
+      expect(instance.toJSON().state.map.options.center).toEqual([
+        -0.1276, 51.5074,
+      ]);
     });
 
     it("normalises basemap keys in raster-then-vector order", () => {
@@ -338,11 +353,24 @@ describe("1. API", () => {
 
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({
-          center: [0, 0],
-          zoom: 2,
-          attributionControl: false,
+          center: defaultConfig.map.options.center,
+          zoom: defaultConfig.map.options.zoom,
+          attributionControl: defaultConfig.map.options.attributionControl,
         }),
       );
+    });
+
+    it("resolves defaults from canonical config defaults", () => {
+      const resolved = resolveConfig({});
+
+      expect(resolved.map.options.center).toEqual(
+        defaultConfig.map.options.center,
+      );
+      expect(resolved.map.options.zoom).toBe(defaultConfig.map.options.zoom);
+      expect(resolved.map.options.attributionControl).toBe(
+        defaultConfig.map.options.attributionControl,
+      );
+      expect(resolved.ui.mode).toBe(defaultConfig.ui.mode);
     });
 
     it("injects OpenFreeMap vector only when no basemap entries are configured", () => {
@@ -354,7 +382,7 @@ describe("1. API", () => {
 
       expect(Map).toHaveBeenCalledWith(
         expect.objectContaining({
-          style: "https://tiles.openfreemap.org/styles/bright",
+          style: defaultBasemapVector.styleURL,
         }),
       );
     });
@@ -582,6 +610,53 @@ describe("1. API", () => {
       expect(panel?.textContent).toContain('"config"');
     });
 
+    it("refreshes debug instance document camera state from runtime state events", async () => {
+      createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "debug",
+          },
+          map: {
+            options: {
+              center: [10, 20],
+              zoom: 4,
+              bearing: 5,
+              pitch: 6,
+            },
+          },
+        },
+      });
+
+      const map = getLastMapInstance();
+      const shellMount = document.querySelector(
+        '#map [data-waymark-app="true"]',
+      );
+
+      map._view = {
+        center: [11, 21],
+        zoom: 7,
+        bearing: 9,
+        pitch: 12,
+      };
+      map.fire("moveend", {
+        type: "moveend",
+      });
+
+      await nextTick();
+
+      const instanceDocumentJSON =
+        shellMount?.querySelectorAll("pre")?.[0]?.textContent ?? "{}";
+      const instanceDocument = JSON.parse(instanceDocumentJSON);
+
+      expect(instanceDocument.state.map.options).toEqual({
+        center: [11, 21],
+        zoom: 7,
+        bearing: 9,
+        pitch: 12,
+      });
+    });
+
     it("toggles debug outputs from the internal debug control", async () => {
       createInstance({
         config: {
@@ -618,6 +693,17 @@ describe("1. API", () => {
       expect(
         shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
       ).toBeTruthy();
+
+      const eventsJSON =
+        shellMount?.querySelectorAll("pre")?.[1]?.textContent ?? "[]";
+      const events = JSON.parse(eventsJSON);
+
+      expect(
+        events.some((event) => event.type === "waymark:state.changed"),
+      ).toBe(true);
+      expect(
+        events.some((event) => event.type === "waymark:state.ui.panel.changed"),
+      ).toBe(true);
     });
 
     it("routes shared modal content between debug and basemaps panels", async () => {
@@ -804,6 +890,16 @@ describe("1. API", () => {
         "https://example.com/vector-b-style.json",
       );
       expect(instance.toJSON().config.map.basemaps.vector).toEqual([
+        expect.objectContaining({
+          title: "Vector A",
+          styleURL: "https://example.com/vector-a-style.json",
+        }),
+        expect.objectContaining({
+          title: "Vector B",
+          styleURL: "https://example.com/vector-b-style.json",
+        }),
+      ]);
+      expect(instance.toJSON().state.map.basemaps.vector).toEqual([
         expect.objectContaining({
           title: "Vector B",
           styleURL: "https://example.com/vector-b-style.json",
@@ -1036,7 +1132,7 @@ describe("1. API", () => {
       ]);
     });
 
-    it("exposes core/app-shell callbacks for basemaps panel open and close", async () => {
+    it("exposes a core basemaps panel toggle command", async () => {
       createInstance({
         config: {
           id: "map",
@@ -1053,13 +1149,13 @@ describe("1. API", () => {
         '#map [data-waymark-app="true"]',
       );
 
-      core?.commands.ui.openBasemapsPanel();
+      core?.commands.ui.toggleBasemapsPanel();
       await nextTick();
       expect(
         shellMount?.querySelector('[data-waymark-panel="basemaps"]'),
       ).toBeTruthy();
 
-      core?.commands.ui.closeBasemapsPanel();
+      core?.commands.ui.toggleBasemapsPanel();
       await nextTick();
       expect(
         shellMount?.querySelector('[data-waymark-modal="true"]'),
@@ -1102,7 +1198,7 @@ describe("1. API", () => {
       const events = JSON.parse(preElements?.[1]?.textContent ?? "[]");
 
       expect(panel).toBeTruthy();
-      expect(instance.toJSON().state.ui.mode).toBe("debug");
+      expect(instance.toJSON().state.ui).toBeUndefined();
 
       expect(events).toHaveLength(25);
       expect(events.every((event) => event.type.startsWith("waymark:"))).toBe(
@@ -1120,6 +1216,34 @@ describe("1. API", () => {
           }),
         }),
       );
+    });
+
+    it("does not force instance document refreshes for forwarded map event logs", async () => {
+      createInstance({
+        config: {
+          id: "map",
+          ui: {
+            mode: "debug",
+          },
+        },
+      });
+
+      await nextTick();
+
+      const map = getLastMapInstance();
+      const core = getCoreById("map");
+      const toJSONSpy = vi.spyOn(core.instanceDocument, "toJSON");
+
+      for (let index = 0; index < 10; index += 1) {
+        map.fire("moveend", {
+          type: "moveend",
+          source: `docs-test-refresh-${index}`,
+        });
+      }
+
+      await nextTick();
+
+      expect(toJSONSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -1359,6 +1483,10 @@ describe("1. API", () => {
 
       expect(instance.toJSON().config.map.basemaps.raster).toEqual([
         expect.objectContaining({ opacity: 0.6 }),
+        expect.objectContaining({ opacity: 0.3 }),
+      ]);
+      expect(instance.toJSON().state.map.basemaps.raster).toEqual([
+        expect.objectContaining({ opacity: 0.6 }),
         expect.objectContaining({ opacity: 0.9 }),
       ]);
     });
@@ -1460,6 +1588,14 @@ describe("1. API", () => {
 
       expect(instance.toJSON().config.map.basemaps.raster).toEqual([
         expect.objectContaining({
+          tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+        }),
+        expect.objectContaining({
+          tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+        }),
+      ]);
+      expect(instance.toJSON().state.map.basemaps.raster).toEqual([
+        expect.objectContaining({
           tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
         }),
         expect.objectContaining({
@@ -1530,6 +1666,16 @@ describe("1. API", () => {
       ]);
 
       expect(instance.toJSON().config.map.basemaps.vector).toEqual([
+        expect.objectContaining({
+          title: "Vector A",
+          styleURL: "https://example.com/vector-a-style.json",
+        }),
+        expect.objectContaining({
+          title: "Vector B",
+          styleURL: "https://example.com/vector-b-style.json",
+        }),
+      ]);
+      expect(instance.toJSON().state.map.basemaps.vector).toEqual([
         expect.objectContaining({
           title: "Vector B",
           styleURL: "https://example.com/vector-b-style.json",
@@ -1696,7 +1842,24 @@ describe("1. API", () => {
       }).not.toThrow();
 
       map.setStyle = vi.fn();
-      core.basemaps.vector[1].styleURL = undefined;
+      core.runtimeState.dispatch(
+        "map.basemaps.set",
+        {
+          vector: [
+            {
+              basemapId: "vector-1",
+              title: "Vector B",
+              styleURL: "https://example.com/vector-a-style.json",
+            },
+            {
+              basemapId: "vector-0",
+              title: "Vector A",
+            },
+          ],
+          raster: [],
+        },
+        "test:map.basemaps.override",
+      );
 
       expect(() => {
         core.commands.basemaps.setActiveVectorBasemap("vector-0");
@@ -1717,7 +1880,7 @@ describe("1. API", () => {
       core.commands.basemaps.reorderRasterBasemaps(["raster-0"]);
 
       expect(
-        core.instanceDocument.toJSON().config.map.basemaps,
+        core.instanceDocument.toJSON().state.map?.basemaps,
       ).toBeUndefined();
     });
   });
@@ -1940,10 +2103,73 @@ describe("1. API", () => {
       }
 
       expect(instance.toJSON().state.map).toEqual({
-        center: [12.3, 45.6],
-        zoom: 8,
-        bearing: 30,
-        pitch: 20,
+        options: {
+          center: [12.3, 45.6],
+          zoom: 8,
+          bearing: 30,
+          pitch: 20,
+        },
+      });
+    });
+
+    it("emits map camera state events only when camera values change", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            options: {
+              center: [10, 20],
+              zoom: 4,
+              bearing: 5,
+              pitch: 6,
+            },
+          },
+        },
+      });
+
+      const map = getLastMapInstance();
+      const seen = [];
+
+      instance.on(WAYMARK_STATE_MAP_CAMERA_CHANGED_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+
+      map.fire("moveend", { source: "docs-test" });
+      expect(seen).toEqual([]);
+
+      map._view = {
+        center: [11, 21],
+        zoom: 5,
+        bearing: 7,
+        pitch: 8,
+      };
+
+      map.fire("moveend", { source: "docs-test" });
+
+      expect(seen).toEqual([
+        expect.objectContaining({
+          command: "map.camera.set",
+          scope: "map.camera",
+          source: "runtime:map.moveend",
+          previous: {
+            center: [10, 20],
+            zoom: 4,
+            bearing: 5,
+            pitch: 6,
+          },
+          next: {
+            center: [11, 21],
+            zoom: 5,
+            bearing: 7,
+            pitch: 8,
+          },
+        }),
+      ]);
+      expect(instance.toJSON().state.map.options).toEqual({
+        center: [11, 21],
+        zoom: 5,
+        bearing: 7,
+        pitch: 8,
       });
     });
 
@@ -1996,33 +2222,22 @@ describe("1. API", () => {
         },
       });
 
-      expect(instance.toJSON()).toEqual(
+      const instanceDocument = instance.toJSON();
+
+      expect(instanceDocument.config.id).toBe("map");
+      expect(instanceDocument.config.map.options).toEqual(
         expect.objectContaining({
-          config: {
-            id: "map",
-            map: {
-              options: expect.any(Object),
-            },
-            ui: {
-              mode: "view",
-            },
-          },
-          state: {
-            map: {
-              center: [-0.1276, 51.5074],
-              zoom: 10,
-              bearing: 15,
-              pitch: 30,
-            },
-            ui: {
-              mode: "view",
-            },
-          },
-          data: {
-            geoJSON: null,
-          },
+          center: [-0.1276, 51.5074],
+          zoom: 10,
+          bearing: 15,
+          pitch: 30,
         }),
       );
+      expect(instanceDocument.config.ui.mode).toBe("view");
+      expect(instanceDocument.data.geoJSON).toBeNull();
+      expect(instanceDocument.state).toEqual({});
+      expect(instanceDocument.state.map).toBeUndefined();
+      expect(instanceDocument.state.ui).toBeUndefined();
     });
 
     it("keeps runtime metadata out of toJSON", () => {
@@ -2046,14 +2261,22 @@ describe("1. API", () => {
       expect(instanceDocument?.runtime).toBeUndefined();
     });
 
-    it("omits runtime-injected default basemap from toJSON", () => {
+    it("keeps resolved default basemap in config and omits unchanged state", () => {
       const instance = createInstance({
         config: {
           id: "map",
         },
       });
 
-      expect(instance.toJSON().config.map.basemaps).toBeUndefined();
+      expect(instance.toJSON().config.map.basemaps).toEqual({
+        vector: [
+          {
+            title: "OpenFreeMap Bright",
+            styleURL: "https://tiles.openfreemap.org/styles/bright",
+          },
+        ],
+      });
+      expect(instance.toJSON().state.map?.basemaps).toBeUndefined();
     });
 
     it("preserves explicitly authored basemaps, including explicit OpenFreeMap values", () => {

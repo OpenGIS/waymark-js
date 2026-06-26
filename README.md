@@ -78,7 +78,10 @@ Handlers receive `CustomEvent`s dispatched from the instance container (`waymark
 
 See [`docs/1.api.md`](docs/1.api.md#instance-event-api) for payload shapes and usage notes.
 
-`instance.toJSON()` returns a canonical serialisable per-instance document from `src/document/instanceDocument.js`, including `state.ui.mode` (`"view"` or `"debug"`).
+`instance.toJSON()` returns a canonical serialisable per-instance document from `src/document/instanceDocument.js`.
+
+- `config` is the stable resolved authored/default baseline.
+- `state` is runtime-state persistence delta only (omits unchanged branches).
 
 Runtime metadata is intentionally separate from `toJSON()` and not part of the public debug output.
 
@@ -89,7 +92,7 @@ Waymark always mounts a Vue app shell (`src/ui/InstanceShell.vue`) in the map co
 
 `config.ui.mode` is normalised to `view` when invalid.
 
-Shell refresh is driven by forwarded container events (`waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`) using end-event defaults rather than raw high-frequency map motion listeners. Runtime instance tracking is handled separately by the internal runtime registry in `src/runtime/runtimeRegistry.js`.
+Shell event history includes lifecycle, module, forwarded map events, and canonical runtime state events (`waymark:state.changed`, `waymark:state.*`) with bounded sanitised summaries. Runtime instance tracking is handled separately by the internal runtime registry in `src/runtime/runtimeRegistry.js`.
 
 ## Naming glossary
 

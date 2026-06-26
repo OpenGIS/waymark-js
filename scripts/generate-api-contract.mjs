@@ -1,22 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import prettier from "prettier";
+import { defaultBasemapVector, defaultConfig } from "../src/config/defaults.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const OUTPUT = path.join(ROOT, "docs", ".generated", "api-contract.json");
 
-const defaultConfig = JSON.parse(
-  fs.readFileSync(
-    path.join(ROOT, "src", "config", "defaultConfig.json"),
-    "utf8",
-  ),
-);
-const defaultBasemaps = JSON.parse(
-  fs.readFileSync(
-    path.join(ROOT, "src", "map", "defaultBasemaps.json"),
-    "utf8",
-  ),
-);
 const instanceEventsSource = fs.readFileSync(
   path.join(ROOT, "src", "runtime", "createInstanceEvents.js"),
   "utf8",
@@ -42,7 +31,7 @@ const contract = {
     center: defaultConfig.map.options.center,
     zoom: defaultConfig.map.options.zoom,
     attributionControl: defaultConfig.map.options.attributionControl,
-    runtimeDefaultVectorStyleURL: defaultBasemaps.vector[0]?.styleURL ?? null,
+    defaultBasemapVectorStyleURL: defaultBasemapVector.styleURL,
   },
   lifecycleEvents: [
     constants.WAYMARK_INSTANCE_CREATED_EVENT,

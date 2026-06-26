@@ -103,8 +103,12 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(1);
 
     const modes = await page.evaluate(() => ({
-      map: window.waymarkInstance?.toJSON().state.ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
+      map:
+        window.waymarkInstance?.toJSON().state.ui?.mode ??
+        window.waymarkInstance?.toJSON().config.ui.mode,
+      mapTwo:
+        window.waymarkInstanceTwo?.toJSON().state.ui?.mode ??
+        window.waymarkInstanceTwo?.toJSON().config.ui.mode,
     }));
 
     expect(modes).toEqual({
@@ -128,8 +132,12 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(1);
 
     const afterMapDebug = await page.evaluate(() => ({
-      map: window.waymarkInstance?.toJSON().state.ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
+      map:
+        window.waymarkInstance?.toJSON().state.ui?.mode ??
+        window.waymarkInstance?.toJSON().config.ui.mode,
+      mapTwo:
+        window.waymarkInstanceTwo?.toJSON().state.ui?.mode ??
+        window.waymarkInstanceTwo?.toJSON().config.ui.mode,
     }));
 
     expect(afterMapDebug).toEqual({
@@ -156,8 +164,12 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(1);
 
     const afterMapTwoView = await page.evaluate(() => ({
-      map: window.waymarkInstance?.toJSON().state.ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
+      map:
+        window.waymarkInstance?.toJSON().state.ui?.mode ??
+        window.waymarkInstance?.toJSON().config.ui.mode,
+      mapTwo:
+        window.waymarkInstanceTwo?.toJSON().state.ui?.mode ??
+        window.waymarkInstanceTwo?.toJSON().config.ui.mode,
     }));
 
     expect(afterMapTwoView).toEqual({
@@ -187,8 +199,12 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(1);
 
     const afterMapView = await page.evaluate(() => ({
-      map: window.waymarkInstance?.toJSON().state.ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
+      map:
+        window.waymarkInstance?.toJSON().state.ui?.mode ??
+        window.waymarkInstance?.toJSON().config.ui.mode,
+      mapTwo:
+        window.waymarkInstanceTwo?.toJSON().state.ui?.mode ??
+        window.waymarkInstanceTwo?.toJSON().config.ui.mode,
     }));
 
     expect(afterMapView).toEqual({
@@ -218,8 +234,12 @@ test.describe("2. Development smoke", () => {
     ).toHaveCount(1);
 
     const finalModes = await page.evaluate(() => ({
-      map: window.waymarkInstance?.toJSON().state.ui.mode,
-      mapTwo: window.waymarkInstanceTwo?.toJSON().state.ui.mode,
+      map:
+        window.waymarkInstance?.toJSON().state.ui?.mode ??
+        window.waymarkInstance?.toJSON().config.ui.mode,
+      mapTwo:
+        window.waymarkInstanceTwo?.toJSON().state.ui?.mode ??
+        window.waymarkInstanceTwo?.toJSON().config.ui.mode,
     }));
 
     expect(finalModes).toEqual({
@@ -351,11 +371,11 @@ test.describe("2. Development smoke", () => {
       .poll(async () =>
         page.evaluate(
           () =>
-            window.waymarkInstance?.toJSON().config.map.basemaps.vector[0]
+            window.waymarkInstance?.toJSON().state.map?.basemaps?.vector?.[0]
               ?.title,
         ),
       )
-      .toBe("OpenFreeMap Liberty (inactive demo entry)");
+      .toBe("OpenFreeMap Liberty");
 
     await page
       .locator('#map-two [data-waymark-control="basemaps-toggle"]')
@@ -372,7 +392,7 @@ test.describe("2. Development smoke", () => {
       .poll(async () =>
         page.evaluate(
           () =>
-            window.waymarkInstanceTwo?.toJSON().config.map.basemaps.raster[1]
+            window.waymarkInstanceTwo?.toJSON().state.map?.basemaps?.raster?.[1]
               ?.opacity,
         ),
       )
@@ -387,7 +407,7 @@ test.describe("2. Development smoke", () => {
         page.evaluate(() =>
           window.waymarkInstanceTwo
             ?.toJSON()
-            .config.map.basemaps.raster.map((basemap) => basemap.title),
+            .state.map?.basemaps?.raster?.map((basemap) => basemap.title),
         ),
       )
       .toEqual(["OpenTopoMap raster overlay", "OpenStreetMap raster"]);

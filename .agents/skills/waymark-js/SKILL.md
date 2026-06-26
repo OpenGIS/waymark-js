@@ -72,19 +72,19 @@ Canonical v1 shape:
     map?: {
       options?: object,
       basemaps?: {
-        vector?: Array<{
-          styleURL: string | object,
-          title?: string,
-          attributionHTML?: string,
-          maxZoom?: number,
-          opacity?: number
-        }>,
         raster?: Array<{
           tileURLTemplates: string[],
           title?: string,
           attributionHTML?: string,
           tileSize?: number,
           minZoom?: number,
+          maxZoom?: number,
+          opacity?: number
+        }>,
+        vector?: Array<{
+          styleURL: string | object,
+          title?: string,
+          attributionHTML?: string,
           maxZoom?: number,
           opacity?: number
         }>
@@ -94,13 +94,33 @@ Canonical v1 shape:
   },
   state: {
     map: {
-      center?: [number, number],
-      zoom?: number,
-      bearing?: number,
-      pitch?: number
+      options?: {
+        center?: [number, number],
+        zoom?: number,
+        bearing?: number,
+        pitch?: number
+      },
+      basemaps?: {
+        raster?: Array<{
+          tileURLTemplates: string[],
+          title?: string,
+          attributionHTML?: string,
+          tileSize?: number,
+          minZoom?: number,
+          maxZoom?: number,
+          opacity?: number
+        }>,
+        vector?: Array<{
+          styleURL: string | object,
+          title?: string,
+          attributionHTML?: string,
+          maxZoom?: number,
+          opacity?: number
+        }>
+      }
     },
     ui: {
-      mode: "view" | "debug"
+      mode?: "view" | "debug"
     }
   },
   data: {
@@ -122,7 +142,7 @@ In SSR applications, instantiate on the client only, after the container element
 
 Waymark resolves config with a deep merge:
 
-- Base: `src/config/defaultConfig.json`
+- Base: `src/config/defaults.js` (`defaultConfig`)
 - Override: `instanceDocument.config`
 - Objects merge recursively
 - Arrays are replaced (not merged by index)
@@ -132,7 +152,7 @@ Waymark resolves config with a deep merge:
 - `map.options.center`: `[0, 0]`
 - `map.options.zoom`: `2`
 - `map.options.attributionControl`: `false`
-- `map.basemaps.vector[0].styleURL` (runtime-injected only when no basemap entries exist): `https://tiles.openfreemap.org/styles/bright`
+- `map.basemaps.vector[0].styleURL` (resolved as config baseline only when no basemap entries exist): `https://tiles.openfreemap.org/styles/bright`
 <!-- api-contract:defaults:end -->
 
 - `ui.mode`: `"view"` (invalid values fall back to `"view"`)
@@ -149,13 +169,20 @@ Any other value is normalised to `"view"`.
 Waymark mounts a per-instance Vue shell in the target map container (`data-waymark-app="true"`) and renders mode-specific content through nested mode components:
 
 - `src/ui/InstanceShell.vue`
+- `src/ui/modal/InstanceShellModal.vue`
 - `src/ui/modes/InstanceShellModeView.vue`
 - `src/ui/modes/InstanceShellModeDebug.vue`
 
-In `"view"` mode, the shell is present but intentionally empty. In `"debug"` mode, the shell renders a debug control (`debug-output-toggle`) and the toggled debug panel with two sections:
+In `"view"` mode, the shell is present but intentionally empty. In `"debug"` mode, the shell renders a debug control (`debug-output-toggle`) and a shell-level modal that is visible by default. The debug control toggles modal visibility. When visible, the modal renders two debug sections:
 
 - **Instance document**: current `instance.toJSON()` snapshot.
 - **Waymark events (last 25)**: bounded event history for core Waymark events only (`waymark:instance.*`, `waymark:ui.mode.changed`, forwarded `waymark:map.*`) with sanitised summaries.
+
+The debug control remains clickable while the debug panel is visible.
+
+There is no separate public debug payload contract; debug output is derived from the canonical instance document and event summaries.
+
+Event-feed appends are intentionally decoupled from full instance-document refreshes so frequent forwarded map events can update debug history with lower UI overhead.
 
 For UI runtime boundaries and internal wiring, see [`docs/5.ui.md`](5.ui.md).
 
@@ -168,17 +195,19 @@ Serialisable map options are passed through via `instanceDocument.config.map.opt
 
 Basemap configuration is strict and separate from `map.options`:
 
-- `instanceDocument.config.map.basemaps.vector[]`: multiple allowed, runtime uses only the first entry.
-- `instanceDocument.config.map.basemaps.raster[]`: multiple allowed, runtime stacks in listed order.
-- vector entries use canonical keys: `styleURL`, `title`, `attributionHTML`, `maxZoom`, `opacity`.
+- `instanceDocument.config.map.basemaps.raster[]`: multiple allowed, runtime uses top-first stack semantics (`raster[0]` is visually on top).
+- `instanceDocument.config.map.basemaps.vector[]`: multiple allowed, runtime active vector is always `vector[0]`.
+- vector switching is supported through the basemaps panel radio controls; selecting a vector basemap makes it active at `vector[0]`.
 - raster entries use canonical keys: `tileURLTemplates`, `title`, `attributionHTML`, `tileSize`, `minZoom`, `maxZoom`, `opacity`.
+- vector entries use canonical keys: `styleURL`, `title`, `attributionHTML`, `maxZoom`, `opacity`.
 - legacy basemap field names are rejected (no aliases).
 - raster layers are inserted below the first style layer with `type: "symbol"`; if no symbol layer exists, they are appended.
+- canonical basemap object key order in normalised/serialised InstanceDocuments is `raster` then `vector`.
 - legacy `instanceDocument.config.map.options.style` is rejected.
 
 Runtime default behaviour:
 
-- OpenFreeMap vector is injected only when no vector or raster basemap entries are provided.
+- OpenFreeMap vector is resolved as config baseline only when no vector or raster basemap entries are provided.
 - If any basemap entry exists (including raster-only), no default vector is injected.
 - In raster-only setups, Waymark boots with an internal empty style object and then mounts raster basemap layers.
 
@@ -192,17 +221,23 @@ createInstance({
     id: "map",
     map: {
       basemaps: {
-        vector: [
-          {
-            styleURL: "https://tiles.openfreemap.org/styles/bright",
-          },
-        ],
         raster: [
           {
             tileURLTemplates: [
               "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             ],
+            title: "OpenStreetMap raster",
+            attributionHTML:
+              '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>',
             opacity: 0.6,
+          },
+        ],
+        vector: [
+          {
+            styleURL: "https://tiles.openfreemap.org/styles/bright",
+            title: "OpenFreeMap Bright",
+            attributionHTML:
+              '<a href="https://openfreemap.org">© OpenFreeMap</a>',
           },
         ],
       },
@@ -288,7 +323,11 @@ UI module events:
 
 - `waymark:ui.mode.changed`
 
-Module event payload shape:
+Basemaps module event:
+
+- `waymark:map.basemaps.changed`
+
+Module event payload shape (`waymark:ui.mode.changed`):
 
 ```js
 {
@@ -298,6 +337,40 @@ Module event payload shape:
   previous: unknown,
   next: unknown,
   source: string
+}
+```
+
+Basemaps changed payload shape (`waymark:map.basemaps.changed`):
+
+```js
+{
+  id: string,
+  mutation: "opacity_changed" | "reordered" | "vector_changed",
+  changed: {
+    basemapIds: string[],
+    opacity?: Record<string, number>,
+    orderedBasemapIds?: string[]
+  },
+  basemaps: {
+    vector: Array<{
+      basemapId: string,
+      styleURL: string | object,
+      title?: string,
+      attributionHTML?: string,
+      maxZoom?: number,
+      opacity?: number
+    }>,
+    raster: Array<{
+      basemapId: string,
+      tileURLTemplates: string[],
+      title?: string,
+      attributionHTML?: string,
+      tileSize?: number,
+      minZoom?: number,
+      maxZoom?: number,
+      opacity?: number
+    }>
+  }
 }
 ```
 
@@ -312,8 +385,8 @@ Module event payload shape:
     map: {
       options: object,
       basemaps?: {
-        vector?: object[],
-        raster?: object[]
+        raster?: object[],
+        vector?: object[]
       }
     },
     ui: {
@@ -322,14 +395,18 @@ Module event payload shape:
   },
   state: {
     map: {
-      center: [lng, lat],
-      zoom: number,
-      bearing: number,
-      pitch: number
+      options?: {
+        center?: [lng, lat],
+        zoom?: number,
+        bearing?: number,
+        pitch?: number
+      },
+      basemaps?: {
+        raster?: object[],
+        vector?: object[]
+      }
     },
-    ui: {
-      mode: "view" | "debug"
-    }
+    ui?: { mode?: "view" | "debug" }
   },
   data: {
     geoJSON: object | null
@@ -337,11 +414,19 @@ Module event payload shape:
 }
 ```
 
-`state.map` syncs on low-frequency map end events (`load`, `moveend`, `zoomend`, `rotateend`, `pitchend`).
+`state` is persistence delta only. Unchanged/default branches are omitted.
+
+- `state.map.options` appears only when camera values diverge from config baseline.
+- `state.map.basemaps` appears only when basemaps are mutated at runtime.
+- `state.ui.mode` appears only when runtime mode diverges from config baseline.
+
+Camera sync still observes low-frequency map end events (`load`, `moveend`, `zoomend`, `rotateend`, `pitchend`).
 
 `instance.toJSON()` is intentionally strict and serialisable so that `createInstance(instance.toJSON())` can be reused as canonical input.
 
-`toJSON()` omits runtime-injected default basemaps, preserves explicitly authored basemap entries (including explicit OpenFreeMap values), and omits empty basemap arrays.
+`toJSON()` keeps `config` stable to authored/default intent and serialises basemap keys in canonical `raster` then `vector` order.
+
+Live basemap mutations from runtime commands/UI controls (raster opacity changes, raster reorder, vector active selection) are serialised into `state.map.basemaps` so post-mutation persistence stays in sync with `waymark:map.basemaps.changed` snapshots.
 
 Runtime-enriched metadata (for example GeoJSON source/layer IDs and lifecycle phase) is intentionally excluded from `toJSON()`.
 
@@ -410,11 +495,70 @@ Use camelCase identifiers, with acronyms kept uppercase.
 - `tileURLTemplates`
 - `attributionHTML`
 
+Use canonical camelCase slot IDs for UI control positioning.
+
+- `top`
+- `topRight`
+- `right`
+- `bottomRight`
+- `bottom`
+- `bottomLeft`
+- `left`
+- `topLeft`
+
 Use `instanceDocument` as the canonical variable/parameter name for the `createInstance(instanceDocument?)` input payload.
 
 Prefer these canonical forms in source, tests, docs, and fixtures.
 
+Avoid non-canonical slot variants such as `top-right`, `bottom-right`, `bottom-left`, and `top-left` in source/docs/tests.
+
 For basemap payload keys specifically, avoid legacy aliases such as `styleUrl`, `tileUrls`, and `attributionHtml`.
+
+For basemap ordering, use these canonical rules in docs/tests/fixtures:
+
+- `config.map.basemaps` key order: `raster` then `vector` (for readability and `toJSON()` parity).
+- raster stack order is top-first: `raster[0]` is visually on top.
+
+## Cross-module sync pattern (core-owned state)
+
+Use this pattern when UI and map modules must stay in sync.
+
+1. **Core owns mutable state**
+   - Keep authoritative state in `src/runtime/createInstanceCore.js` (`core.state`, `core.basemaps`).
+   - UI modules consume snapshots; they do not become a second source of truth.
+2. **Expose explicit commands**
+   - Route mutations through named commands (`core.commands.basemaps.setRasterOpacity`, `core.commands.basemaps.reorderRasterBasemaps`, `core.commands.basemaps.setActiveVectorBasemap`).
+   - UI emits intent via callbacks; core validates, mutates state, then applies map-side effects.
+3. **Emit one aggregate change event**
+   - Event: `waymark:map.basemaps.changed`.
+   - Detail shape (high level):
+     - `id`
+     - `mutation` (`"opacity_changed" | "reordered" | "vector_changed"`)
+     - `changed` (target basemap ids + mutation-specific deltas)
+     - `basemaps` (post-mutation vector/raster snapshot)
+
+For module-scoped state changes that do not need full aggregate snapshots, emit `waymark:ui.mode.changed` with module event detail (`module`, `event`, `previous`, `next`, `source`).
+
+Guidance for future sync features:
+
+- keep mutation logic in runtime core, not in Vue/map adapters
+- keep commands idempotent and no-op on invalid/unchanged input
+- emit events after state mutation succeeds
+- prefer one aggregate event per mutation path over multiple partial events
+- ensure `instance.toJSON()` reflects the same post-mutation state as emitted events
+- for vector selection, ensure the active basemap is always serialised as `basemaps.vector[0]`
+
+## Basemaps cross-module contract checklist
+
+Use this checklist when changing basemap behaviour across API/map/UI/docs/tests.
+
+1. Keep basemap config/key order canonical in authored examples and fixtures: `raster` then `vector`.
+2. Preserve raster stack semantics everywhere: top-first (`raster[0]` visually on top).
+3. Preserve vector active semantics: selected vector basemap is promoted to `vector[0]`.
+4. Keep `waymark:map.basemaps.changed` aggregate payload aligned with all mutation paths (`opacity_changed`, `reordered`, `vector_changed`) and include post-mutation `basemaps` snapshot.
+5. Keep `instance.toJSON().state.map.basemaps` aligned with live basemap mutations (same ordering/values as runtime snapshot) while `config.map.basemaps` remains baseline.
+6. For docs/tests/examples, use real HTML strings for `attributionHTML` values (for example `<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>`), not placeholder prose.
+7. Keep basemaps panel row composition consistent: title + attributionHTML + control (slider/radio).
 
 ## Testing strategy
 
@@ -434,7 +578,10 @@ This gives a stable baseline for browser smoke coverage in `tests/browser/2.deve
 
 - both containers and canvases render
 - view-mode shell has no debug panel
-- debug-mode shell shows the debug control and the debug panel by default (instance document + bounded event feed)
+- both modes expose the `basemaps-toggle` control in `bottomLeft`
+- debug-mode shell shows the debug control and the debug modal/panel by default (instance document + bounded event feed)
+- the debug output toggle stays clickable while the debug modal is open
+- shared modal routing allows direct switch between debug and basemaps panels
 - two dev dropdowns exist: `#dev-instance-mode` (for `#map`) and `#dev-instance-mode-two` (for `#map-two`)
 
 `src/dev.js` wires both dropdowns via `instance.ui.setMode(nextMode)`. Browser smoke asserts independent mode switching in both UI and serialised InstanceDocument payloads:
@@ -588,8 +735,9 @@ This grouping is internal lifecycle wiring, not part of the consumer API.
 
 ## Module state boundaries
 
-- Runtime tracks map and UI state in `core.state`.
-- Serialisation reads state via `serialiseInstanceDocument(...)` and exposes it through `toJSON()`.
+- Runtime tracks mutable camera/UI state in `core.state` and keeps stable authored/default intent in `core.baseline`.
+- Serialisation emits a stable `config` baseline and a minimal `state` delta in `toJSON()` (unchanged branches omitted).
+- Camera persistence is emitted from `core.state.map.options` as delta-only values, while basemap persistence is derived from runtime basemap snapshots vs baseline basemaps.
 - Internal mutators (for example, `setCoreMode(...)`) are runtime wiring and not public API.
 
 ## Lifecycle order
@@ -636,16 +784,19 @@ The map module owns MapLibre runtime behaviour per instance:
 - container resolution and validation
 - map creation from `instanceDocument.config.map.options`
 - basemap runtime resolution from `instanceDocument.config.map.basemaps`
-- camera state sync into `instance.toJSON().state.map`
+- camera delta sync into `instance.toJSON().state.map.options`
+- basemap delta sync into `instance.toJSON().state.map.basemaps`
 - forwarded map lifecycle events on the instance container
 - optional GeoJSON source/layer bootstrapping from `instanceDocument.data.geoJSON`
 
 ## Input and output boundaries
 
 - **Input config**: `instanceDocument.config.map.options`
-- **Input basemaps**: `instanceDocument.config.map.basemaps.vector[]` and `instanceDocument.config.map.basemaps.raster[]`
-- **Input state overrides**: `instanceDocument.state.map` (`center`, `zoom`, `bearing`, `pitch`)
-- **Output state**: `toJSON().state.map`
+- **Input basemaps**: `instanceDocument.config.map.basemaps.raster[]` and `instanceDocument.config.map.basemaps.vector[]`
+- **Input state overrides**: `instanceDocument.state.map.options` (`center`, `zoom`, `bearing`, `pitch`) and `instanceDocument.state.map.basemaps`
+- **Output state**:
+  - `toJSON().state.map.options` (camera delta only)
+  - `toJSON().state.map.basemaps` (runtime basemap delta only)
 - **Output data**: `toJSON().data.geoJSON`
 
 GeoJSON source/layer IDs are runtime metadata only and not included in `toJSON()`.
@@ -655,16 +806,15 @@ State camera values override config camera defaults when both are provided.
 ## Runtime behaviour
 
 - Waymark passes serialisable map options through to `new Map(options)` and always controls `container`.
-- Non-serialisable map option values are dropped during document normalisation.
-- Legacy `config.map.options.style` is rejected. Vector styles must be configured through `config.map.basemaps.vector[].styleURL`.
-- Multiple vector basemaps are accepted, but only the first vector entry is used at runtime.
-- Multiple raster basemaps are stacked in listed order and inserted below the first `symbol` layer (or appended if no symbol layer exists).
-- Basemap entries use canonical keys only (for example `styleURL`, `tileURLTemplates`, `attributionHTML`, `minZoom`, `maxZoom`) and reject unknown/legacy keys.
-- OpenFreeMap vector is injected as runtime default only when both vector and raster basemap arrays are absent/empty.
-- If any basemap entry exists (including raster-only), no default vector basemap is injected.
-- Raster-only configurations start from an internal empty style object and then add raster layers.
+- Runtime basemap state is command-driven in core (`setRasterOpacity`, `reorderRasterBasemaps`, `setActiveVectorBasemap`) and then applied to map adapters.
+- Raster layers are mounted and reordered with top-first semantics (`raster[0]` is visually on top).
+- Vector switching updates MapLibre style via `map.setStyle(...)` and keeps the selected vector as runtime index `vector[0]`.
+- Basemap mutations emit one aggregate `waymark:map.basemaps.changed` event containing `mutation`, `changed`, and full post-mutation `basemaps` snapshot.
+- `instance.toJSON().config` stays stable, while live basemap mutations are serialised into `state.map.basemaps` (including runtime mutation order/values).
 - Camera state sync runs on end events: `load`, `moveend`, `zoomend`, `rotateend`, `pitchend`.
 - GeoJSON source/layer IDs are instance-scoped (`waymark-{id}-geojson-*`) to avoid collisions.
+
+For public config validation/defaults and event payload contracts, treat [`docs/1.api.md`](1.api.md) as the source of truth.
 
 ## Internal files
 
@@ -680,6 +830,7 @@ State camera values override config camera defaults when both are provided.
 
 - [`docs/1.api.md#container-resolution`](1.api.md#container-resolution)
 - [`docs/1.api.md#map-options-pass-through`](1.api.md#map-options-pass-through)
+- [`docs/1.api.md#instance-event-api`](1.api.md#instance-event-api)
 - [`docs/1.api.md#instancedocument-shape`](1.api.md#instancedocument-shape)
 - [`docs/1.api.md#initial-geojson-overlay`](1.api.md#initial-geojson-overlay)
 
@@ -696,22 +847,90 @@ The UI module owns per-instance shell rendering and UI mode state:
 - mounts a Vue app shell in the map container
 - mounts internal controls from `src/ui/controls/internalControls.js`
 - renders mode-specific UI (`view` or `debug`)
-- refreshes shell instance snapshot and Waymark event feed from runtime events
+- renders basemaps controls/panel in both modes
+- refreshes shell instance snapshot on state-changing UI/basemap updates and keeps Waymark event feed updates lightweight
 - applies runtime mode changes and emits module events
 
 ## Mode contract
 
 - Supported modes: `"view" | "debug"`
 - Invalid input normalises to `"view"`
-- Mode is stored in both runtime state and serialised output (`state.ui.mode`)
+- Mode is stored in runtime state and serialised as delta output (`state.ui.mode` only when diverged from `config.ui.mode`)
 
 ## Shell behaviour
 
 - A shell mount (`data-waymark-app="true"`) is created per instance.
-- `view` mode keeps the shell mounted but renders no mode content.
-- `debug` mode renders a `debug-output-toggle` control button. The button toggles a panel with two outputs:
+- `view` mode keeps the shell mounted with no default panel content.
+- `debug` mode adds a `debug-output-toggle` control and opens the debug panel by default.
+- `basemaps-toggle` is always rendered (both modes) in `bottomLeft`.
+- The shell uses one shared modal primitive (`src/ui/modal/InstanceShellModal.vue`) and routes panel content by active panel id.
+- `src/ui/modes/InstanceShellModeDebug.vue` and `src/ui/panels/InstanceShellPanelBasemaps.vue` are both modal content routes.
+- When visible, debug output includes two sections:
   - **Instance document** from the current `instance.toJSON()` equivalent snapshot
   - **Waymark events (last 25)** filtered to `waymark:instance.*`, `waymark:ui.mode.changed`, and forwarded `waymark:map.*`
+- Basemaps panel can replace debug panel without unmounting controls, so debug and basemaps toggles can switch modal content directly.
+- The debug toggle remains interactive while the panel is open because shell controls are layered above panel content.
+- Debug output does not use a dedicated payload module; it is assembled from the instance document plus sanitised event summaries.
+- Forwarded map events append to the debug feed without forcing a full instance-document refresh per event.
+
+## Shared panel/modal routing
+
+- Panel routing is not debug-specific. `activePanel` selects modal content for both debug and basemaps.
+- Current internal panel ids:
+  - `debug-output`
+  - `basemaps`
+- `createAppShell(...)` manages `openPanel(...)`, `closePanel(...)`, and panel-specific toggles.
+- Mode transitions still apply guard rails:
+  - leaving debug closes `debug-output` when active
+  - entering debug opens `debug-output` if no panel is active
+
+Use this same route-through-modal pattern for future internal panels.
+
+## Layering contract (`z-index`)
+
+- The shell uses a deliberate two-layer stack so controls remain operable as UI grows:
+  - `.waymark-instance-shell-controls` uses `z-index: 2`
+  - `.waymark-instance-shell-modal` uses `z-index: 1`
+- This ensures control interactions (for example the debug toggle) are never blocked by debug content.
+- Any future overlay/panel introduced by controls should preserve this contract unless a higher-priority interaction explicitly requires a different stack order.
+
+## Controls architecture
+
+- Control layout is position-based using canonical camelCase slot IDs: `top`, `topRight`, `right`, `bottomRight`, `bottom`, `bottomLeft`, `left`, `topLeft`.
+- `resolveInternalControls(...)` returns a controls-by-position object and injects:
+  - `basemaps-toggle` in `bottomLeft` (view + debug)
+  - `debug-output-toggle` in `topRight` (debug only)
+- `InstanceShell.vue` renders controls via the shared `InstanceControlButton` component.
+
+## Basemaps panel composition
+
+- `InstanceShellPanelBasemaps.vue` composes two focused sections:
+  - `BasemapsRasterList.vue` (opacity slider + drag reorder interactions)
+  - `BasemapsVectorList.vue` (radio selection for active vector basemap)
+- The modal renders **Raster** before **Vector** so panel order matches runtime raster stack semantics.
+- Raster and vector rows follow the same presentation pattern: **title + attributionHTML + control**.
+- `BasemapsRasterList.vue` delegates each row to `BasemapsRasterItem.vue` and emits only two intents:
+  - `set-raster-opacity`
+  - `reorder-raster-basemaps`
+- Raster reorder interactions are top-first (`raster[0]` is the visually top layer).
+- `BasemapsVectorList.vue` emits `set-active-vector-basemap`; selecting a radio option promotes that vector basemap to runtime index `vector[0]`.
+- UI components do not own authoritative basemap state. They receive snapshot props and emit intent callbacks.
+
+### Basemaps interaction flow
+
+1. User opens basemaps panel from the shared internal control toggle.
+2. User mutates raster/vector basemaps through row controls (slider, drag reorder, radio select).
+3. Panel emits intent callbacks to runtime core commands.
+4. Core applies map-side effects and emits one aggregate `waymark:map.basemaps.changed` event.
+5. App shell refreshes snapshot state so panel rows and `instance.toJSON()` remain aligned.
+
+## Minimal UI philosophy
+
+- Keep panel UI intentionally lightweight and diagnostic-first:
+  - plain headings/lists
+  - native range input for opacity
+  - native drag-and-drop for ordering
+- Avoid introducing extra UI framework abstractions in internal control panels unless behaviour complexity requires it.
 
 ## Runtime mode updates
 
@@ -724,10 +943,15 @@ The UI module owns per-instance shell rendering and UI mode state:
 
 - `src/ui/createAppShell.js`
 - `src/ui/InstanceShell.vue`
+- `src/ui/modal/InstanceShellModal.vue`
 - `src/ui/controls/internalControls.js`
 - `src/ui/controls/InstanceControlButton.vue`
 - `src/ui/modes/InstanceShellModeView.vue`
 - `src/ui/modes/InstanceShellModeDebug.vue`
+- `src/ui/panels/InstanceShellPanelBasemaps.vue`
+- `src/ui/panels/basemaps/BasemapsVectorList.vue`
+- `src/ui/panels/basemaps/BasemapsRasterList.vue`
+- `src/ui/panels/basemaps/BasemapsRasterItem.vue`
 - `src/runtime/createInstanceCore.js` (mode lifecycle wiring)
 
 ## Related API sections
@@ -747,7 +971,7 @@ Developer documentation for Waymark JS.
 
 1. [API](1.api.md) - Consumer API contract for `createInstance(...)`, including browser-runtime/DOM boundaries, config defaults, UI mode behaviour, events, canonical InstanceDocument serialisation, and GeoJSON.
 2. [Development](2.development.md) - Contributor workflow, dev-page mode baseline, testing strategy, and sync protocol.
-3. [Instances](3.instances.md) - Internal orchestration boundaries and lifecycle composition.
+3. [Instances](3.instances.md) - Internal orchestration boundaries, lifecycle composition, and baseline-vs-delta serialisation semantics.
 4. [Map](4.map.md) - Map module responsibilities, state-sync boundaries, and GeoJSON wiring.
 5. [UI](5.ui.md) - UI shell responsibilities, mode state contract, and runtime mode updates.
 

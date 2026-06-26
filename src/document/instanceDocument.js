@@ -32,7 +32,7 @@
  */
 
 /**
- * @typedef {object} WaymarkInstanceDocumentStateMap
+ * @typedef {object} WaymarkInstanceDocumentStateMapOptions
  * @property {[number, number]} [center]
  * @property {number} [zoom]
  * @property {number} [bearing]
@@ -40,9 +40,15 @@
  */
 
 /**
+ * @typedef {object} WaymarkInstanceDocumentStateMap
+ * @property {WaymarkInstanceDocumentStateMapOptions} [options]
+ * @property {Partial<WaymarkBasemapConfig>} [basemaps]
+ */
+
+/**
  * @typedef {object} WaymarkInstanceDocument
  * @property {WaymarkInstanceDocumentConfig} config
- * @property {{ map: WaymarkInstanceDocumentStateMap, ui: { mode: 'view' | 'debug' } }} state
+ * @property {{ map?: WaymarkInstanceDocumentStateMap, ui?: { mode?: 'view' | 'debug' } }} state
  * @property {{ geoJSON: object | null }} data
  */
 
@@ -390,21 +396,42 @@ function normaliseBasemaps(rawBasemaps) {
  * @param {unknown} stateMap
  * @returns {WaymarkInstanceDocumentStateMap}
  */
+function normaliseStateMapOptions(stateMapOptions) {
+  if (!isPlainObject(stateMapOptions)) {
+    return {};
+  }
+
+  /** @type {WaymarkInstanceDocumentStateMapOptions} */
+  const normalised = {};
+
+  for (const key of ["center", "zoom", "bearing", "pitch"]) {
+    if (Object.hasOwn(stateMapOptions, key)) {
+      normalised[key] = stateMapOptions[key];
+    }
+  }
+
+  return normalised;
+}
+
+/**
+ * @param {unknown} stateMap
+ * @returns {WaymarkInstanceDocumentStateMap}
+ */
 function normaliseStateMap(stateMap) {
   if (!isPlainObject(stateMap)) {
     return {};
   }
 
-  /** @type {WaymarkInstanceDocumentStateMap} */
-  const normalised = {};
+  const normalisedOptions = normaliseStateMapOptions(stateMap.options);
 
-  for (const key of ["center", "zoom", "bearing", "pitch"]) {
-    if (Object.hasOwn(stateMap, key)) {
-      normalised[key] = stateMap[key];
-    }
-  }
-
-  return normalised;
+  return {
+    ...(Object.keys(normalisedOptions).length > 0
+      ? { options: normalisedOptions }
+      : {}),
+    ...(Object.hasOwn(stateMap, "basemaps")
+      ? { basemaps: normaliseBasemaps(stateMap.basemaps) }
+      : {}),
+  };
 }
 
 /**
@@ -432,10 +459,20 @@ export function normaliseInstanceDocument(instanceDocument) {
       },
     },
     state: {
-      map: normaliseStateMap(rawState.map),
-      ui: {
-        mode: normaliseMode(rawStateUI.mode ?? rawConfigUI.mode),
-      },
+      ...(() => {
+        const normalisedStateMap = normaliseStateMap(rawState.map);
+
+        return Object.keys(normalisedStateMap).length > 0
+          ? { map: normalisedStateMap }
+          : {};
+      })(),
+      ...(rawStateUI.mode !== undefined
+        ? {
+            ui: {
+              mode: normaliseMode(rawStateUI.mode),
+            },
+          }
+        : {}),
     },
     data: {
       geoJSON: null,
@@ -474,12 +511,28 @@ export function validateInstanceDocument(instanceDocument) {
       (basemaps.vector === undefined || Array.isArray(basemaps.vector)) &&
       (basemaps.raster === undefined || Array.isArray(basemaps.raster)));
 
+  const hasValidStateMap =
+    state.map === undefined ||
+    (isPlainObject(state.map) &&
+      (state.map.options === undefined || isPlainObject(state.map.options)) &&
+      (state.map.basemaps === undefined ||
+        (isPlainObject(state.map.basemaps) &&
+          (state.map.basemaps.vector === undefined ||
+            Array.isArray(state.map.basemaps.vector)) &&
+          (state.map.basemaps.raster === undefined ||
+            Array.isArray(state.map.basemaps.raster)))));
+
+  const hasValidStateUI =
+    state.ui === undefined ||
+    (isPlainObject(state.ui) &&
+      (state.ui.mode === undefined || typeof state.ui.mode === "string"));
+
   return (
     typeof config.ui?.mode === "string" &&
     isPlainObject(config.map?.options) &&
     hasValidBasemaps &&
-    isPlainObject(state.map) &&
-    typeof state.ui?.mode === "string" &&
+    hasValidStateMap &&
+    hasValidStateUI &&
     Object.hasOwn(data, "geoJSON")
   );
 }
