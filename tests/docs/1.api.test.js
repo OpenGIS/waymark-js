@@ -2412,6 +2412,224 @@ describe("1. API", () => {
       );
     });
 
+    it("renders geometry families as circle, line, and fill layers with stable defaults", () => {
+      const pointLayer = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [-0.1276, 51.5074],
+            },
+            properties: {},
+          },
+        ],
+      };
+      const multiPointLayer = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "MultiPoint",
+              coordinates: [
+                [-0.1276, 51.5074],
+                [-1.2577, 51.752],
+              ],
+            },
+            properties: {},
+          },
+        ],
+      };
+      const lineStringLayer = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [0, 0],
+                [1, 1],
+              ],
+            },
+            properties: {},
+          },
+        ],
+      };
+      const multiLineStringLayer = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "MultiLineString",
+              coordinates: [
+                [
+                  [0, 0],
+                  [1, 1],
+                ],
+                [
+                  [1, 1],
+                  [2, 2],
+                ],
+              ],
+            },
+            properties: {},
+          },
+        ],
+      };
+      const polygonLayer = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [0, 0],
+                  [2, 0],
+                  [2, 2],
+                  [0, 2],
+                  [0, 0],
+                ],
+              ],
+            },
+            properties: {},
+          },
+        ],
+      };
+      const multiPolygonLayer = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [0, 0],
+                    [1, 0],
+                    [1, 1],
+                    [0, 1],
+                    [0, 0],
+                  ],
+                ],
+              ],
+            },
+            properties: {},
+          },
+        ],
+      };
+
+      createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "background",
+                        type: "background",
+                      },
+                      {
+                        id: "poi-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        },
+        data: {
+          layers: [
+            { geoJSON: pointLayer },
+            { geoJSON: multiPointLayer },
+            { geoJSON: lineStringLayer },
+            { geoJSON: multiLineStringLayer },
+            { geoJSON: polygonLayer },
+            { geoJSON: multiPolygonLayer },
+          ],
+        },
+      });
+
+      const map = getLastMapInstance();
+      map.fire("load", { source: "test" });
+
+      const layersById = Object.fromEntries(
+        map
+          .getStyle()
+          .layers.map((layer) => [
+            layer.id,
+            { type: layer.type, paint: layer.paint },
+          ]),
+      );
+
+      expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
+        "background",
+        "waymark-map-geojson-layer-5",
+        "waymark-map-geojson-layer-4",
+        "waymark-map-geojson-layer-3",
+        "waymark-map-geojson-layer-2",
+        "waymark-map-geojson-layer-1",
+        "waymark-map-geojson-layer-0",
+        "poi-label",
+      ]);
+
+      expect(layersById["waymark-map-geojson-layer-0"]).toEqual({
+        type: "circle",
+        paint: {
+          "circle-color": "#2563eb",
+          "circle-radius": 5,
+        },
+      });
+      expect(layersById["waymark-map-geojson-layer-1"]).toEqual({
+        type: "circle",
+        paint: {
+          "circle-color": "#2563eb",
+          "circle-radius": 5,
+        },
+      });
+      expect(layersById["waymark-map-geojson-layer-2"]).toEqual({
+        type: "line",
+        paint: {
+          "line-color": "#2563eb",
+          "line-width": 3,
+        },
+      });
+      expect(layersById["waymark-map-geojson-layer-3"]).toEqual({
+        type: "line",
+        paint: {
+          "line-color": "#2563eb",
+          "line-width": 3,
+        },
+      });
+      expect(layersById["waymark-map-geojson-layer-4"]).toEqual({
+        type: "fill",
+        paint: {
+          "fill-color": "#2563eb",
+          "fill-opacity": 0.35,
+        },
+      });
+      expect(layersById["waymark-map-geojson-layer-5"]).toEqual({
+        type: "fill",
+        paint: {
+          "fill-color": "#2563eb",
+          "fill-opacity": 0.35,
+        },
+      });
+    });
+
     it("renders stacked data layers after raster basemaps and before symbol layers", () => {
       const firstLayer = { type: "FeatureCollection", features: [] };
       const secondLayer = {

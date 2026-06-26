@@ -106,6 +106,10 @@ Data-layer semantics:
 - Multiple GeoJSON layers are supported via `data.layers`.
 - Stack order is top-first: `layers[0]` is visually on top (within the data-layer stack).
 - Data layers are inserted after raster basemaps and before symbol layers.
+- Geometry families map to MapLibre layer types:
+  - `Point` / `MultiPoint` → `circle`
+  - `LineString` / `MultiLineString` → `line`
+  - `Polygon` / `MultiPolygon` → `fill`
 
 Set basemaps with `map.basemaps.raster[]` and `map.basemaps.vector[]` (canonical readable order):
 
