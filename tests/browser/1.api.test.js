@@ -55,7 +55,7 @@ test.describe("1. API", () => {
             },
           },
           data: {
-            geoJSON: { type: "FeatureCollection", features: [] },
+            layers: [{ geoJSON: { type: "FeatureCollection", features: [] } }],
           },
         });
 
@@ -74,7 +74,7 @@ test.describe("1. API", () => {
 
         return {
           id: instance.id,
-          hasGeoJSON: Boolean(instance.toJSON().data.geoJSON),
+          hasGeoJSON: instance.toJSON().data.layers.length > 0,
         };
       });
 
@@ -102,7 +102,7 @@ test.describe("1. API", () => {
             },
           },
           data: {
-            geoJSON: { type: "FeatureCollection", features: [] },
+            layers: [{ geoJSON: { type: "FeatureCollection", features: [] } }],
           },
         });
 
@@ -770,7 +770,7 @@ test.describe("1. API", () => {
             },
           },
           data: {
-            geoJSON: { type: "FeatureCollection", features: [] },
+            layers: [{ geoJSON: { type: "FeatureCollection", features: [] } }],
           },
         });
 
@@ -794,7 +794,7 @@ test.describe("1. API", () => {
         return {
           secondIsNew: second !== first,
           secondZoom: second.toJSON().config.map.options.zoom,
-          secondHasGeoJSON: Boolean(second.toJSON().data.geoJSON),
+          secondHasGeoJSON: second.toJSON().data.layers.length > 0,
           thirdIsNew: third !== second,
         };
       });
@@ -937,7 +937,7 @@ test.describe("1. API", () => {
           }),
           state: {},
           data: expect.objectContaining({
-            geoJSON: null,
+            layers: [],
           }),
         }),
       );
@@ -1011,7 +1011,7 @@ test.describe("1. API", () => {
   });
 
   test.describe("Initial GeoJSON overlay", () => {
-    test("creates instance-scoped source and layer from data.geoJSON", async ({
+    test("creates instance-scoped source and layer ids from data.layers", async ({
       page,
     }) => {
       const result = await page.evaluate(() => {
@@ -1030,10 +1030,14 @@ test.describe("1. API", () => {
             },
           },
           data: {
-            geoJSON: {
-              type: "FeatureCollection",
-              features: [],
-            },
+            layers: [
+              {
+                geoJSON: {
+                  type: "FeatureCollection",
+                  features: [],
+                },
+              },
+            ],
           },
         });
 
@@ -1042,10 +1046,10 @@ test.describe("1. API", () => {
           const check = () => {
             resolve({
               hasSource: Boolean(
-                map.getSource("waymark-map-geojson-test-geojson-source"),
+                map.getSource("waymark-map-geojson-test-geojson-source-0"),
               ),
               hasLayer: Boolean(
-                map.getLayer("waymark-map-geojson-test-geojson-layer"),
+                map.getLayer("waymark-map-geojson-test-geojson-layer-0"),
               ),
             });
           };
@@ -1060,6 +1064,189 @@ test.describe("1. API", () => {
       });
 
       expect(result).toEqual({ hasSource: true, hasLayer: true });
+    });
+
+    test("renders Point-only GeoJSON layers as circle layers", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        window.waymarkFixture.createContainer(
+          "map-geojson-point-rendering-test",
+        );
+        const instance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map-geojson-point-rendering-test",
+            map: {
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: { version: 8, sources: {}, layers: [] },
+                  },
+                ],
+              },
+            },
+          },
+          data: {
+            layers: [
+              {
+                geoJSON: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "Point",
+                        coordinates: [-0.1276, 51.5074],
+                      },
+                      properties: {},
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        });
+
+        return new Promise((resolve) => {
+          const map = window.waymarkFixture.getRuntimeMap(instance.id);
+          const check = () => {
+            const layer = map.getLayer(
+              "waymark-map-geojson-point-rendering-test-geojson-layer-0",
+            );
+
+            resolve({
+              layerType: layer?.type ?? null,
+            });
+          };
+
+          if (map.loaded()) {
+            check();
+            return;
+          }
+
+          map.on("load", check);
+        });
+      });
+
+      expect(result.layerType).toBe("circle");
+    });
+
+    test("renders all data layers with index 0 on top above raster basemaps", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        window.waymarkFixture.createContainer("map-geojson-stack-test");
+        const instance = window.waymarkFixture.createInstance({
+          config: {
+            id: "map-geojson-stack-test",
+            map: {
+              basemaps: {
+                vector: [
+                  {
+                    styleURL: {
+                      version: 8,
+                      sources: {},
+                      layers: [{ id: "background", type: "background" }],
+                    },
+                  },
+                ],
+                raster: [
+                  {
+                    tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+                    opacity: 0.6,
+                  },
+                  {
+                    tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+                    opacity: 0.3,
+                  },
+                ],
+              },
+            },
+          },
+          data: {
+            layers: [
+              { geoJSON: { type: "FeatureCollection", features: [] } },
+              {
+                geoJSON: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "LineString",
+                        coordinates: [
+                          [0, 0],
+                          [1, 1],
+                        ],
+                      },
+                      properties: {},
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        });
+
+        return new Promise((resolve) => {
+          const map = window.waymarkFixture.getRuntimeMap(instance.id);
+          const expectedLayerIds = [
+            "waymark-map-geojson-stack-test-basemap-raster-layer-1",
+            "waymark-map-geojson-stack-test-basemap-raster-layer-0",
+            "waymark-map-geojson-stack-test-geojson-layer-1",
+            "waymark-map-geojson-stack-test-geojson-layer-0",
+          ];
+          const startedAt = Date.now();
+          const check = () => {
+            const styleLayers = map.getStyle()?.layers ?? [];
+            const layerIds = styleLayers.map((layer) => layer.id);
+            const hasExpectedLayers = expectedLayerIds.every((layerId) =>
+              layerIds.includes(layerId),
+            );
+
+            if (!hasExpectedLayers && Date.now() - startedAt < 5000) {
+              setTimeout(check, 50);
+              return;
+            }
+
+            resolve({
+              layerIds,
+              serialisedLayers: instance.toJSON().data.layers,
+            });
+          };
+
+          check();
+        });
+      });
+
+      expect(result.layerIds).toEqual([
+        "background",
+        "waymark-map-geojson-stack-test-basemap-raster-layer-1",
+        "waymark-map-geojson-stack-test-basemap-raster-layer-0",
+        "waymark-map-geojson-stack-test-geojson-layer-1",
+        "waymark-map-geojson-stack-test-geojson-layer-0",
+      ]);
+      expect(result.serialisedLayers).toEqual([
+        { geoJSON: { type: "FeatureCollection", features: [] } },
+        {
+          geoJSON: {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [0, 0],
+                    [1, 1],
+                  ],
+                },
+                properties: {},
+              },
+            ],
+          },
+        },
+      ]);
     });
   });
 });

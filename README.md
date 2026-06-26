@@ -99,7 +99,13 @@ Shell event history includes lifecycle, module, forwarded map events, and canoni
 - **Instance**: the public object returned by `createInstance(...)` (`id`, `toJSON()`, `ui.setMode()`, `destroy()`, `on()`, `off()`, `once()`).
 - **Runtime core**: internal lifecycle object assembled by `src/runtime/createInstanceCore.js` and tracked in `src/runtime/runtimeRegistry.js`.
 - **InstanceDocument**: canonical serialisable plain object returned by `instance.toJSON()`.
-- **GeoJSON**: the map data format; canonical JSON key is `data.geoJSON` in the InstanceDocument.
+- **GeoJSON**: the map data format; canonical InstanceDocument data shape is `data.layers[]`, where each layer is `{ geoJSON: object | null }`.
+
+Data-layer semantics:
+
+- Multiple GeoJSON layers are supported via `data.layers`.
+- Stack order is top-first: `layers[0]` is visually on top (within the data-layer stack).
+- Data layers are inserted after raster basemaps and before symbol layers.
 
 Set basemaps with `map.basemaps.raster[]` and `map.basemaps.vector[]` (canonical readable order):
 

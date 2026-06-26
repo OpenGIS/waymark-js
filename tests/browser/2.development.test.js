@@ -54,6 +54,10 @@ test.describe("2. Development smoke", () => {
       mapKeys: Object.keys(
         window.waymarkInstance?.toJSON().config.map.basemaps,
       ),
+      dataLayerCounts: {
+        map: window.waymarkInstance?.toJSON().data.layers.length,
+        mapTwo: window.waymarkInstanceTwo?.toJSON().data.layers.length,
+      },
     }));
 
     expect(basemapConfig).toEqual({
@@ -69,6 +73,10 @@ test.describe("2. Development smoke", () => {
         raster: expect.any(Array),
       },
       mapKeys: ["raster", "vector"],
+      dataLayerCounts: {
+        map: 1,
+        mapTwo: 1,
+      },
     });
   });
 

@@ -85,7 +85,7 @@ import {
  * @property {WaymarkInstancePublicApi} publicApi
  * @property {{ container: HTMLElement, emit: (type: string, detail: import('./createInstanceEvents.js').WaymarkInstanceLifecycleEventDetail | import('./createInstanceEvents.js').WaymarkInstanceMapEventDetail | import('./createInstanceEvents.js').WaymarkInstanceModuleEventDetail | import('./createInstanceEvents.js').WaymarkBasemapsChangedEventDetail | import('./createInstanceEvents.js').WaymarkStateChangedEventDetail) => void, on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void, once: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void }} events
  * @property {{ toJSON: () => WaymarkInstanceDocument }} instanceDocument
- * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, sourceId: string, layerId: string, geoJSON: object | null, destroy: () => void }, rasterBasemaps: { setRasterOpacity: (basemapId: string, opacity: number) => void, reorderRasterBasemaps: (orderedBasemapIds: string[]) => void, destroy: () => void }, mapEvents: { destroy: () => void }, stateSync: { destroy: () => void }, basemapStateSync: { destroy: () => void } }} modules
+ * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, layers: { sourceId: string, layerId: string, geoJSON: object | null }[], destroy: () => void }, rasterBasemaps: { setRasterOpacity: (basemapId: string, opacity: number) => void, reorderRasterBasemaps: (orderedBasemapIds: string[]) => void, destroy: () => void }, mapEvents: { destroy: () => void }, stateSync: { destroy: () => void }, basemapStateSync: { destroy: () => void } }} modules
  * @property {{ basemaps: { setRasterOpacity: (basemapId: string, opacity: number) => void, reorderRasterBasemaps: (orderedBasemapIds: string[]) => void, setActiveVectorBasemap: (basemapId: string) => void }, ui: { toggleDebugOutputPanel: () => void, toggleBasemapsPanel: () => void } }} commands
  * @property {{ phase: 'ready' | 'destroyed', destroy: () => void }} lifecycle
  */
@@ -738,10 +738,15 @@ export function createInstanceCore(instanceDocument) {
   });
   /** @type {WaymarkInstanceCore | null} */
   let core = null;
+  const rasterBasemapModule = createRasterBasemapModule(
+    map,
+    containerId,
+    initialRuntimeBasemaps.raster,
+  );
   const geoJSONModule = createGeoJSONModule(
     map,
     containerId,
-    instanceDocument.data.geoJSON,
+    instanceDocument.data.layers,
   );
   const initialMapCameraState = readMapCameraState(map);
   const runtimeState = createInstanceState({
@@ -809,11 +814,7 @@ export function createInstanceCore(instanceDocument) {
     modules: {
       appShell,
       geoJSON: geoJSONModule,
-      rasterBasemaps: createRasterBasemapModule(
-        map,
-        containerId,
-        initialRuntimeBasemaps.raster,
-      ),
+      rasterBasemaps: rasterBasemapModule,
       mapEvents: {
         destroy() {},
       },
@@ -947,7 +948,9 @@ export function createInstanceCore(instanceDocument) {
             : {}),
         },
         data: {
-          geoJSON: core.modules.geoJSON.geoJSON,
+          layers: core.modules.geoJSON.layers.map((layer) => ({
+            geoJSON: layer.geoJSON,
+          })),
         },
       });
     },

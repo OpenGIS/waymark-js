@@ -154,6 +154,28 @@ const waymarkInstance = createInstance({
       },
     },
   },
+  data: {
+    layers: [
+      {
+        geoJSON: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "LineString",
+                coordinates: [
+                  [-128.015, 50.651],
+                  [-128.001, 50.658],
+                ],
+              },
+              properties: {},
+            },
+          ],
+        },
+      },
+    ],
+  },
 });
 
 const waymarkInstanceTwo = createInstance({
@@ -188,6 +210,25 @@ const waymarkInstanceTwo = createInstance({
         zoom: 11,
       },
     },
+  },
+  data: {
+    layers: [
+      {
+        geoJSON: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [-0.1276, 51.5074],
+              },
+              properties: {},
+            },
+          ],
+        },
+      },
+    ],
   },
 });
 

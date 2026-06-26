@@ -184,7 +184,7 @@ describe("1. API", () => {
           map: { options: { zoom: 10 } },
         },
         data: {
-          geoJSON: { type: "FeatureCollection", features: [] },
+          layers: [{ geoJSON: { type: "FeatureCollection", features: [] } }],
         },
       });
 
@@ -199,7 +199,7 @@ describe("1. API", () => {
       const instance = createInstance({});
 
       expect(instance.id).toMatch(/^waymark-/);
-      expect(instance.toJSON().data.geoJSON).toBeNull();
+      expect(instance.toJSON().data.layers).toEqual([]);
     });
 
     it("supports strict round-trip serialisation", () => {
@@ -215,10 +215,14 @@ describe("1. API", () => {
           },
         },
         data: {
-          geoJSON: {
-            type: "FeatureCollection",
-            features: [],
-          },
+          layers: [
+            {
+              geoJSON: {
+                type: "FeatureCollection",
+                features: [],
+              },
+            },
+          ],
         },
       });
 
@@ -247,8 +251,11 @@ describe("1. API", () => {
           },
         },
         data: {
-          geojson: { type: "FeatureCollection", features: [] },
-          geoJSON: { type: "FeatureCollection", features: [1] },
+          layers: [
+            {
+              geoJSON: { type: "FeatureCollection", features: [1] },
+            },
+          ],
         },
         unknown: true,
       });
@@ -264,7 +271,7 @@ describe("1. API", () => {
       });
       expect(normalised.state.ui.mode).toBe("view");
       expect(normalised.data).toEqual({
-        geoJSON: { type: "FeatureCollection", features: [1] },
+        layers: [{ geoJSON: { type: "FeatureCollection", features: [1] } }],
       });
     });
 
@@ -1921,7 +1928,9 @@ describe("1. API", () => {
 
       const second = createInstance({
         config: { id: "map", map: { options: { zoom: 2 } } },
-        data: { geoJSON: { type: "FeatureCollection", features: [] } },
+        data: {
+          layers: [{ geoJSON: { type: "FeatureCollection", features: [] } }],
+        },
       });
       const secondMap = getLastMapInstance();
 
@@ -1929,10 +1938,14 @@ describe("1. API", () => {
       expect(firstMap.remove).toHaveBeenCalledTimes(1);
       expect(Map).toHaveBeenCalledTimes(2);
       expect(secondMap._options.zoom).toBe(2);
-      expect(second.toJSON().data.geoJSON).toEqual({
-        type: "FeatureCollection",
-        features: [],
-      });
+      expect(second.toJSON().data.layers).toEqual([
+        {
+          geoJSON: {
+            type: "FeatureCollection",
+            features: [],
+          },
+        },
+      ]);
     });
 
     it("destroy is idempotent and allows clean recreation", () => {
@@ -2234,7 +2247,7 @@ describe("1. API", () => {
         }),
       );
       expect(instanceDocument.config.ui.mode).toBe("view");
-      expect(instanceDocument.data.geoJSON).toBeNull();
+      expect(instanceDocument.data.layers).toEqual([]);
       expect(instanceDocument.state).toEqual({});
       expect(instanceDocument.state.map).toBeUndefined();
       expect(instanceDocument.state.ui).toBeUndefined();
@@ -2247,17 +2260,21 @@ describe("1. API", () => {
           ui: { mode: "debug" },
         },
         data: {
-          geoJSON: { type: "FeatureCollection", features: [] },
+          layers: [{ geoJSON: { type: "FeatureCollection", features: [] } }],
         },
       });
 
       const core = getCoreById("map");
       const instanceDocument = core?.publicApi.toJSON();
 
-      expect(instanceDocument?.data.geoJSON).toEqual({
-        type: "FeatureCollection",
-        features: [],
-      });
+      expect(instanceDocument?.data.layers).toEqual([
+        {
+          geoJSON: {
+            type: "FeatureCollection",
+            features: [],
+          },
+        },
+      ]);
       expect(instanceDocument?.runtime).toBeUndefined();
     });
 
@@ -2355,14 +2372,14 @@ describe("1. API", () => {
   });
 
   describe("Initial GeoJSON overlay", () => {
-    it("adds source and layer ids scoped by instance id", () => {
+    it("adds source ids scoped by instance id and layer index", () => {
       const geoJSON = { type: "FeatureCollection", features: [] };
       const one = createInstance({
         config: {
           id: "map",
         },
         data: {
-          geoJSON,
+          layers: [{ geoJSON }],
         },
       });
 
@@ -2373,7 +2390,7 @@ describe("1. API", () => {
           id: "map-two",
         },
         data: {
-          geoJSON,
+          layers: [{ geoJSON }],
         },
       });
       const [oneMap, twoMap] = Map.mock.instances;
@@ -2386,13 +2403,87 @@ describe("1. API", () => {
       }
 
       expect(oneMap.addSource).toHaveBeenCalledWith(
-        "waymark-map-geojson-source",
+        "waymark-map-geojson-source-0",
         expect.any(Object),
       );
       expect(twoMap.addSource).toHaveBeenCalledWith(
-        "waymark-map-two-geojson-source",
+        "waymark-map-two-geojson-source-0",
         expect.any(Object),
       );
+    });
+
+    it("renders stacked data layers after raster basemaps and before symbol layers", () => {
+      const firstLayer = { type: "FeatureCollection", features: [] };
+      const secondLayer = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [0, 0],
+                [1, 1],
+              ],
+            },
+            properties: {},
+          },
+        ],
+      };
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "background",
+                        type: "background",
+                      },
+                      {
+                        id: "poi-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+              ],
+              raster: [
+                {
+                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
+                },
+                {
+                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
+                },
+              ],
+            },
+          },
+        },
+        data: {
+          layers: [{ geoJSON: firstLayer }, { geoJSON: secondLayer }],
+        },
+      });
+
+      const map = getLastMapInstance();
+      map.fire("load", { source: "test" });
+
+      expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
+        "background",
+        "waymark-map-basemap-raster-layer-1",
+        "waymark-map-basemap-raster-layer-0",
+        "waymark-map-geojson-layer-1",
+        "waymark-map-geojson-layer-0",
+        "poi-label",
+      ]);
+      expect(instance.toJSON().data.layers).toEqual([
+        { geoJSON: firstLayer },
+        { geoJSON: secondLayer },
+      ]);
     });
   });
 });

@@ -46,10 +46,15 @@
  */
 
 /**
+ * @typedef {object} WaymarkInstanceDocumentDataLayer
+ * @property {object | null} geoJSON
+ */
+
+/**
  * @typedef {object} WaymarkInstanceDocument
  * @property {WaymarkInstanceDocumentConfig} config
  * @property {{ map?: WaymarkInstanceDocumentStateMap, ui?: { mode?: 'view' | 'debug' } }} state
- * @property {{ geoJSON: object | null }} data
+ * @property {{ layers: WaymarkInstanceDocumentDataLayer[] }} data
  */
 
 /**
@@ -435,6 +440,45 @@ function normaliseStateMap(stateMap) {
 }
 
 /**
+ * @param {unknown} layer
+ * @param {number} index
+ * @returns {WaymarkInstanceDocumentDataLayer}
+ */
+function normaliseDataLayer(layer, index) {
+  const path = `data.layers[${index}]`;
+  expectPlainObject(layer, path);
+
+  const allowedKeys = new Set(["geoJSON"]);
+  for (const key of Object.keys(layer)) {
+    if (!allowedKeys.has(key)) {
+      throw new Error(`Invalid ${path}.${key}: unexpected key for data layer.`);
+    }
+  }
+
+  const serialisableGeoJSON = toSerializableValue(layer.geoJSON);
+
+  return {
+    geoJSON: isPlainObject(serialisableGeoJSON) ? serialisableGeoJSON : null,
+  };
+}
+
+/**
+ * @param {unknown} layers
+ * @returns {WaymarkInstanceDocumentDataLayer[]}
+ */
+function normaliseDataLayers(layers) {
+  if (layers === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(layers)) {
+    throw new Error("Invalid data.layers: expected an array.");
+  }
+
+  return layers.map((layer, index) => normaliseDataLayer(layer, index));
+}
+
+/**
  * @param {unknown} instanceDocument
  * @returns {WaymarkInstanceDocument}
  */
@@ -475,7 +519,7 @@ export function normaliseInstanceDocument(instanceDocument) {
         : {}),
     },
     data: {
-      geoJSON: null,
+      layers: [],
     },
   };
 
@@ -483,9 +527,8 @@ export function normaliseInstanceDocument(instanceDocument) {
     normalised.config.id = rawConfig.id;
   }
 
-  if (Object.hasOwn(rawData, "geoJSON")) {
-    const serialisableGeoJSON = toSerializableValue(rawData.geoJSON);
-    normalised.data.geoJSON = serialisableGeoJSON ?? null;
+  if (Object.hasOwn(rawData, "layers")) {
+    normalised.data.layers = normaliseDataLayers(rawData.layers);
   }
 
   return normalised;
@@ -527,13 +570,23 @@ export function validateInstanceDocument(instanceDocument) {
     (isPlainObject(state.ui) &&
       (state.ui.mode === undefined || typeof state.ui.mode === "string"));
 
+  const hasValidDataLayers =
+    Array.isArray(data.layers) &&
+    data.layers.every(
+      (layer) =>
+        isPlainObject(layer) &&
+        Object.hasOwn(layer, "geoJSON") &&
+        Object.keys(layer).length === 1 &&
+        (layer.geoJSON === null || isPlainObject(layer.geoJSON)),
+    );
+
   return (
     typeof config.ui?.mode === "string" &&
     isPlainObject(config.map?.options) &&
     hasValidBasemaps &&
     hasValidStateMap &&
     hasValidStateUI &&
-    Object.hasOwn(data, "geoJSON")
+    hasValidDataLayers
   );
 }
 

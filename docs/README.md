@@ -9,10 +9,10 @@ Developer documentation for Waymark JS.
 
 ## Reading order
 
-1. [API](1.api.md) - Consumer API contract for `createInstance(...)`, including browser-runtime/DOM boundaries, config defaults, UI mode behaviour, events, canonical InstanceDocument serialisation, and GeoJSON.
+1. [API](1.api.md) - Consumer API contract for `createInstance(...)`, including browser-runtime/DOM boundaries, config defaults, UI mode behaviour, events, canonical InstanceDocument serialisation, and `data.layers` GeoJSON documents.
 2. [Development](2.development.md) - Contributor workflow, dev-page mode baseline, testing strategy, and sync protocol.
 3. [Instances](3.instances.md) - Internal orchestration boundaries, lifecycle composition, and baseline-vs-delta serialisation semantics.
-4. [Map](4.map.md) - Map module responsibilities, state-sync boundaries, and GeoJSON wiring.
+4. [Map](4.map.md) - Map module responsibilities, state-sync boundaries, and `data.layers` GeoJSON wiring.
 5. [UI](5.ui.md) - UI shell responsibilities, mode state contract, and runtime mode updates.
 
 ## Scope
