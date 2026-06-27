@@ -146,7 +146,10 @@ import {
   getCoreById,
 } from "../../src/runtime/runtimeRegistry.js";
 import {
+  WAYMARK_DATA_LAYER_ADDED_EVENT,
+  WAYMARK_DATA_LAYER_ERROR_EVENT,
   WAYMARK_MAP_BASEMAPS_CHANGED_EVENT,
+  WAYMARK_MAP_ERROR_EVENT,
   WAYMARK_STATE_MAP_CAMERA_CHANGED_EVENT,
 } from "../../src/runtime/createInstanceEvents.js";
 import { Map } from "maplibre-gl";
@@ -184,7 +187,7 @@ describe("1. API", () => {
           map: { options: { zoom: 10 } },
         },
         data: {
-          layers: [{ geoJSON: { type: "FeatureCollection", features: [] } }],
+          layers: [{ data: { type: "FeatureCollection", features: [] } }],
         },
       });
 
@@ -217,7 +220,7 @@ describe("1. API", () => {
         data: {
           layers: [
             {
-              geoJSON: {
+              data: {
                 type: "FeatureCollection",
                 features: [],
               },
@@ -253,7 +256,15 @@ describe("1. API", () => {
         data: {
           layers: [
             {
-              geoJSON: { type: "FeatureCollection", features: [1] },
+              data: {
+                type: "FeatureCollection",
+                features: [
+                  {
+                    type: "Feature",
+                    geometry: null,
+                  },
+                ],
+              },
             },
           ],
         },
@@ -271,7 +282,20 @@ describe("1. API", () => {
       });
       expect(normalised.state.ui.mode).toBe("view");
       expect(normalised.data).toEqual({
-        layers: [{ geoJSON: { type: "FeatureCollection", features: [1] } }],
+        layers: [
+          {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  geometry: null,
+                },
+              ],
+            },
+          },
+        ],
       });
     });
 
@@ -300,6 +324,195 @@ describe("1. API", () => {
       expect(instance.toJSON().state.map.options.center).toEqual([
         -0.1276, 51.5074,
       ]);
+    });
+
+    it("defaults data layer type to geojson when omitted", () => {
+      const normalised = normaliseInstanceDocument({
+        data: {
+          layers: [
+            {
+              data: { type: "FeatureCollection", features: [] },
+            },
+          ],
+        },
+      });
+
+      expect(normalised.data.layers).toEqual([
+        {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        },
+      ]);
+    });
+
+    it("accepts minimal GeoJSON shapes for data layers", () => {
+      const normalised = normaliseInstanceDocument({
+        data: {
+          layers: [
+            {
+              data: {
+                type: "FeatureCollection",
+                features: [],
+              },
+            },
+            {
+              data: {
+                type: "Feature",
+                geometry: null,
+              },
+            },
+            {
+              data: {
+                type: "GeometryCollection",
+                geometries: [
+                  {
+                    type: "Point",
+                    coordinates: [0, 0],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+
+      expect(normalised.data.layers).toHaveLength(3);
+      expect(normalised.data.layers[1].data).toEqual({
+        type: "Feature",
+        geometry: null,
+      });
+      expect(normalised.data.layers[2].data).toEqual({
+        type: "GeometryCollection",
+        geometries: [
+          {
+            type: "Point",
+            coordinates: [0, 0],
+          },
+        ],
+      });
+    });
+
+    it("rejects invalid GeoJSON shapes for data layers", () => {
+      expect(() =>
+        normaliseInstanceDocument({
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "FeatureCollection",
+                },
+              },
+            ],
+          },
+        }),
+      ).toThrow("Invalid data.layers[0].data.features: expected an array.");
+
+      expect(() =>
+        normaliseInstanceDocument({
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "Feature",
+                  properties: {},
+                },
+              },
+            ],
+          },
+        }),
+      ).toThrow(
+        "Invalid data.layers[0].data.geometry: expected an object or null.",
+      );
+
+      expect(() =>
+        normaliseInstanceDocument({
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "GeometryCollection",
+                },
+              },
+            ],
+          },
+        }),
+      ).toThrow(
+        "Invalid data.layers[0].data.geometries: expected an array for GeometryCollection.",
+      );
+
+      expect(() =>
+        normaliseInstanceDocument({
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "UnknownGeometry",
+                },
+              },
+            ],
+          },
+        }),
+      ).toThrow(
+        "Invalid data.layers[0].data.type: expected a supported GeoJSON geometry type.",
+      );
+
+      expect(() =>
+        normaliseInstanceDocument({
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "LineString",
+                  coordinates: [[0, 0]],
+                },
+              },
+            ],
+          },
+        }),
+      ).toThrow(
+        "Invalid data.layers[0].data.coordinates: expected a LineString coordinates array with at least two positions.",
+      );
+
+      expect(() =>
+        normaliseInstanceDocument({
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "Polygon",
+                  coordinates: [
+                    [
+                      [0, 0],
+                      [2, 0],
+                      [2, 2],
+                      [0, 2],
+                    ],
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      ).toThrow(
+        "Invalid data.layers[0].data.coordinates[0]: expected first and last positions to be equivalent (closed LinearRing).",
+      );
+    });
+
+    it("rejects unsupported data layer types", () => {
+      expect(() =>
+        normaliseInstanceDocument({
+          data: {
+            layers: [
+              {
+                type: "raster",
+                data: { type: "FeatureCollection", features: [] },
+              },
+            ],
+          },
+        }),
+      ).toThrow(
+        "Invalid data.layers[0].type: only geojson is currently supported.",
+      );
     });
 
     it("normalises basemap keys in raster-then-vector order", () => {
@@ -1904,6 +2117,9 @@ describe("1. API", () => {
         expect.objectContaining({
           id: "map",
           toJSON: expect.any(Function),
+          data: expect.objectContaining({
+            addLayer: expect.any(Function),
+          }),
           ui: expect.objectContaining({
             setMode: expect.any(Function),
           }),
@@ -1929,7 +2145,7 @@ describe("1. API", () => {
       const second = createInstance({
         config: { id: "map", map: { options: { zoom: 2 } } },
         data: {
-          layers: [{ geoJSON: { type: "FeatureCollection", features: [] } }],
+          layers: [{ data: { type: "FeatureCollection", features: [] } }],
         },
       });
       const secondMap = getLastMapInstance();
@@ -1940,7 +2156,8 @@ describe("1. API", () => {
       expect(secondMap._options.zoom).toBe(2);
       expect(second.toJSON().data.layers).toEqual([
         {
-          geoJSON: {
+          type: "geojson",
+          data: {
             type: "FeatureCollection",
             features: [],
           },
@@ -2217,6 +2434,38 @@ describe("1. API", () => {
         },
       ]);
     });
+
+    it("forwards map error events", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+      const map = getLastMapInstance();
+
+      const seen = [];
+
+      instance.on(WAYMARK_MAP_ERROR_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+
+      for (const [eventName, handler] of map.on.mock.calls) {
+        if (eventName === "error") {
+          handler({ source: "docs-test", type: "error" });
+        }
+      }
+
+      expect(seen).toEqual([
+        {
+          id: "map",
+          mapEvent: "error",
+          originalEvent: {
+            source: "docs-test",
+            type: "error",
+          },
+        },
+      ]);
+    });
   });
 
   describe("InstanceDocument shape", () => {
@@ -2260,7 +2509,7 @@ describe("1. API", () => {
           ui: { mode: "debug" },
         },
         data: {
-          layers: [{ geoJSON: { type: "FeatureCollection", features: [] } }],
+          layers: [{ data: { type: "FeatureCollection", features: [] } }],
         },
       });
 
@@ -2269,7 +2518,8 @@ describe("1. API", () => {
 
       expect(instanceDocument?.data.layers).toEqual([
         {
-          geoJSON: {
+          type: "geojson",
+          data: {
             type: "FeatureCollection",
             features: [],
           },
@@ -2372,6 +2622,167 @@ describe("1. API", () => {
   });
 
   describe("Initial GeoJSON overlay", () => {
+    it("emits waymark:data.layer.added when runtime addLayer succeeds", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+      const seen = [];
+
+      instance.on(WAYMARK_DATA_LAYER_ADDED_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+
+      instance.data.addLayer({
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      expect(seen).toEqual([
+        {
+          id: "map",
+          layer: {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection",
+              features: [],
+            },
+          },
+        },
+      ]);
+    });
+
+    it("emits waymark:data.layer.error with validation stage and rethrows", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+      const seen = [];
+
+      instance.on(WAYMARK_DATA_LAYER_ERROR_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+
+      expect(() =>
+        instance.data.addLayer({
+          data: {
+            type: "FeatureCollection",
+          },
+        }),
+      ).toThrow("Invalid data.layers[0].data.features: expected an array.");
+
+      expect(seen).toEqual([
+        {
+          id: "map",
+          stage: "validation",
+          message: "Invalid data.layers[0].data.features: expected an array.",
+        },
+      ]);
+    });
+
+    it("emits waymark:data.layer.error with runtime stage and rethrows", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+        },
+      });
+      const map = getLastMapInstance();
+      map._loaded = true;
+      map.addSource.mockImplementationOnce(() => {
+        throw new Error("Map source add failed.");
+      });
+
+      const seen = [];
+
+      instance.on(WAYMARK_DATA_LAYER_ERROR_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+
+      expect(() =>
+        instance.data.addLayer({
+          data: {
+            type: "FeatureCollection",
+            features: [],
+          },
+        }),
+      ).toThrow("Map source add failed.");
+
+      expect(seen).toEqual([
+        {
+          id: "map",
+          stage: "runtime",
+          message: "Map source add failed.",
+        },
+      ]);
+    });
+
+    it("adds a layer at runtime through instance.data.addLayer", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "background",
+                        type: "background",
+                      },
+                      {
+                        id: "poi-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const map = getLastMapInstance();
+
+      instance.data.addLayer({
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.fire("load", { source: "test" });
+
+      expect(map.addSource).toHaveBeenCalledWith(
+        "waymark-map-geojson-source-0",
+        expect.objectContaining({
+          type: "geojson",
+        }),
+      );
+      expect(map.addLayer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "waymark-map-geojson-layer-0-line",
+        }),
+        "poi-label",
+      );
+      expect(instance.toJSON().data.layers).toEqual([
+        {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: [],
+          },
+        },
+      ]);
+    });
+
     it("adds source ids scoped by instance id and layer index", () => {
       const geoJSON = { type: "FeatureCollection", features: [] };
       const one = createInstance({
@@ -2379,7 +2790,7 @@ describe("1. API", () => {
           id: "map",
         },
         data: {
-          layers: [{ geoJSON }],
+          layers: [{ data: geoJSON }],
         },
       });
 
@@ -2390,7 +2801,7 @@ describe("1. API", () => {
           id: "map-two",
         },
         data: {
-          layers: [{ geoJSON }],
+          layers: [{ data: geoJSON }],
         },
       });
       const [oneMap, twoMap] = Map.mock.instances;
@@ -2553,12 +2964,12 @@ describe("1. API", () => {
         },
         data: {
           layers: [
-            { geoJSON: pointLayer },
-            { geoJSON: multiPointLayer },
-            { geoJSON: lineStringLayer },
-            { geoJSON: multiLineStringLayer },
-            { geoJSON: polygonLayer },
-            { geoJSON: multiPolygonLayer },
+            { data: pointLayer },
+            { data: multiPointLayer },
+            { data: lineStringLayer },
+            { data: multiLineStringLayer },
+            { data: polygonLayer },
+            { data: multiPolygonLayer },
           ],
         },
       });
@@ -2577,57 +2988,237 @@ describe("1. API", () => {
 
       expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
         "background",
-        "waymark-map-geojson-layer-5",
-        "waymark-map-geojson-layer-4",
-        "waymark-map-geojson-layer-3",
-        "waymark-map-geojson-layer-2",
-        "waymark-map-geojson-layer-1",
-        "waymark-map-geojson-layer-0",
+        "waymark-map-geojson-layer-5-polygon",
+        "waymark-map-geojson-layer-4-polygon",
+        "waymark-map-geojson-layer-3-line",
+        "waymark-map-geojson-layer-2-line",
+        "waymark-map-geojson-layer-1-point",
+        "waymark-map-geojson-layer-0-point",
         "poi-label",
       ]);
 
-      expect(layersById["waymark-map-geojson-layer-0"]).toEqual({
+      expect(layersById["waymark-map-geojson-layer-0-point"]).toEqual({
         type: "circle",
         paint: {
           "circle-color": "#2563eb",
           "circle-radius": 5,
         },
       });
-      expect(layersById["waymark-map-geojson-layer-1"]).toEqual({
+      expect(layersById["waymark-map-geojson-layer-1-point"]).toEqual({
         type: "circle",
         paint: {
           "circle-color": "#2563eb",
           "circle-radius": 5,
         },
       });
-      expect(layersById["waymark-map-geojson-layer-2"]).toEqual({
+      expect(layersById["waymark-map-geojson-layer-2-line"]).toEqual({
         type: "line",
         paint: {
           "line-color": "#2563eb",
           "line-width": 3,
         },
       });
-      expect(layersById["waymark-map-geojson-layer-3"]).toEqual({
+      expect(layersById["waymark-map-geojson-layer-3-line"]).toEqual({
         type: "line",
         paint: {
           "line-color": "#2563eb",
           "line-width": 3,
         },
       });
-      expect(layersById["waymark-map-geojson-layer-4"]).toEqual({
+      expect(layersById["waymark-map-geojson-layer-4-polygon"]).toEqual({
         type: "fill",
         paint: {
           "fill-color": "#2563eb",
           "fill-opacity": 0.35,
         },
       });
-      expect(layersById["waymark-map-geojson-layer-5"]).toEqual({
+      expect(layersById["waymark-map-geojson-layer-5-polygon"]).toEqual({
         type: "fill",
         paint: {
           "fill-color": "#2563eb",
           "fill-opacity": 0.35,
         },
       });
+    });
+
+    it("renders mixed geometry families from a single FeatureCollection layer", () => {
+      const mixedLayer = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [-0.1276, 51.5074],
+            },
+            properties: {},
+          },
+          {
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [0, 0],
+                [1, 1],
+              ],
+            },
+            properties: {},
+          },
+          {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [0, 0],
+                  [2, 0],
+                  [2, 2],
+                  [0, 2],
+                  [0, 0],
+                ],
+              ],
+            },
+            properties: {},
+          },
+        ],
+      };
+
+      createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "background",
+                        type: "background",
+                      },
+                      {
+                        id: "poi-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        },
+        data: {
+          layers: [{ data: mixedLayer }],
+        },
+      });
+
+      const map = getLastMapInstance();
+      map.fire("load", { source: "test" });
+
+      expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
+        "background",
+        "waymark-map-geojson-layer-0-polygon",
+        "waymark-map-geojson-layer-0-line",
+        "waymark-map-geojson-layer-0-point",
+        "poi-label",
+      ]);
+
+      const layersById = Object.fromEntries(
+        map
+          .getStyle()
+          .layers.map((layer) => [
+            layer.id,
+            { type: layer.type, paint: layer.paint },
+          ]),
+      );
+
+      expect(layersById["waymark-map-geojson-layer-0-point"]?.type).toBe(
+        "circle",
+      );
+      expect(layersById["waymark-map-geojson-layer-0-line"]?.type).toBe("line");
+      expect(layersById["waymark-map-geojson-layer-0-polygon"]?.type).toBe(
+        "fill",
+      );
+    });
+
+    it("emits waymark:data.layer.mounted when map sublayers are mounted", () => {
+      const instance = createInstance({
+        config: {
+          id: "map",
+          map: {
+            basemaps: {
+              vector: [
+                {
+                  styleURL: {
+                    version: 8,
+                    sources: {},
+                    layers: [
+                      {
+                        id: "background",
+                        type: "background",
+                      },
+                      {
+                        id: "poi-label",
+                        type: "symbol",
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const seen = [];
+
+      instance.on("waymark:data.layer.mounted", (event) => {
+        seen.push(event.detail);
+      });
+
+      instance.data.addLayer({
+        data: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [0, 0],
+              },
+              properties: {},
+            },
+            {
+              type: "Feature",
+              geometry: {
+                type: "LineString",
+                coordinates: [
+                  [0, 0],
+                  [1, 1],
+                ],
+              },
+              properties: {},
+            },
+          ],
+        },
+      });
+
+      const map = getLastMapInstance();
+      map.fire("load", { source: "test" });
+
+      expect(seen).toEqual([
+        {
+          id: "map",
+          layerIndex: 0,
+          mountedFamilies: ["point", "line"],
+          mountedLayerIds: [
+            "waymark-map-geojson-layer-0-point",
+            "waymark-map-geojson-layer-0-line",
+          ],
+        },
+      ]);
     });
 
     it("renders stacked data layers after raster basemaps and before symbol layers", () => {
@@ -2683,7 +3274,7 @@ describe("1. API", () => {
           },
         },
         data: {
-          layers: [{ geoJSON: firstLayer }, { geoJSON: secondLayer }],
+          layers: [{ data: firstLayer }, { data: secondLayer }],
         },
       });
 
@@ -2694,13 +3285,13 @@ describe("1. API", () => {
         "background",
         "waymark-map-basemap-raster-layer-1",
         "waymark-map-basemap-raster-layer-0",
-        "waymark-map-geojson-layer-1",
-        "waymark-map-geojson-layer-0",
+        "waymark-map-geojson-layer-1-line",
+        "waymark-map-geojson-layer-0-line",
         "poi-label",
       ]);
       expect(instance.toJSON().data.layers).toEqual([
-        { geoJSON: firstLayer },
-        { geoJSON: secondLayer },
+        { type: "geojson", data: firstLayer },
+        { type: "geojson", data: secondLayer },
       ]);
     });
 
@@ -2746,10 +3337,10 @@ describe("1. API", () => {
         data: {
           layers: [
             {
-              geoJSON: { type: "FeatureCollection", features: [] },
+              data: { type: "FeatureCollection", features: [] },
             },
             {
-              geoJSON: {
+              data: {
                 type: "FeatureCollection",
                 features: [
                   {
@@ -2788,8 +3379,8 @@ describe("1. API", () => {
         Boolean(map.getStyle().sources["waymark-map-geojson-source-1"]),
       ).toBe(true);
       expect(getDataLayerOrder()).toEqual([
-        "waymark-map-geojson-layer-1",
-        "waymark-map-geojson-layer-0",
+        "waymark-map-geojson-layer-1-line",
+        "waymark-map-geojson-layer-0-line",
       ]);
 
       const core = getCoreById("map");
@@ -2802,13 +3393,13 @@ describe("1. API", () => {
         Boolean(map.getStyle().sources["waymark-map-geojson-source-1"]),
       ).toBe(true);
       expect(getDataLayerOrder()).toEqual([
-        "waymark-map-geojson-layer-1",
-        "waymark-map-geojson-layer-0",
+        "waymark-map-geojson-layer-1-line",
+        "waymark-map-geojson-layer-0-line",
       ]);
       expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
         "background",
-        "waymark-map-geojson-layer-1",
-        "waymark-map-geojson-layer-0",
+        "waymark-map-geojson-layer-1-line",
+        "waymark-map-geojson-layer-0-line",
         "poi-label",
       ]);
     });

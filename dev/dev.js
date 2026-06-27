@@ -82,6 +82,16 @@ function wireDevModeDropdown(select, instance) {
   });
 }
 
+async function fetchRouteGeoJSON() {
+  const response = await fetch("/route.json");
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch /route.json (${response.status})`);
+  }
+
+  return response.json();
+}
+
 const mapContainer = document.getElementById("map");
 
 if (!mapContainer) {
@@ -154,28 +164,6 @@ const waymarkInstance = createInstance({
       },
     },
   },
-  data: {
-    layers: [
-      {
-        geoJSON: {
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              geometry: {
-                type: "LineString",
-                coordinates: [
-                  [-128.015, 50.651],
-                  [-128.001, 50.658],
-                ],
-              },
-              properties: {},
-            },
-          ],
-        },
-      },
-    ],
-  },
 });
 
 const waymarkInstanceTwo = createInstance({
@@ -211,26 +199,16 @@ const waymarkInstanceTwo = createInstance({
       },
     },
   },
-  data: {
-    layers: [
-      {
-        geoJSON: {
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              geometry: {
-                type: "Point",
-                coordinates: [-0.1276, 51.5074],
-              },
-              properties: {},
-            },
-          ],
-        },
-      },
-    ],
-  },
 });
+
+fetchRouteGeoJSON()
+  .then((geojson) => {
+    waymarkInstance.data.addLayer({ data: geojson });
+    waymarkInstanceTwo.data.addLayer({ data: geojson });
+  })
+  .catch((error) => {
+    console.error("[waymark:dev] Failed to load route GeoJSON", error);
+  });
 
 const { mapModeSelect, mapTwoModeSelect } = createDevModeDropdowns();
 

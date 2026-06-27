@@ -74,7 +74,8 @@ Each instance exposes a small container-centred event API:
 Handlers receive `CustomEvent`s dispatched from the instance container (`waymark:*`). Event families are:
 
 - Lifecycle: `waymark:instance.created`, `waymark:instance.recreated`, `waymark:instance.destroyed`
-- Forwarded map events: `waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`
+- Forwarded map events: `waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`, `waymark:map.error`
+- Data-layer runtime events: `waymark:data.layer.added`, `waymark:data.layer.mounted`, `waymark:data.layer.error`
 
 See [`docs/1.api.md`](docs/1.api.md#instance-event-api) for payload shapes and usage notes.
 
@@ -96,20 +97,24 @@ Shell event history includes lifecycle, module, forwarded map events, and canoni
 
 ## Naming glossary
 
-- **Instance**: the public object returned by `createInstance(...)` (`id`, `toJSON()`, `ui.setMode()`, `destroy()`, `on()`, `off()`, `once()`).
+- **Instance**: the public object returned by `createInstance(...)` (`id`, `toJSON()`, `data.addLayer()`, `ui.setMode()`, `destroy()`, `on()`, `off()`, `once()`).
 - **Runtime core**: internal lifecycle object assembled by `src/runtime/createInstanceCore.js` and tracked in `src/runtime/runtimeRegistry.js`.
 - **InstanceDocument**: canonical serialisable plain object returned by `instance.toJSON()`.
-- **GeoJSON**: the map data format; canonical InstanceDocument data shape is `data.layers[]`, where each layer is `{ geoJSON: object | null }`.
+- **GeoJSON**: the map data format; canonical InstanceDocument data shape is `data.layers[]`, where each layer is `{ type: "geojson", data: object }`.
 
 Data-layer semantics:
 
-- Multiple GeoJSON layers are supported via `data.layers`.
+- Multiple GeoJSON layers are supported via `data.layers` and runtime `instance.data.addLayer({ data: geojson })`.
+- Layer input is strict minimal GeoJSON: `FeatureCollection` (`features[]`), `Feature` (`geometry` key), or a supported geometry object (`Point`, `MultiPoint`, `LineString`, `MultiLineString`, `Polygon`, `MultiPolygon`, `GeometryCollection` with `geometries[]`).
+- Essential geometry semantics are validated at the boundary (finite lon/lat positions, `LineString` minimum 2 positions, closed `LinearRing`, valid polygon/multi-member structures, recursive `GeometryCollection`).
+- Invalid `instance.data.addLayer(...)` emits `waymark:data.layer.error` and then throws.
 - Stack order is top-first: `layers[0]` is visually on top (within the data-layer stack).
 - Data layers are inserted after raster basemaps and before symbol layers.
 - Geometry families map to MapLibre layer types:
   - `Point` / `MultiPoint` → `circle`
   - `LineString` / `MultiLineString` → `line`
   - `Polygon` / `MultiPolygon` → `fill`
+- One logical layer may mount multiple family sublayers for mixed-geometry FeatureCollections.
 
 Set basemaps with `map.basemaps.raster[]` and `map.basemaps.vector[]` (canonical readable order):
 
@@ -160,4 +165,5 @@ Basemaps is the canonical cross-module slice for this codebase:
 - [Instances internals](docs/3.instances.md)
 - [Map module internals](docs/4.map.md)
 - [UI module internals](docs/5.ui.md)
+- [Data and GeoJSON contract](docs/6.data.md)
 - [Docs index](docs/README.md)

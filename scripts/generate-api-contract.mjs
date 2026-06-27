@@ -44,6 +44,12 @@ const contract = {
     constants.WAYMARK_MAP_ZOOMEND_EVENT,
     constants.WAYMARK_MAP_ROTATEEND_EVENT,
     constants.WAYMARK_MAP_PITCHEND_EVENT,
+    constants.WAYMARK_MAP_ERROR_EVENT,
+  ],
+  dataLayerEvents: [
+    constants.WAYMARK_DATA_LAYER_ADDED_EVENT,
+    constants.WAYMARK_DATA_LAYER_MOUNTED_EVENT,
+    constants.WAYMARK_DATA_LAYER_ERROR_EVENT,
   ],
 };
 

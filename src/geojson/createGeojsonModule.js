@@ -7,23 +7,68 @@ function findFirstSymbolLayerId(map) {
   return symbolLayer?.id;
 }
 
-const pointGeometryTypes = new Set(["Point", "MultiPoint"]);
-const lineGeometryTypes = new Set(["LineString", "MultiLineString"]);
-const polygonGeometryTypes = new Set(["Polygon", "MultiPolygon"]);
+const FAMILY_TYPES = {
+  point: {
+    geometryTypes: new Set(["Point", "MultiPoint"]),
+    layerType: "circle",
+    paint: {
+      "circle-color": "#2563eb",
+      "circle-radius": 5,
+    },
+  },
+  line: {
+    geometryTypes: new Set(["LineString", "MultiLineString"]),
+    layerType: "line",
+    paint: {
+      "line-color": "#2563eb",
+      "line-width": 3,
+    },
+  },
+  polygon: {
+    geometryTypes: new Set(["Polygon", "MultiPolygon"]),
+    layerType: "fill",
+    paint: {
+      "fill-color": "#2563eb",
+      "fill-opacity": 0.35,
+    },
+  },
+};
+
+const FAMILY_INSERT_ORDER = ["point", "line", "polygon"];
+
+/**
+ * @param {string} geometryType
+ * @returns {'point' | 'line' | 'polygon' | null}
+ */
+function geometryTypeToFamily(geometryType) {
+  if (FAMILY_TYPES.point.geometryTypes.has(geometryType)) {
+    return "point";
+  }
+
+  if (FAMILY_TYPES.line.geometryTypes.has(geometryType)) {
+    return "line";
+  }
+
+  if (FAMILY_TYPES.polygon.geometryTypes.has(geometryType)) {
+    return "polygon";
+  }
+
+  return null;
+}
 
 /**
  * @param {unknown} geometry
- * @returns {string | null}
+ * @param {Set<'point' | 'line' | 'polygon'>} families
  */
-function findGeometryTypeFromGeometry(geometry) {
+function collectGeometryFamiliesFromGeometry(geometry, families) {
   if (!geometry || typeof geometry !== "object") {
-    return null;
+    return;
   }
 
   const geometryType = geometry.type;
 
   if (typeof geometryType !== "string") {
-    return null;
+    return;
   }
 
   if (geometryType === "GeometryCollection") {
@@ -32,36 +77,39 @@ function findGeometryTypeFromGeometry(geometry) {
       : [];
 
     for (const nestedGeometry of geometries) {
-      const nestedGeometryType = findGeometryTypeFromGeometry(nestedGeometry);
-
-      if (nestedGeometryType) {
-        return nestedGeometryType;
-      }
+      collectGeometryFamiliesFromGeometry(nestedGeometry, families);
     }
 
-    return null;
+    return;
   }
 
-  return geometryType;
+  const family = geometryTypeToFamily(geometryType);
+
+  if (family) {
+    families.add(family);
+  }
 }
 
 /**
  * @param {unknown} geoJSON
- * @returns {string | null}
+ * @returns {Set<'point' | 'line' | 'polygon'>}
  */
-function findGeometryType(geoJSON) {
+function collectGeometryFamilies(geoJSON) {
+  const families = new Set();
+
   if (!geoJSON || typeof geoJSON !== "object") {
-    return null;
+    return families;
   }
 
   const geoJSONType = geoJSON.type;
 
   if (typeof geoJSONType !== "string") {
-    return null;
+    return families;
   }
 
   if (geoJSONType === "Feature") {
-    return findGeometryTypeFromGeometry(geoJSON.geometry);
+    collectGeometryFamiliesFromGeometry(geoJSON.geometry, families);
+    return families;
   }
 
   if (geoJSONType === "FeatureCollection") {
@@ -72,82 +120,104 @@ function findGeometryType(geoJSON) {
         continue;
       }
 
-      const featureGeometryType = findGeometryTypeFromGeometry(
-        feature.geometry,
-      );
-
-      if (featureGeometryType) {
-        return featureGeometryType;
-      }
+      collectGeometryFamiliesFromGeometry(feature.geometry, families);
     }
 
-    return null;
+    return families;
   }
 
-  return findGeometryTypeFromGeometry(geoJSON);
+  collectGeometryFamiliesFromGeometry(geoJSON, families);
+
+  return families;
 }
 
 /**
- * @param {unknown} geoJSON
+ * @param {unknown} data
+ * @param {string} baseLayerId
  */
-function resolveLayerStyle(geoJSON) {
-  const geometryType = findGeometryType(geoJSON);
+function createRenderPlan(data, baseLayerId) {
+  const discoveredFamilies = collectGeometryFamilies(data);
+  const renderFamilies =
+    discoveredFamilies.size > 0
+      ? FAMILY_INSERT_ORDER.filter((family) => discoveredFamilies.has(family))
+      : ["line"];
 
-  if (pointGeometryTypes.has(geometryType)) {
-    return {
-      type: "circle",
-      paint: {
-        "circle-color": "#2563eb",
-        "circle-radius": 5,
-      },
-    };
-  }
-
-  if (polygonGeometryTypes.has(geometryType)) {
-    return {
-      type: "fill",
-      paint: {
-        "fill-color": "#2563eb",
-        "fill-opacity": 0.35,
-      },
-    };
-  }
-
-  if (lineGeometryTypes.has(geometryType)) {
-    return {
-      type: "line",
-      paint: {
-        "line-color": "#2563eb",
-        "line-width": 3,
-      },
-    };
-  }
-
-  return {
-    type: "line",
+  return renderFamilies.map((family) => ({
+    family,
+    layerId: `${baseLayerId}-${family}`,
+    type: FAMILY_TYPES[family].layerType,
     paint: {
-      "line-color": "#2563eb",
-      "line-width": 3,
+      ...FAMILY_TYPES[family].paint,
     },
-  };
+  }));
 }
 
 /**
  * @param {import('maplibre-gl').Map} map
  * @param {string} instanceId
- * @param {{ geoJSON: object | null }[]} [layers]
+ * @param {{ type: 'geojson', data: object }[]} [layers]
+ * @param {{
+ *   onLayerMounted?: (event: {
+ *     layerIndex: number,
+ *     mountedFamilies: Array<'point' | 'line' | 'polygon'>,
+ *     mountedLayerIds: string[],
+ *   }) => void,
+ * }} [options]
  */
-export function createGeoJSONModule(map, instanceId, layers = []) {
+export function createGeoJSONModule(
+  map,
+  instanceId,
+  layers = [],
+  options = {},
+) {
+  const onLayerMounted =
+    typeof options.onLayerMounted === "function"
+      ? options.onLayerMounted
+      : null;
   const instanceToken = String(instanceId).replace(/[^a-zA-Z0-9_-]/g, "-");
   const layerRecords = layers.map((layer, index) => ({
+    index,
     sourceId: `waymark-${instanceToken}-geojson-source-${index}`,
     layerId: `waymark-${instanceToken}-geojson-layer-${index}`,
-    geoJSON: layer.geoJSON,
+    type: layer.type,
+    data: layer.data,
+    renderPlan: createRenderPlan(
+      layer.data,
+      `waymark-${instanceToken}-geojson-layer-${index}`,
+    ),
   }));
 
   let hasMountedLayers = false;
   let attachedLoadHandler = null;
   let attachedStyleLoadHandler = null;
+
+  function ensureMountHandlers() {
+    const hasRenderableLayer = layerRecords.some(
+      (layer) => layer.type === "geojson",
+    );
+
+    if (!hasRenderableLayer) {
+      return;
+    }
+
+    if (typeof map.loaded === "function" && map.loaded()) {
+      mountGeoJSONLayers();
+    } else if (!attachedLoadHandler) {
+      attachedLoadHandler = () => {
+        mountGeoJSONLayers();
+        attachedLoadHandler = null;
+      };
+      map.on("load", attachedLoadHandler);
+    }
+
+    if (!attachedStyleLoadHandler) {
+      attachedStyleLoadHandler = () => {
+        hasMountedLayers = false;
+        mountGeoJSONLayers();
+      };
+      map.on("style.load", attachedStyleLoadHandler);
+    }
+  }
 
   function mountGeoJSONLayers() {
     if (hasMountedLayers) {
@@ -157,7 +227,7 @@ export function createGeoJSONModule(map, instanceId, layers = []) {
     let beforeLayerId = findFirstSymbolLayerId(map);
 
     for (const layerRecord of layerRecords) {
-      if (!layerRecord?.geoJSON) {
+      if (layerRecord.type !== "geojson") {
         continue;
       }
 
@@ -169,57 +239,81 @@ export function createGeoJSONModule(map, instanceId, layers = []) {
       if (!hasSource) {
         map.addSource(layerRecord.sourceId, {
           type: "geojson",
-          data: layerRecord.geoJSON,
+          data: layerRecord.data,
         });
       }
 
-      const hasLayer =
-        typeof map.getLayer === "function"
-          ? Boolean(map.getLayer(layerRecord.layerId))
-          : false;
+      const mountedFamilies = [];
+      const mountedLayerIds = [];
 
-      if (!hasLayer) {
-        map.addLayer(
-          {
-            id: layerRecord.layerId,
-            ...resolveLayerStyle(layerRecord.geoJSON),
-            source: layerRecord.sourceId,
-          },
-          beforeLayerId,
-        );
+      let logicalLayerBottomId = beforeLayerId;
+
+      for (const renderLayer of layerRecord.renderPlan) {
+        const hasLayer =
+          typeof map.getLayer === "function"
+            ? Boolean(map.getLayer(renderLayer.layerId))
+            : false;
+
+        if (!hasLayer) {
+          map.addLayer(
+            {
+              id: renderLayer.layerId,
+              type: renderLayer.type,
+              paint: renderLayer.paint,
+              source: layerRecord.sourceId,
+            },
+            logicalLayerBottomId,
+          );
+
+          mountedFamilies.push(renderLayer.family);
+          mountedLayerIds.push(renderLayer.layerId);
+        }
+
+        logicalLayerBottomId = renderLayer.layerId;
       }
 
-      beforeLayerId = layerRecord.layerId;
+      beforeLayerId = logicalLayerBottomId;
+
+      if (onLayerMounted && mountedLayerIds.length > 0) {
+        onLayerMounted({
+          layerIndex: layerRecord.index,
+          mountedFamilies,
+          mountedLayerIds,
+        });
+      }
     }
 
     hasMountedLayers = true;
   }
 
-  const hasRenderableLayer = layerRecords.some((layer) =>
-    Boolean(layer.geoJSON),
-  );
-
-  if (hasRenderableLayer) {
-    if (typeof map.loaded === "function" && map.loaded()) {
-      mountGeoJSONLayers();
-    } else {
-      attachedLoadHandler = () => {
-        mountGeoJSONLayers();
-        attachedLoadHandler = null;
-      };
-      map.on("load", attachedLoadHandler);
-    }
-
-    attachedStyleLoadHandler = () => {
-      hasMountedLayers = false;
-      mountGeoJSONLayers();
-    };
-    map.on("style.load", attachedStyleLoadHandler);
-  }
+  ensureMountHandlers();
 
   return {
     map,
     layers: layerRecords,
+    addLayer(layer) {
+      const nextIndex = layerRecords.length;
+      const layerRecord = {
+        index: nextIndex,
+        sourceId: `waymark-${instanceToken}-geojson-source-${nextIndex}`,
+        layerId: `waymark-${instanceToken}-geojson-layer-${nextIndex}`,
+        type: layer.type,
+        data: layer.data,
+        renderPlan: createRenderPlan(
+          layer.data,
+          `waymark-${instanceToken}-geojson-layer-${nextIndex}`,
+        ),
+      };
+
+      layerRecords.push(layerRecord);
+
+      if (layerRecord.type === "geojson") {
+        hasMountedLayers = false;
+        ensureMountHandlers();
+      }
+
+      return layerRecord;
+    },
     destroy() {
       if (attachedLoadHandler) {
         map.off("load", attachedLoadHandler);

@@ -47,7 +47,8 @@
 
 /**
  * @typedef {object} WaymarkInstanceDocumentDataLayer
- * @property {object | null} geoJSON
+ * @property {'geojson'} type
+ * @property {object} data
  */
 
 /**
@@ -68,6 +69,252 @@ function isPlainObject(value) {
 
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+const geoJSONGeometryTypes = new Set([
+  "Point",
+  "MultiPoint",
+  "LineString",
+  "MultiLineString",
+  "Polygon",
+  "MultiPolygon",
+  "GeometryCollection",
+]);
+
+/**
+ * @param {unknown} value
+ */
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+/**
+ * @param {unknown} position
+ * @param {string} path
+ */
+function validateGeoJSONPosition(position, path) {
+  if (!Array.isArray(position) || position.length < 2) {
+    throw new Error(
+      `Invalid ${path}: expected a position array with at least two numbers (longitude, latitude).`,
+    );
+  }
+
+  if (!isFiniteNumber(position[0])) {
+    throw new Error(`Invalid ${path}[0]: expected a finite longitude number.`);
+  }
+
+  if (!isFiniteNumber(position[1])) {
+    throw new Error(`Invalid ${path}[1]: expected a finite latitude number.`);
+  }
+}
+
+/**
+ * @param {unknown} lineCoordinates
+ * @param {string} path
+ */
+function validateLineStringCoordinates(lineCoordinates, path) {
+  if (!Array.isArray(lineCoordinates)) {
+    throw new Error(`Invalid ${path}: expected an array.`);
+  }
+
+  if (lineCoordinates.length < 2) {
+    throw new Error(
+      `Invalid ${path}: expected a LineString coordinates array with at least two positions.`,
+    );
+  }
+
+  for (const [index, position] of lineCoordinates.entries()) {
+    validateGeoJSONPosition(position, `${path}[${index}]`);
+  }
+}
+
+/**
+ * @param {unknown} ringCoordinates
+ * @param {string} path
+ */
+function validateLinearRingCoordinates(ringCoordinates, path) {
+  if (!Array.isArray(ringCoordinates)) {
+    throw new Error(`Invalid ${path}: expected an array.`);
+  }
+
+  if (ringCoordinates.length < 4) {
+    throw new Error(
+      `Invalid ${path}: expected a LinearRing coordinates array with at least four positions.`,
+    );
+  }
+
+  for (const [index, position] of ringCoordinates.entries()) {
+    validateGeoJSONPosition(position, `${path}[${index}]`);
+  }
+
+  const firstPosition = ringCoordinates[0];
+  const lastPosition = ringCoordinates[ringCoordinates.length - 1];
+
+  const isClosed =
+    Array.isArray(firstPosition) &&
+    Array.isArray(lastPosition) &&
+    firstPosition.length === lastPosition.length &&
+    firstPosition.every((value, index) => value === lastPosition[index]);
+
+  if (!isClosed) {
+    throw new Error(
+      `Invalid ${path}: expected first and last positions to be equivalent (closed LinearRing).`,
+    );
+  }
+}
+
+/**
+ * @param {unknown} polygonCoordinates
+ * @param {string} path
+ */
+function validatePolygonCoordinates(polygonCoordinates, path) {
+  if (!Array.isArray(polygonCoordinates)) {
+    throw new Error(`Invalid ${path}: expected an array.`);
+  }
+
+  if (polygonCoordinates.length === 0) {
+    throw new Error(
+      `Invalid ${path}: expected a Polygon coordinates array with at least one LinearRing.`,
+    );
+  }
+
+  for (const [index, ringCoordinates] of polygonCoordinates.entries()) {
+    validateLinearRingCoordinates(ringCoordinates, `${path}[${index}]`);
+  }
+}
+
+/**
+ * @param {unknown} geometry
+ * @param {string} path
+ */
+function validateGeoJSONGeometry(geometry, path) {
+  if (!isPlainObject(geometry)) {
+    throw new Error(`Invalid ${path}: expected a GeoJSON geometry object.`);
+  }
+
+  if (!geoJSONGeometryTypes.has(geometry.type)) {
+    throw new Error(
+      `Invalid ${path}.type: expected a supported GeoJSON geometry type.`,
+    );
+  }
+
+  if (geometry.type !== "GeometryCollection") {
+    if (!Array.isArray(geometry.coordinates)) {
+      throw new Error(`Invalid ${path}.coordinates: expected an array.`);
+    }
+
+    if (geometry.type === "Point") {
+      validateGeoJSONPosition(geometry.coordinates, `${path}.coordinates`);
+      return;
+    }
+
+    if (geometry.type === "MultiPoint") {
+      for (const [index, position] of geometry.coordinates.entries()) {
+        validateGeoJSONPosition(position, `${path}.coordinates[${index}]`);
+      }
+
+      return;
+    }
+
+    if (geometry.type === "LineString") {
+      validateLineStringCoordinates(
+        geometry.coordinates,
+        `${path}.coordinates`,
+      );
+      return;
+    }
+
+    if (geometry.type === "MultiLineString") {
+      for (const [index, lineCoordinates] of geometry.coordinates.entries()) {
+        validateLineStringCoordinates(
+          lineCoordinates,
+          `${path}.coordinates[${index}]`,
+        );
+      }
+
+      return;
+    }
+
+    if (geometry.type === "Polygon") {
+      validatePolygonCoordinates(geometry.coordinates, `${path}.coordinates`);
+      return;
+    }
+
+    if (geometry.type === "MultiPolygon") {
+      for (const [
+        index,
+        polygonCoordinates,
+      ] of geometry.coordinates.entries()) {
+        validatePolygonCoordinates(
+          polygonCoordinates,
+          `${path}.coordinates[${index}]`,
+        );
+      }
+    }
+
+    return;
+  }
+
+  if (!Array.isArray(geometry.geometries)) {
+    throw new Error(
+      `Invalid ${path}.geometries: expected an array for GeometryCollection.`,
+    );
+  }
+
+  for (const [index, nestedGeometry] of geometry.geometries.entries()) {
+    validateGeoJSONGeometry(nestedGeometry, `${path}.geometries[${index}]`);
+  }
+}
+
+/**
+ * @param {unknown} feature
+ * @param {string} path
+ */
+function validateGeoJSONFeature(feature, path) {
+  if (!isPlainObject(feature) || feature.type !== "Feature") {
+    throw new Error(`Invalid ${path}: expected a GeoJSON Feature object.`);
+  }
+
+  if (!Object.hasOwn(feature, "geometry")) {
+    throw new Error(`Invalid ${path}.geometry: expected an object or null.`);
+  }
+
+  if (feature.geometry !== null && !isPlainObject(feature.geometry)) {
+    throw new Error(`Invalid ${path}.geometry: expected an object or null.`);
+  }
+
+  if (isPlainObject(feature.geometry)) {
+    validateGeoJSONGeometry(feature.geometry, `${path}.geometry`);
+  }
+}
+
+/**
+ * @param {unknown} data
+ * @param {string} path
+ */
+function validateGeoJSONDataShape(data, path) {
+  if (!isPlainObject(data)) {
+    throw new Error(`Invalid ${path}: expected a GeoJSON object.`);
+  }
+
+  if (data.type === "FeatureCollection") {
+    if (!Array.isArray(data.features)) {
+      throw new Error(`Invalid ${path}.features: expected an array.`);
+    }
+
+    for (const [index, feature] of data.features.entries()) {
+      validateGeoJSONFeature(feature, `${path}.features[${index}]`);
+    }
+
+    return;
+  }
+
+  if (data.type === "Feature") {
+    validateGeoJSONFeature(data, path);
+    return;
+  }
+
+  validateGeoJSONGeometry(data, path);
 }
 
 /**
@@ -444,21 +691,35 @@ function normaliseStateMap(stateMap) {
  * @param {number} index
  * @returns {WaymarkInstanceDocumentDataLayer}
  */
-function normaliseDataLayer(layer, index) {
+export function normaliseDataLayer(layer, index = 0) {
   const path = `data.layers[${index}]`;
   expectPlainObject(layer, path);
 
-  const allowedKeys = new Set(["geoJSON"]);
+  const allowedKeys = new Set(["type", "data"]);
   for (const key of Object.keys(layer)) {
     if (!allowedKeys.has(key)) {
       throw new Error(`Invalid ${path}.${key}: unexpected key for data layer.`);
     }
   }
 
-  const serialisableGeoJSON = toSerializableValue(layer.geoJSON);
+  const normalisedType = layer.type ?? "geojson";
+
+  if (normalisedType !== "geojson") {
+    throw new Error(
+      `Invalid ${path}.type: only geojson is currently supported.`,
+    );
+  }
+
+  if (!Object.hasOwn(layer, "data")) {
+    throw new Error(`Invalid ${path}.data: expected a GeoJSON object.`);
+  }
+
+  const serialisableData = toSerializableValue(layer.data);
+  validateGeoJSONDataShape(serialisableData, `${path}.data`);
 
   return {
-    geoJSON: isPlainObject(serialisableGeoJSON) ? serialisableGeoJSON : null,
+    type: "geojson",
+    data: serialisableData,
   };
 }
 
@@ -572,13 +833,24 @@ export function validateInstanceDocument(instanceDocument) {
 
   const hasValidDataLayers =
     Array.isArray(data.layers) &&
-    data.layers.every(
-      (layer) =>
-        isPlainObject(layer) &&
-        Object.hasOwn(layer, "geoJSON") &&
-        Object.keys(layer).length === 1 &&
-        (layer.geoJSON === null || isPlainObject(layer.geoJSON)),
-    );
+    data.layers.every((layer, index) => {
+      if (
+        !isPlainObject(layer) ||
+        !Object.hasOwn(layer, "type") ||
+        !Object.hasOwn(layer, "data") ||
+        Object.keys(layer).length !== 2 ||
+        layer.type !== "geojson"
+      ) {
+        return false;
+      }
+
+      try {
+        validateGeoJSONDataShape(layer.data, `data.layers[${index}].data`);
+        return true;
+      } catch {
+        return false;
+      }
+    });
 
   return (
     typeof config.ui?.mode === "string" &&

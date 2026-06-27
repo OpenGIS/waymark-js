@@ -1,5 +1,5 @@
 ---
-git_hash: "14e82a7d5322c6222d28f3349ed065b53e136b48"
+git_hash: "95471901200b5a1b6e1f2d0f71256126f73daf04"
 modified: "2026-06-26"
 ---
 
@@ -14,6 +14,7 @@ Developer documentation for Waymark JS.
 3. [Instances](3.instances.md) - Internal orchestration boundaries, lifecycle composition, and baseline-vs-delta serialisation semantics.
 4. [Map](4.map.md) - Map module responsibilities, state-sync boundaries, and `data.layers` GeoJSON wiring.
 5. [UI](5.ui.md) - UI shell responsibilities, mode state contract, and runtime mode updates.
+6. [Data](6.data.md) - Canonical data-layer contract, `instance.data.addLayer(...)`, and GeoJSON runtime behaviour.
 
 ## Scope
 
@@ -22,3 +23,4 @@ These docs split consumer API from internals:
 - `docs/1.api.md` is the public usage contract.
 - `docs/3.instances.md` defines runtime orchestration boundaries.
 - `docs/4.map.md` and `docs/5.ui.md` document module-level internals.
+- `docs/6.data.md` is the canonical data/GeoJSON reference used by API, map, and dev docs.

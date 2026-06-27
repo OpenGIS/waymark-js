@@ -54,11 +54,19 @@ test.describe("2. Development smoke", () => {
       mapKeys: Object.keys(
         window.waymarkInstance?.toJSON().config.map.basemaps,
       ),
-      dataLayerCounts: {
-        map: window.waymarkInstance?.toJSON().data.layers.length,
-        mapTwo: window.waymarkInstanceTwo?.toJSON().data.layers.length,
-      },
     }));
+
+    await expect
+      .poll(async () => {
+        return page.evaluate(() => ({
+          map: window.waymarkInstance?.toJSON().data.layers.length,
+          mapTwo: window.waymarkInstanceTwo?.toJSON().data.layers.length,
+        }));
+      })
+      .toEqual({
+        map: 1,
+        mapTwo: 1,
+      });
 
     expect(basemapConfig).toEqual({
       map: {
@@ -73,10 +81,6 @@ test.describe("2. Development smoke", () => {
         raster: expect.any(Array),
       },
       mapKeys: ["raster", "vector"],
-      dataLayerCounts: {
-        map: 1,
-        mapTwo: 1,
-      },
     });
   });
 

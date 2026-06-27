@@ -42,6 +42,7 @@ const expectedBlocks = {
   ].join("\n"),
   "lifecycle-events": renderList(contract.lifecycleEvents),
   "forwarded-map-events": renderList(contract.forwardedMapEvents),
+  "data-layer-events": renderList(contract.dataLayerEvents),
 };
 
 const errors = [];

@@ -16,6 +16,12 @@
     "waymark:map.moveend",
     "waymark:map.zoomend",
     "waymark:map.rotateend",
-    "waymark:map.pitchend"
+    "waymark:map.pitchend",
+    "waymark:map.error"
+  ],
+  "dataLayerEvents": [
+    "waymark:data.layer.added",
+    "waymark:data.layer.mounted",
+    "waymark:data.layer.error"
   ]
 }

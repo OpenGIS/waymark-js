@@ -6,6 +6,10 @@ export const WAYMARK_MAP_MOVEEND_EVENT = "waymark:map.moveend";
 export const WAYMARK_MAP_ZOOMEND_EVENT = "waymark:map.zoomend";
 export const WAYMARK_MAP_ROTATEEND_EVENT = "waymark:map.rotateend";
 export const WAYMARK_MAP_PITCHEND_EVENT = "waymark:map.pitchend";
+export const WAYMARK_MAP_ERROR_EVENT = "waymark:map.error";
+export const WAYMARK_DATA_LAYER_ADDED_EVENT = "waymark:data.layer.added";
+export const WAYMARK_DATA_LAYER_MOUNTED_EVENT = "waymark:data.layer.mounted";
+export const WAYMARK_DATA_LAYER_ERROR_EVENT = "waymark:data.layer.error";
 export const WAYMARK_UI_MODE_CHANGED_EVENT = "waymark:ui.mode.changed";
 export const WAYMARK_MAP_BASEMAPS_CHANGED_EVENT =
   "waymark:map.basemaps.changed";
@@ -25,6 +29,7 @@ export const FORWARDED_MAP_EVENTS = [
   ["zoomend", WAYMARK_MAP_ZOOMEND_EVENT],
   ["rotateend", WAYMARK_MAP_ROTATEEND_EVENT],
   ["pitchend", WAYMARK_MAP_PITCHEND_EVENT],
+  ["error", WAYMARK_MAP_ERROR_EVENT],
 ];
 
 /**
@@ -33,6 +38,18 @@ export const FORWARDED_MAP_EVENTS = [
 
 /**
  * @typedef {{ id: string, mapEvent: string, originalEvent: unknown }} WaymarkInstanceMapEventDetail
+ */
+
+/**
+ * @typedef {{ id: string, layer: { type: 'geojson', data: object } }} WaymarkDataLayerAddedEventDetail
+ */
+
+/**
+ * @typedef {{ id: string, layerIndex: number, mountedFamilies: Array<'point' | 'line' | 'polygon'>, mountedLayerIds: string[] }} WaymarkDataLayerMountedEventDetail
+ */
+
+/**
+ * @typedef {{ id: string, stage: 'validation' | 'runtime', message: string }} WaymarkDataLayerErrorEventDetail
  */
 
 /**
@@ -160,7 +177,7 @@ export function createInstanceEvents(containerId) {
     container,
     /**
      * @param {string} type
-     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkInstanceMapEventDetail | WaymarkInstanceModuleEventDetail | WaymarkBasemapsChangedEventDetail | WaymarkStateChangedEventDetail} detail
+     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkInstanceMapEventDetail | WaymarkInstanceModuleEventDetail | WaymarkBasemapsChangedEventDetail | WaymarkStateChangedEventDetail | WaymarkDataLayerAddedEventDetail | WaymarkDataLayerMountedEventDetail | WaymarkDataLayerErrorEventDetail} detail
      */
     emit(type, detail) {
       container.dispatchEvent(
