@@ -8,7 +8,6 @@ description: Waymark JS reference. Use when working on source, docs, tests, or A
 Waymark JS is a small JavaScript map library built on [MapLibre GL](https://maplibre.org/). It exposes a simple `createInstance(...)` API, forwards map configuration through `config.map.options`, and gives direct access to the underlying MapLibre instance.
 
 **Key facts:**
-
 - Entry point: `import { createInstance } from './dist/waymark.js'`
 - Source: `src/` — built with Vite into `dist/`
 - Tests: `npm test` and `npm run test:browser` (workflow in `docs/2.development.md`)
@@ -125,11 +124,29 @@ Canonical v1 shape:
   },
   data: {
     layers: Array<{
-      geoJSON: object | null
+      type?: "geojson",
+      data: object
     }>
   }
 }
 ```
+
+`data.layers[]` input accepts `{ type?: "geojson", data }`. `type` defaults to `"geojson"`, and serialised output normalises each layer to `{ type: "geojson", data }`.
+
+`data` must use one of these RFC7946-aligned GeoJSON shapes:
+
+- `FeatureCollection` with `features` array
+- `Feature` with `geometry` key (`object` or `null`)
+- Geometry object with `type` in `Point`, `MultiPoint`, `LineString`, `MultiLineString`, `Polygon`, `MultiPolygon`, or `GeometryCollection`
+
+Waymark validates essential geometry semantics at the data-layer boundary:
+
+- positions must be arrays with at least two finite numbers (`longitude`, `latitude`)
+- `LineString` must contain at least two positions
+- `LinearRing` must contain at least four positions and be closed (first and last positions equivalent)
+- `Polygon` must contain at least one valid ring
+- `MultiPoint`/`MultiLineString`/`MultiPolygon` must contain only valid per-member geometries
+- `GeometryCollection` validates recursively through nested geometries
 
 ## Container resolution
 
@@ -226,7 +243,7 @@ Non-serialisable option values are deterministically dropped during normalisatio
 For map module boundaries and state-sync internals, see [`docs/4.map.md`](4.map.md).
 
 ```js
-createInstance({
+const instance = createInstance({
   config: {
     id: "map",
     map: {
@@ -269,6 +286,9 @@ createInstance({
 {
   id: string,
   toJSON: () => InstanceDocument,
+  data: {
+    addLayer: (layer: { type?: "geojson", data: object }) => void
+  },
   ui: {
     setMode: (mode: "view" | "debug") => void
   },
@@ -317,6 +337,7 @@ Forwarded map events:
 - `waymark:map.zoomend`
 - `waymark:map.rotateend`
 - `waymark:map.pitchend`
+- `waymark:map.error`
 <!-- api-contract:forwarded-map-events:end -->
 
 Forwarded map event payload shape:
@@ -324,7 +345,13 @@ Forwarded map event payload shape:
 ```js
 {
   id: string,
-  mapEvent: "load" | "moveend" | "zoomend" | "rotateend" | "pitchend",
+  mapEvent:
+    | "load"
+    | "moveend"
+    | "zoomend"
+    | "rotateend"
+    | "pitchend"
+    | "error",
   originalEvent: unknown
 }
 ```
@@ -336,6 +363,26 @@ UI module events:
 Basemaps module event:
 
 - `waymark:map.basemaps.changed`
+
+Data-layer runtime events:
+
+<!-- api-contract:data-layer-events:start -->
+
+- `waymark:data.layer.added`
+- `waymark:data.layer.mounted`
+- `waymark:data.layer.error`
+<!-- api-contract:data-layer-events:end -->
+
+Data-layer mounted payload shape (`waymark:data.layer.mounted`):
+
+```js
+{
+  id: string,
+  layerIndex: number,
+  mountedFamilies: Array<"point" | "line" | "polygon">,
+  mountedLayerIds: string[]
+}
+```
 
 Module event payload shape (`waymark:ui.mode.changed`):
 
@@ -463,7 +510,8 @@ State event payload shape:
   },
   data: {
     layers: Array<{
-      geoJSON: object | null
+      type: "geojson",
+      data: object
     }>
   }
 }
@@ -491,15 +539,36 @@ Internal orchestration boundaries are documented in [`docs/3.instances.md`](3.in
 
 ## Initial GeoJSON overlay
 
-When `data.layers` is provided in `instanceDocument`, Waymark adds one instance-scoped GeoJSON source/layer per entry with `{ geoJSON }` on load (or immediately if the map is already loaded).
+Waymark supports data layers from both:
+
+- initial document input (`instanceDocument.data.layers[]`)
+- runtime additions (`instance.data.addLayer(layer)`)
+
+Canonical layer input shape:
+
+```js
+{ type?: "geojson", data: <GeoJSON> }
+```
+
+Current support is `geojson` only. If `type` is omitted, Waymark defaults it to `"geojson"`.
+
+`instance.data.addLayer(...)` emits:
+
+- `waymark:data.layer.added` on success
+- `waymark:data.layer.mounted` when MapLibre sublayers for the logical layer are mounted (initial load, runtime add, and style remount)
+- `waymark:data.layer.error` on failure (`stage` is `validation` or `runtime`)
+
+Invalid runtime additions throw after emitting `waymark:data.layer.error`.
 
 - Multiple GeoJSON layers are supported.
 - Data-layer stack order is top-first: `layers[0]` is visually on top.
 - Data layers are inserted after raster basemaps and before symbol layers.
+- GeoJSON overlays are re-applied after style reloads so authored `data.layers` remain visible (for example when switching the active internal vector basemap).
 - Geometry families are rendered by layer type:
   - `Point` and `MultiPoint` → `circle`
   - `LineString` and `MultiLineString` → `line`
   - `Polygon` and `MultiPolygon` → `fill`
+- A single logical data layer may mount multiple MapLibre sublayers when the GeoJSON contains mixed families.
 - Default family paint is stable and minimal:
   - circle: `circle-color: #2563eb`, `circle-radius: 5`
   - line: `line-color: #2563eb`, `line-width: 3`
@@ -513,22 +582,30 @@ createInstance({
   data: {
     layers: [
       {
-        geoJSON: {
+        data: {
           type: "FeatureCollection",
           features: [],
         },
-      },
-      {
-        geoJSON: null,
       },
     ],
   },
 });
 
-createInstance({});
+instance.data.addLayer({
+  data: {
+    type: "FeatureCollection",
+    features: [],
+  },
+});
 ```
 
-GeoJSON source/layer IDs are instance-scoped to avoid collisions.
+GeoJSON source/layer IDs are instance-scoped to avoid collisions:
+
+- source: `waymark-{id}-geojson-source-{index}`
+- sublayer: `waymark-{id}-geojson-layer-{index}-{family}`
+
+For the full data contract (validation, serialisation, runtime mounting, and dev example usage), see [`docs/6.data.md`](6.data.md).
+
 
 ---
 
@@ -546,6 +623,8 @@ GeoJSON source/layer IDs are instance-scoped to avoid collisions.
 6. Run unit tests: `npm test`
 7. Run browser tests: `npm run test:browser`
 
+`npm run test:browser` boots a dedicated Playwright Vite server on `127.0.0.1:4173` with `--strictPort`, so browser tests are deterministic even when your normal dev port is occupied.
+
 `npm run build` still runs `node scripts/skill-md.js` before Vite build output, so skill docs stay in sync with `docs/*.md`.
 
 Vite config is split by role: `vite.config.dev.js` for local dev server, `vite.config.lib.js` for library builds, and `vitest.config.js` for tests.
@@ -559,7 +638,7 @@ Vite config is split by role: `vite.config.dev.js` for local dev server, `vite.c
 - **Runtime registry**: internal ID→core map in `src/runtime/runtimeRegistry.js`.
 - **InstanceDocument**: canonical serialisable payload from `instance.toJSON()`.
 - **GeoJSON**: map data format and symbol naming (`createGeoJSONModule`, `geoJSON`).
-- **Data layers**: canonical InstanceDocument data shape is `data.layers: Array<{ geoJSON: object | null }>`.
+- **Data layers**: canonical shape is `data.layers: Array<{ type?: "geojson", data: object }>`.
 
 Keep runtime internals internal. Consumer docs and tests should target public API behaviour.
 
@@ -600,9 +679,12 @@ For basemap ordering, use these canonical rules in docs/tests/fixtures:
 
 For data-layer ordering, use these canonical rules in docs/tests/fixtures:
 
-- `data.layers` is the canonical data envelope (not `data.geoJSON`).
+- `data.layers` is the canonical data envelope.
+- layer input shape is `{ type?: "geojson", data }` and runtime `instance.data.addLayer(...)` uses the same contract.
 - data-layer stack order is top-first: `layers[0]` is visually on top.
 - insertion position is after raster basemaps and before symbol layers.
+
+For full data/GeoJSON contract details, prefer [`docs/6.data.md`](6.data.md) rather than duplicating rules in multiple docs.
 
 ## Cross-module sync pattern (runtime-state owned)
 
@@ -689,12 +771,13 @@ npm run test:browser
 
 Treat docs and tests as one contract. Change both in the same slice.
 
-| Docs page             | Unit tests                                                 | Browser tests                                             |
-| --------------------- | ---------------------------------------------------------- | --------------------------------------------------------- |
-| `docs/1.api.md`       | `tests/docs/1.api.test.js`                                 | `tests/browser/1.api.test.js`                             |
-| `docs/3.instances.md` | Internal-boundary assertions in `tests/docs/1.api.test.js` | Dev smoke in `tests/browser/2.development.test.js`        |
-| `docs/4.map.md`       | Map contract assertions in `tests/docs/1.api.test.js`      | Map API coverage in `tests/browser/1.api.test.js`         |
-| `docs/5.ui.md`        | UI mode/state assertions in `tests/docs/1.api.test.js`     | UI mode coverage in `tests/browser/2.development.test.js` |
+| Docs page             | Unit tests                                                   | Browser tests                                             |
+| --------------------- | ------------------------------------------------------------ | --------------------------------------------------------- |
+| `docs/1.api.md`       | `tests/docs/1.api.test.js`                                   | `tests/browser/1.api.test.js`                             |
+| `docs/3.instances.md` | Internal-boundary assertions in `tests/docs/1.api.test.js`   | Dev smoke in `tests/browser/2.development.test.js`        |
+| `docs/4.map.md`       | Map contract assertions in `tests/docs/1.api.test.js`        | Map API coverage in `tests/browser/1.api.test.js`         |
+| `docs/5.ui.md`        | UI mode/state assertions in `tests/docs/1.api.test.js`       | UI mode coverage in `tests/browser/2.development.test.js` |
+| `docs/6.data.md`      | Data-layer contract assertions in `tests/docs/1.api.test.js` | Data-layer API coverage in `tests/browser/1.api.test.js`  |
 
 Automation guards:
 
@@ -713,7 +796,7 @@ Execution order:
    - Verifies mapped `describe(...)` block names in `tests/docs/1.api.test.js` and `tests/browser/1.api.test.js`.
 2. `npm run docs:api-sync`
    - Runs `npm run api:contract` first, generating `docs/.generated/api-contract.json` from source defaults/events.
-   - Compares marker blocks in `docs/1.api.md` (`signature`, `defaults`, `lifecycle-events`, `forwarded-map-events`) against generated contract values.
+   - Compares marker blocks in `docs/1.api.md` (`signature`, `defaults`, `lifecycle-events`, `forwarded-map-events`, `data-layer-events`) against generated contract values.
 
 If this gate fails, fix docs headings/marker blocks and corresponding test `describe(...)` names in the same change.
 
@@ -773,6 +856,7 @@ Sync checklist:
 2. Update matching `describe(...)` blocks and assertions.
 3. Run `npm run docs:sync`, `npm test`, and `npm run test:browser`.
 4. Ensure old filenames/headings are removed.
+
 
 ---
 
@@ -861,6 +945,7 @@ For module-level behaviour, update these docs alongside runtime changes:
 - `docs/4.map.md`
 - `docs/5.ui.md`
 
+
 ---
 
 # Map
@@ -877,7 +962,7 @@ The map module owns MapLibre runtime behaviour per instance:
 - camera delta sync into `instance.toJSON().state.map.options`
 - basemap delta sync into `instance.toJSON().state.map.basemaps`
 - forwarded map lifecycle events on the instance container
-- optional GeoJSON source/layer bootstrapping from `instanceDocument.data.layers[]`
+- GeoJSON source/layer bootstrapping from `instanceDocument.data.layers[]` and runtime `instance.data.addLayer(...)`
 
 ## Input and output boundaries
 
@@ -887,7 +972,7 @@ The map module owns MapLibre runtime behaviour per instance:
 - **Output state**:
   - `toJSON().state.map.options` (camera delta only)
   - `toJSON().state.map.basemaps` (runtime basemap delta only)
-- **Output data**: `toJSON().data.layers[]`
+- **Output data**: `toJSON().data.layers[]` (canonical shape documented in [`docs/6.data.md`](6.data.md))
 
 GeoJSON source/layer IDs are runtime metadata only and not included in `toJSON()`.
 
@@ -900,16 +985,11 @@ State camera values override config camera defaults when both are provided.
 - Camera state events are emitted only on real camera changes (no-op end events produce no state events).
 - Runtime basemap state is command-driven in core (`setRasterOpacity`, `reorderRasterBasemaps`, `setActiveVectorBasemap`) and then applied to map adapters.
 - Raster layers are mounted and reordered with top-first semantics (`raster[0]` is visually on top).
-- Data layers support multiple GeoJSON entries and are mounted with top-first semantics (`layers[0]` is visually on top).
-- Data layers are inserted after raster basemaps and before symbol layers.
-- Data layers render by GeoJSON geometry family:
-  - `Point`/`MultiPoint` use `circle` layers
-  - `LineString`/`MultiLineString` use `line` layers
-  - `Polygon`/`MultiPolygon` use `fill` layers
+- Data-layer runtime behaviour (normalisation, mixed-family render planning, mount order, style-reload remounting, and serialisation) follows the canonical contract in [`docs/6.data.md`](6.data.md).
 - Vector switching updates MapLibre style via `map.setStyle(...)` and keeps the selected vector as runtime index `vector[0]`.
 - Basemap mutations emit one aggregate `waymark:map.basemaps.changed` event containing `mutation`, `changed`, and full post-mutation `basemaps` snapshot.
 - `instance.toJSON().config` stays stable, while live basemap mutations are serialised into `state.map.basemaps` (including runtime mutation order/values).
-- GeoJSON source/layer IDs are instance-scoped (`waymark-{id}-geojson-source-{index}`, `waymark-{id}-geojson-layer-{index}`) to avoid collisions.
+- GeoJSON source/sublayer IDs are instance-scoped (`waymark-{id}-geojson-source-{index}`, `waymark-{id}-geojson-layer-{index}-{family}`) to avoid collisions.
 
 For public config validation/defaults and event payload contracts, treat [`docs/1.api.md`](1.api.md) as the source of truth.
 
@@ -930,6 +1010,8 @@ For public config validation/defaults and event payload contracts, treat [`docs/
 - [`docs/1.api.md#instance-event-api`](1.api.md#instance-event-api)
 - [`docs/1.api.md#instancedocument-shape`](1.api.md#instancedocument-shape)
 - [`docs/1.api.md#initial-geojson-overlay`](1.api.md#initial-geojson-overlay)
+- [`docs/6.data.md`](6.data.md)
+
 
 ---
 
@@ -1111,6 +1193,122 @@ Debug output demonstrates the same pattern:
 - [`docs/1.api.md#instance-event-api`](1.api.md#instance-event-api)
 - [`docs/1.api.md#instancedocument-shape`](1.api.md#instancedocument-shape)
 
+
+---
+
+# Data
+
+> Canonical data-layer and GeoJSON contract for Waymark instances.
+
+## Canonical layer shape
+
+Waymark uses this canonical input shape for each entry in `data.layers` and for `instance.data.addLayer(...)`:
+
+```js
+{ type?: "geojson", data: <GeoJSON> }
+```
+
+- `type` defaults to `"geojson"`.
+- Only `geojson` is currently supported.
+- Unknown keys on a layer are rejected.
+
+`data` must satisfy one of these minimal GeoJSON shapes:
+
+- `FeatureCollection` with `features` array
+- `Feature` with `geometry` key (`object` or `null`)
+- Geometry object with `type` in `Point`, `MultiPoint`, `LineString`, `MultiLineString`, `Polygon`, `MultiPolygon`, or `GeometryCollection`
+- `GeometryCollection` additionally requires a `geometries` array (nested geometries follow the same geometry-type rule)
+
+Validation is strict on essential geometry semantics (RFC7946-focused, non-topology-heavy):
+
+- position arrays require at least two finite numbers (`longitude`, `latitude`)
+- `LineString` requires at least two positions
+- `LinearRing` requires at least four positions and must be closed (first and last positions equivalent)
+- `Polygon` requires a non-empty ring list and each ring must be a valid `LinearRing`
+- `MultiPoint`, `MultiLineString`, and `MultiPolygon` require valid per-member coordinate structures
+- `GeometryCollection` validation is recursive
+
+## Public API for adding data
+
+Runtime additions are done through:
+
+```js
+instance.data.addLayer(layer);
+```
+
+Runtime emits minimal data events:
+
+- `waymark:data.layer.added` on successful layer add
+- `waymark:data.layer.mounted` when MapLibre sublayers for a logical data layer are mounted
+- `waymark:data.layer.error` on failure with `{ stage: "validation" | "runtime", message }`
+
+Invalid `instance.data.addLayer(...)` calls emit `waymark:data.layer.error` and then throw the same error.
+
+Example:
+
+```js
+instance.data.addLayer({
+  data: {
+    type: "FeatureCollection",
+    features: [],
+  },
+});
+```
+
+`toJSON()` serialises layers as explicit canonical objects:
+
+```js
+{
+  data: {
+    layers: [
+      {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      },
+    ],
+  },
+}
+```
+
+## Initial layers and runtime behaviour
+
+- Initial layers can be provided in `createInstance({ data: { layers: [...] } })`.
+- Runtime-added and initial layers share the same ordering semantics: top-first (`layers[0]` visually on top).
+- Layers are mounted after raster basemaps and before symbol layers.
+- Layers are re-mounted after style reloads (for example vector basemap switches).
+- A single logical layer may mount multiple MapLibre sublayers when its GeoJSON mixes geometry families.
+
+Geometry families resolve to MapLibre layer types automatically:
+
+- `Point` / `MultiPoint` → `circle`
+- `LineString` / `MultiLineString` → `line`
+- `Polygon` / `MultiPolygon` → `fill`
+
+## Instance-scoped IDs
+
+GeoJSON source and layer IDs are instance-scoped and index-based to avoid collisions:
+
+- source: `waymark-{id}-geojson-source-{index}`
+- sublayer: `waymark-{id}-geojson-layer-{index}-{family}`
+
+## Dev example reference
+
+The dev playground fetches `/route.json` and appends the same layer to both demo instances using the new API:
+
+```js
+const geojson = await fetch("/route.json").then((response) => response.json());
+waymarkInstance.data.addLayer({ data: geojson });
+waymarkInstanceTwo.data.addLayer({ data: geojson });
+```
+
+Implementation references:
+
+- [`src/document/instanceDocument.js`](../src/document/instanceDocument.js)
+- [`src/geojson/createGeoJSONModule.js`](../src/geojson/createGeoJSONModule.js)
+- [`src/runtime/createInstanceCore.js`](../src/runtime/createInstanceCore.js)
+- [`dev/dev.js`](../dev/dev.js)
+
+
 ---
 
 # Documentation Index
@@ -1124,6 +1322,7 @@ Developer documentation for Waymark JS.
 3. [Instances](3.instances.md) - Internal orchestration boundaries, lifecycle composition, and baseline-vs-delta serialisation semantics.
 4. [Map](4.map.md) - Map module responsibilities, state-sync boundaries, and `data.layers` GeoJSON wiring.
 5. [UI](5.ui.md) - UI shell responsibilities, mode state contract, and runtime mode updates.
+6. [Data](6.data.md) - Canonical data-layer contract, `instance.data.addLayer(...)`, and GeoJSON runtime behaviour.
 
 ## Scope
 
@@ -1132,3 +1331,5 @@ These docs split consumer API from internals:
 - `docs/1.api.md` is the public usage contract.
 - `docs/3.instances.md` defines runtime orchestration boundaries.
 - `docs/4.map.md` and `docs/5.ui.md` document module-level internals.
+- `docs/6.data.md` is the canonical data/GeoJSON reference used by API, map, and dev docs.
+
