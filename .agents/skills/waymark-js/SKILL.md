@@ -735,9 +735,9 @@ Use jsdom tests to validate API contract behaviour, not as proof of non-browser 
 
 ## Dev page mode setup
 
-The development playground now lives under `dev/` (`dev/index.html`, `dev/dev.js`, and static assets in `dev/public/`).
+The development playground now lives under `dev/` as a Vue SFC app (`dev/index.html`, Vue bootstrap `dev/dev.js`, root `dev/App.vue`, `dev/components/WaymarkDevPanel.vue`, `dev/composables/useWaymarkInstance.js`, and static assets in `dev/public/`).
 
-`dev/dev.js` intentionally boots two instances with one mode per instance:
+`dev/App.vue` mounts two `WaymarkDevPanel` components, each booting one instance via `useWaymarkInstance`:
 
 - `#map` uses `ui.mode: "view"`
 - `#map-two` uses `ui.mode: "debug"`
@@ -752,7 +752,7 @@ This gives a stable baseline for browser smoke coverage in `tests/browser/2.deve
 - shared modal routing allows direct switch between debug and basemaps panels
 - two dev dropdowns exist: `#dev-instance-mode` (for `#map`) and `#dev-instance-mode-two` (for `#map-two`)
 
-`dev/dev.js` wires both dropdowns via `instance.ui.setMode(nextMode)`. Browser smoke asserts independent mode switching in both UI and serialised InstanceDocument payloads:
+The `useWaymarkInstance` composable wires each dropdown via `instance.ui.setMode(...)`. Browser smoke asserts independent mode switching in both UI and serialised InstanceDocument payloads:
 
 - switching `#dev-instance-mode` to `debug` only changes `#map` to debug UI/InstanceDocument state
 - switching `#dev-instance-mode-two` to `view` only changes `#map-two` to view UI/InstanceDocument state
@@ -995,7 +995,6 @@ For public config validation/defaults and event payload contracts, treat [`docs/
 
 ## Internal files
 
-- `src/map/ensureContainer.js`
 - `src/map/createMap.js`
 - `src/map/basemaps.js`
 - `src/map/createRasterBasemapModule.js`
@@ -1306,7 +1305,7 @@ Implementation references:
 - [`src/document/instanceDocument.js`](../src/document/instanceDocument.js)
 - [`src/geojson/createGeoJSONModule.js`](../src/geojson/createGeoJSONModule.js)
 - [`src/runtime/createInstanceCore.js`](../src/runtime/createInstanceCore.js)
-- [`dev/dev.js`](../dev/dev.js)
+- [`dev/composables/useWaymarkInstance.js`](../dev/composables/useWaymarkInstance.js)
 
 
 ---
