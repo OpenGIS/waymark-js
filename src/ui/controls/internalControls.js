@@ -37,11 +37,8 @@ export function resolveInternalControls(options) {
 
   controlsByPosition.bottomLeft.push({
     id: "basemaps-toggle",
-    title:
-      options.activePanel === PANEL_IDS.basemaps
-        ? "Hide basemaps"
-        : "Show basemaps",
-    icon: "🗺",
+    title: "Basemaps",
+    icon: "list",
     isActive: options.activePanel === PANEL_IDS.basemaps,
     onClick: options.toggleBasemapsPanel,
   });
@@ -52,11 +49,8 @@ export function resolveInternalControls(options) {
 
   controlsByPosition.topRight.push({
     id: "debug-output-toggle",
-    title:
-      options.activePanel === PANEL_IDS.debugOutput
-        ? "Hide debug output"
-        : "Show debug output",
-    icon: "🐞",
+    title: "Debug",
+    icon: "speedometer2",
     isActive: options.activePanel === PANEL_IDS.debugOutput,
     onClick: options.toggleDebugOutputPanel,
   });

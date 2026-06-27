@@ -1126,7 +1126,7 @@ This payload is the canonical bridge between map/UI/runtime layers.
 - `resolveInternalControls(...)` returns a controls-by-position object and injects:
   - `basemaps-toggle` in `bottomLeft` (view + debug)
   - `debug-output-toggle` in `topRight` (debug only)
-- `InstanceShell.vue` renders controls via the shared `InstanceControlButton` component.
+- `InstanceShell.vue` renders controls via the shared `Button` component.
 
 ## Basemaps panel composition
 
@@ -1177,7 +1177,7 @@ Debug output demonstrates the same pattern:
 - `src/ui/InstanceShell.vue`
 - `src/ui/modal/InstanceShellModal.vue`
 - `src/ui/controls/internalControls.js`
-- `src/ui/controls/InstanceControlButton.vue`
+- `src/ui/components/Button.vue`
 - `src/ui/modes/InstanceShellModeView.vue`
 - `src/ui/modes/InstanceShellModeDebug.vue`
 - `src/ui/panels/InstanceShellPanelBasemaps.vue`

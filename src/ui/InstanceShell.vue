@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import InstanceControlButton from "./controls/InstanceControlButton.vue";
+import Button from "./components/Button.vue";
 import {
   CONTROL_POSITIONS,
   PANEL_IDS,
@@ -102,7 +102,7 @@ const hasControls = computed(() =>
         :class="`waymark-instance-shell-controls__position--${position}`"
         :data-waymark-controls-position="position"
       >
-        <InstanceControlButton
+        <Button
           v-for="control in controlsByPosition[position] ?? []"
           :key="control.id"
           :data-waymark-control="control.id"
