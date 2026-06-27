@@ -1,7 +1,6 @@
 import { resolveConfig } from "../config/resolveConfig.js";
 import { defaultCameraOptions } from "../config/defaults.js";
 import { createGeoJSONModule } from "../geojson/createGeoJSONModule.js";
-import { ensureContainer } from "../map/ensureContainer.js";
 import { createMap } from "../map/createMap.js";
 import { createRasterBasemapModule } from "../map/createRasterBasemapModule.js";
 import { createAppShell } from "../ui/createAppShell.js";
@@ -97,6 +96,38 @@ import {
 
 const MAP_END_EVENTS = ["load", "moveend", "zoomend", "rotateend", "pitchend"];
 const CAMERA_OPTION_KEYS = ["center", "zoom", "bearing", "pitch"];
+
+/**
+ * Ensure a map container exists and return its ID.
+ *
+ * @param {string} [id]
+ * @returns {string}
+ */
+export function ensureContainer(id) {
+  if (id) {
+    if (!document.getElementById(id)) {
+      throw new Error(`Waymark container "${id}" was not found.`);
+    }
+
+    return id;
+  }
+
+  const generatedId = createRandomContainerId();
+  const container = document.createElement("div");
+  container.id = generatedId;
+  document.body.appendChild(container);
+
+  return generatedId;
+}
+
+/**
+ * Generate a random container ID for a Waymark instance.
+ *
+ * @returns {string}
+ */
+function createRandomContainerId() {
+  return `waymark-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 /**
  * @param {WaymarkMap} map
@@ -761,6 +792,9 @@ export function createInstanceCore(instanceDocument) {
     });
     existingCore.lifecycle.destroy();
   }
+
+  // Add container class to DOM element
+  document.getElementById(containerId).classList.add("waymark-instance");
 
   const { id: _containerIdFromConfig, ...configOverrides } =
     instanceDocument.config;
