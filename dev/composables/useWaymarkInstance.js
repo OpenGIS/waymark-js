@@ -40,9 +40,11 @@ function fetchRouteGeoJSON() {
   return routeGeoJSONPromise;
 }
 
-export function useWaymarkInstance({ mapId, config, windowGlobalKey }) {
+export function useWaymarkInstance({ instanceDocument }) {
   const instance = ref(null);
-  const uiMode = ref(config.ui?.mode ?? "view");
+  const uiMode = ref(instanceDocument.config?.ui?.mode ?? "view");
+
+  const mapId = instanceDocument.config.id;
 
   function attachEventLogging() {
     for (const eventType of DEV_INSTANCE_CONTAINER_EVENTS) {
@@ -59,22 +61,18 @@ export function useWaymarkInstance({ mapId, config, windowGlobalKey }) {
   }
 
   onMounted(async () => {
-    instance.value = createInstance({ config });
+    instance.value = createInstance(instanceDocument);
     uiMode.value = getCurrentMode();
 
     attachEventLogging();
 
-    if (windowGlobalKey) {
-      window[windowGlobalKey] = instance.value;
-    }
+    // try {
+    //   const geojson = await fetchRouteGeoJSON();
 
-    try {
-      const geojson = await fetchRouteGeoJSON();
-
-      instance.value.data.addLayer({ data: geojson });
-    } catch (error) {
-      console.error("[waymark:dev] Failed to load route GeoJSON", error);
-    }
+    //   instance.value.data.addLayer({ data: geojson });
+    // } catch (error) {
+    //   console.error("[waymark:dev] Failed to load route GeoJSON", error);
+    // }
   });
 
   onUnmounted(() => {

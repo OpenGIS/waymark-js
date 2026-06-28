@@ -1,33 +1,20 @@
 <script setup>
+import { computed } from "vue";
 import { useWaymarkInstance } from "../composables/useWaymarkInstance.js";
 
 const props = defineProps({
-  mapId: {
-    type: String,
-    required: true,
-  },
-  config: {
+  instanceDocument: {
     type: Object,
-    required: true,
-  },
-  selectId: {
-    type: String,
-    required: true,
-  },
-  labelText: {
-    type: String,
-    required: true,
-  },
-  windowGlobalKey: {
-    type: String,
     required: true,
   },
 });
 
+const mapId = computed(() => props.instanceDocument.config.id);
+const selectId = computed(() => `${mapId.value}-mode-select`);
+const labelText = computed(() => `#${mapId.value} ui.mode`);
+
 const { uiMode, setMode } = useWaymarkInstance({
-  mapId: props.mapId,
-  config: props.config,
-  windowGlobalKey: props.windowGlobalKey,
+  instanceDocument: props.instanceDocument,
 });
 </script>
 
