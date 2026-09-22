@@ -25,7 +25,7 @@ defineEmits(["click"]);
     @click="$emit('click')"
   >
     <!-- START Icon -->
-    <i v-if="icon" :class="`oi oi-${icon}`"></i>
+    <i v-if="icon" :class="`waymark-icon-${icon}`"></i>
     <!-- END Icon -->
 
     <!-- START Title -->

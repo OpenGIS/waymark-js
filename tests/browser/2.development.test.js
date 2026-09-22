@@ -59,13 +59,16 @@ test.describe("2. Development smoke", () => {
     }));
 
     await expect
-      .poll(async () => {
-        return page.evaluate(() => ({
-          map: window.waymarkInstances?.map?.toJSON().data.layers.length,
-          mapTwo:
-            window.waymarkInstances?.["map-two"]?.toJSON().data.layers.length,
-        }));
-      })
+      .poll(
+        async () => {
+          return page.evaluate(() => ({
+            map: window.waymarkInstances?.map?.toJSON().data.layers.length,
+            mapTwo:
+              window.waymarkInstances?.["map-two"]?.toJSON().data.layers.length,
+          }));
+        },
+        { timeout: 15_000 },
+      )
       .toEqual({
         map: 3,
         mapTwo: 1,

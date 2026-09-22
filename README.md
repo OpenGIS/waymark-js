@@ -1,5 +1,5 @@
 ---
-last_commit: "46e124d4215fc21668b00d99c116f63a55c74008"
+last_commit: "882d777cf270e4c6b2ef175bf1d7fdc0ccbd2523"
 ---
 
 # Waymark JS
@@ -23,7 +23,7 @@ v2 is a complete rewrite — from jQuery + Leaflet to a modern ES module built w
 Clone, install, and build from source:
 
 ```bash
-git clone --recurse-submodules https://github.com/OpenGIS/Waymark-JS
+git clone https://github.com/OpenGIS/Waymark-JS
 cd Waymark-JS
 npm install
 npm run build

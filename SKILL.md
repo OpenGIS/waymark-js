@@ -712,7 +712,7 @@ Type keys must be non-empty and match `/^[a-z0-9]+(-[a-z0-9]+)*$/` (1-64 charact
 
 ##### `icon` property
 
-`config.types[typeKey].icon` (optional string) specifies an SVG symbol ID from the [@ogis/icons](https://www.npmjs.com/package/@ogis/icons) sprite set. When set alongside a `circle-color` in the type's paint, Waymark renders point features of that type as MapLibre `symbol` layers instead of `circle` layers. The icon is extracted from the sprite, rendered to a canvas with the type's `circle-color` as fill, and registered with the map.
+`config.types[typeKey].icon` (optional string) specifies an SVG symbol ID from Waymark's bundled `waymark-icons` sprite set. When set alongside a `circle-color` in the type's paint, Waymark renders point features of that type as MapLibre `symbol` layers instead of `circle` layers. The icon is extracted from the sprite, rendered to a canvas with the type's `circle-color` as fill, and registered with the map.
 
 If the icon ID is not found in the sprite, or if no `circle-color` is provided, Waymark logs a warning and skips icon loading for that type. When `icon` is present but `circle-color` is missing, the type falls back to regular circle rendering (if a `circle` paint block exists) or is skipped.
 

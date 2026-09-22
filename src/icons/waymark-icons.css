@@ -1,0 +1,166 @@
+@font-face {
+    font-family: "waymark-icons";
+    src: url("./waymark-icons.woff2?cb8a99d1455583d903de8ff825e457f1") format("woff2");
+}
+
+i[class^="waymark-icon-"]:before, i[class*=" waymark-icon-"]:before {
+    font-family: waymark-icons !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.waymark-icon-x:before {
+    content: "\f101";
+}
+.waymark-icon-x-circle:before {
+    content: "\f102";
+}
+.waymark-icon-trash:before {
+    content: "\f103";
+}
+.waymark-icon-three-dots:before {
+    content: "\f104";
+}
+.waymark-icon-sun:before {
+    content: "\f105";
+}
+.waymark-icon-speedometer2:before {
+    content: "\f106";
+}
+.waymark-icon-sidebar-info:before {
+    content: "\f107";
+}
+.waymark-icon-search:before {
+    content: "\f108";
+}
+.waymark-icon-route:before {
+    content: "\f109";
+}
+.waymark-icon-record-btn-fill:before {
+    content: "\f10a";
+}
+.waymark-icon-question-circle:before {
+    content: "\f10b";
+}
+.waymark-icon-position:before {
+    content: "\f10c";
+}
+.waymark-icon-position-lock:before {
+    content: "\f10d";
+}
+.waymark-icon-position-heading:before {
+    content: "\f10e";
+}
+.waymark-icon-plus-circle:before {
+    content: "\f10f";
+}
+.waymark-icon-person-circle:before {
+    content: "\f110";
+}
+.waymark-icon-pencil:before {
+    content: "\f111";
+}
+.waymark-icon-pause-circle:before {
+    content: "\f112";
+}
+.waymark-icon-moon:before {
+    content: "\f113";
+}
+.waymark-icon-logo:before {
+    content: "\f114";
+}
+.waymark-icon-lock:before {
+    content: "\f115";
+}
+.waymark-icon-list:before {
+    content: "\f116";
+}
+.waymark-icon-layout-sidebar-inset:before {
+    content: "\f117";
+}
+.waymark-icon-info-circle:before {
+    content: "\f118";
+}
+.waymark-icon-house:before {
+    content: "\f119";
+}
+.waymark-icon-heart:before {
+    content: "\f11a";
+}
+.waymark-icon-graph-down:before {
+    content: "\f11b";
+}
+.waymark-icon-globe:before {
+    content: "\f11c";
+}
+.waymark-icon-gear:before {
+    content: "\f11d";
+}
+.waymark-icon-folder2-open:before {
+    content: "\f11e";
+}
+.waymark-icon-folder:before {
+    content: "\f11f";
+}
+.waymark-icon-file-text:before {
+    content: "\f120";
+}
+.waymark-icon-file-earmark:before {
+    content: "\f121";
+}
+.waymark-icon-exclamation-circle:before {
+    content: "\f122";
+}
+.waymark-icon-eraser:before {
+    content: "\f123";
+}
+.waymark-icon-envelope:before {
+    content: "\f124";
+}
+.waymark-icon-dash-circle:before {
+    content: "\f125";
+}
+.waymark-icon-cloud-arrow-up:before {
+    content: "\f126";
+}
+.waymark-icon-circle:before {
+    content: "\f127";
+}
+.waymark-icon-check:before {
+    content: "\f128";
+}
+.waymark-icon-check-circle:before {
+    content: "\f129";
+}
+.waymark-icon-caret-up:before {
+    content: "\f12a";
+}
+.waymark-icon-caret-right:before {
+    content: "\f12b";
+}
+.waymark-icon-caret-left:before {
+    content: "\f12c";
+}
+.waymark-icon-caret-down:before {
+    content: "\f12d";
+}
+.waymark-icon-bell:before {
+    content: "\f12e";
+}
+.waymark-icon-arrow-left-right:before {
+    content: "\f12f";
+}
+.waymark-icon-arrow-down-right:before {
+    content: "\f130";
+}
+.waymark-icon-arrow-clockwise:before {
+    content: "\f131";
+}
+.waymark-icon-ogis-logo:before {
+    content: "\f132";
+}

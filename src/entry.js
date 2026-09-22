@@ -2,7 +2,7 @@ import { setWorkerUrl } from "maplibre-gl";
 import workerURL from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { createInstanceCore } from "./runtime/createInstanceCore.js";
 import { normaliseInstanceDocument } from "./document/instanceDocument.js";
-import "../@ogis/icons/dist/ogis-icons.css";
+import "./icons/waymark-icons.css";
 
 setWorkerUrl(new URL(workerURL, import.meta.url).href);
 

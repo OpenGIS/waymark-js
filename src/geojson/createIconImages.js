@@ -1,7 +1,7 @@
-import spriteContent from "../../@ogis/icons/dist/ogis-icons.svg?raw";
+import spriteContent from "../icons/waymark-icons.svg?raw";
 
 /**
- * Parse the @ogis/icons SVG sprite and register type icons with MapLibre.
+ * Parse the waymark-icons SVG sprite and register type icons with MapLibre.
  *
  * For each type with an `icon` property, extracts the matching `<symbol>`
  * from the sprite, renders it to a canvas with the type's circle-color as

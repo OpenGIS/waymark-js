@@ -1,0 +1,221 @@
+$waymark-icons-font: "waymark-icons";
+
+@font-face {
+    font-family: $waymark-icons-font;
+    src: url("./waymark-icons.woff2?cb8a99d1455583d903de8ff825e457f1") format("woff2");
+}
+
+i[class^="waymark-icon-"]:before, i[class*=" waymark-icon-"]:before {
+    font-family: waymark-icons !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+$waymark-icons-map: (
+    "x": "\f101",
+    "x-circle": "\f102",
+    "trash": "\f103",
+    "three-dots": "\f104",
+    "sun": "\f105",
+    "speedometer2": "\f106",
+    "sidebar-info": "\f107",
+    "search": "\f108",
+    "route": "\f109",
+    "record-btn-fill": "\f10a",
+    "question-circle": "\f10b",
+    "position": "\f10c",
+    "position-lock": "\f10d",
+    "position-heading": "\f10e",
+    "plus-circle": "\f10f",
+    "person-circle": "\f110",
+    "pencil": "\f111",
+    "pause-circle": "\f112",
+    "moon": "\f113",
+    "logo": "\f114",
+    "lock": "\f115",
+    "list": "\f116",
+    "layout-sidebar-inset": "\f117",
+    "info-circle": "\f118",
+    "house": "\f119",
+    "heart": "\f11a",
+    "graph-down": "\f11b",
+    "globe": "\f11c",
+    "gear": "\f11d",
+    "folder2-open": "\f11e",
+    "folder": "\f11f",
+    "file-text": "\f120",
+    "file-earmark": "\f121",
+    "exclamation-circle": "\f122",
+    "eraser": "\f123",
+    "envelope": "\f124",
+    "dash-circle": "\f125",
+    "cloud-arrow-up": "\f126",
+    "circle": "\f127",
+    "check": "\f128",
+    "check-circle": "\f129",
+    "caret-up": "\f12a",
+    "caret-right": "\f12b",
+    "caret-left": "\f12c",
+    "caret-down": "\f12d",
+    "bell": "\f12e",
+    "arrow-left-right": "\f12f",
+    "arrow-down-right": "\f130",
+    "arrow-clockwise": "\f131",
+    "ogis-logo": "\f132",
+);
+
+.waymark-icon-x:before {
+    content: map-get($waymark-icons-map, "x");
+}
+.waymark-icon-x-circle:before {
+    content: map-get($waymark-icons-map, "x-circle");
+}
+.waymark-icon-trash:before {
+    content: map-get($waymark-icons-map, "trash");
+}
+.waymark-icon-three-dots:before {
+    content: map-get($waymark-icons-map, "three-dots");
+}
+.waymark-icon-sun:before {
+    content: map-get($waymark-icons-map, "sun");
+}
+.waymark-icon-speedometer2:before {
+    content: map-get($waymark-icons-map, "speedometer2");
+}
+.waymark-icon-sidebar-info:before {
+    content: map-get($waymark-icons-map, "sidebar-info");
+}
+.waymark-icon-search:before {
+    content: map-get($waymark-icons-map, "search");
+}
+.waymark-icon-route:before {
+    content: map-get($waymark-icons-map, "route");
+}
+.waymark-icon-record-btn-fill:before {
+    content: map-get($waymark-icons-map, "record-btn-fill");
+}
+.waymark-icon-question-circle:before {
+    content: map-get($waymark-icons-map, "question-circle");
+}
+.waymark-icon-position:before {
+    content: map-get($waymark-icons-map, "position");
+}
+.waymark-icon-position-lock:before {
+    content: map-get($waymark-icons-map, "position-lock");
+}
+.waymark-icon-position-heading:before {
+    content: map-get($waymark-icons-map, "position-heading");
+}
+.waymark-icon-plus-circle:before {
+    content: map-get($waymark-icons-map, "plus-circle");
+}
+.waymark-icon-person-circle:before {
+    content: map-get($waymark-icons-map, "person-circle");
+}
+.waymark-icon-pencil:before {
+    content: map-get($waymark-icons-map, "pencil");
+}
+.waymark-icon-pause-circle:before {
+    content: map-get($waymark-icons-map, "pause-circle");
+}
+.waymark-icon-moon:before {
+    content: map-get($waymark-icons-map, "moon");
+}
+.waymark-icon-logo:before {
+    content: map-get($waymark-icons-map, "logo");
+}
+.waymark-icon-lock:before {
+    content: map-get($waymark-icons-map, "lock");
+}
+.waymark-icon-list:before {
+    content: map-get($waymark-icons-map, "list");
+}
+.waymark-icon-layout-sidebar-inset:before {
+    content: map-get($waymark-icons-map, "layout-sidebar-inset");
+}
+.waymark-icon-info-circle:before {
+    content: map-get($waymark-icons-map, "info-circle");
+}
+.waymark-icon-house:before {
+    content: map-get($waymark-icons-map, "house");
+}
+.waymark-icon-heart:before {
+    content: map-get($waymark-icons-map, "heart");
+}
+.waymark-icon-graph-down:before {
+    content: map-get($waymark-icons-map, "graph-down");
+}
+.waymark-icon-globe:before {
+    content: map-get($waymark-icons-map, "globe");
+}
+.waymark-icon-gear:before {
+    content: map-get($waymark-icons-map, "gear");
+}
+.waymark-icon-folder2-open:before {
+    content: map-get($waymark-icons-map, "folder2-open");
+}
+.waymark-icon-folder:before {
+    content: map-get($waymark-icons-map, "folder");
+}
+.waymark-icon-file-text:before {
+    content: map-get($waymark-icons-map, "file-text");
+}
+.waymark-icon-file-earmark:before {
+    content: map-get($waymark-icons-map, "file-earmark");
+}
+.waymark-icon-exclamation-circle:before {
+    content: map-get($waymark-icons-map, "exclamation-circle");
+}
+.waymark-icon-eraser:before {
+    content: map-get($waymark-icons-map, "eraser");
+}
+.waymark-icon-envelope:before {
+    content: map-get($waymark-icons-map, "envelope");
+}
+.waymark-icon-dash-circle:before {
+    content: map-get($waymark-icons-map, "dash-circle");
+}
+.waymark-icon-cloud-arrow-up:before {
+    content: map-get($waymark-icons-map, "cloud-arrow-up");
+}
+.waymark-icon-circle:before {
+    content: map-get($waymark-icons-map, "circle");
+}
+.waymark-icon-check:before {
+    content: map-get($waymark-icons-map, "check");
+}
+.waymark-icon-check-circle:before {
+    content: map-get($waymark-icons-map, "check-circle");
+}
+.waymark-icon-caret-up:before {
+    content: map-get($waymark-icons-map, "caret-up");
+}
+.waymark-icon-caret-right:before {
+    content: map-get($waymark-icons-map, "caret-right");
+}
+.waymark-icon-caret-left:before {
+    content: map-get($waymark-icons-map, "caret-left");
+}
+.waymark-icon-caret-down:before {
+    content: map-get($waymark-icons-map, "caret-down");
+}
+.waymark-icon-bell:before {
+    content: map-get($waymark-icons-map, "bell");
+}
+.waymark-icon-arrow-left-right:before {
+    content: map-get($waymark-icons-map, "arrow-left-right");
+}
+.waymark-icon-arrow-down-right:before {
+    content: map-get($waymark-icons-map, "arrow-down-right");
+}
+.waymark-icon-arrow-clockwise:before {
+    content: map-get($waymark-icons-map, "arrow-clockwise");
+}
+.waymark-icon-ogis-logo:before {
+    content: map-get($waymark-icons-map, "ogis-logo");
+}
