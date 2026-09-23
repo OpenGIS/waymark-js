@@ -2,7 +2,7 @@ $waymark-icons-font: "waymark-icons";
 
 @font-face {
     font-family: $waymark-icons-font;
-    src: url("./waymark-icons.woff2?cb8a99d1455583d903de8ff825e457f1") format("woff2");
+    src: url("./waymark-icons.woff2?7bef9ba9747fa466bca80b23a294f28a") format("woff2");
 }
 
 i[class^="waymark-icon-"]:before, i[class*=" waymark-icon-"]:before {
@@ -67,6 +67,7 @@ $waymark-icons-map: (
     "arrow-down-right": "\f130",
     "arrow-clockwise": "\f131",
     "ogis-logo": "\f132",
+    "waymark-logo": "\f133",
 );
 
 .waymark-icon-x:before {
@@ -218,4 +219,7 @@ $waymark-icons-map: (
 }
 .waymark-icon-ogis-logo:before {
     content: map-get($waymark-icons-map, "ogis-logo");
+}
+.waymark-icon-waymark-logo:before {
+    content: map-get($waymark-icons-map, "waymark-logo");
 }

@@ -1,6 +1,6 @@
 @font-face {
     font-family: "waymark-icons";
-    src: url("./waymark-icons.woff2?cb8a99d1455583d903de8ff825e457f1") format("woff2");
+    src: url("./waymark-icons.woff2?7bef9ba9747fa466bca80b23a294f28a") format("woff2");
 }
 
 i[class^="waymark-icon-"]:before, i[class*=" waymark-icon-"]:before {
@@ -163,4 +163,7 @@ i[class^="waymark-icon-"]:before, i[class*=" waymark-icon-"]:before {
 }
 .waymark-icon-ogis-logo:before {
     content: "\f132";
+}
+.waymark-icon-waymark-logo:before {
+    content: "\f133";
 }
