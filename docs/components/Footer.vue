@@ -27,7 +27,7 @@ import { version } from "../../package.json";
       </a>
 
       <!-- Joe -->
-      <a href="https://www.morehawes.ca/">by Joe</a>
+      <a href="https://www.morehawes.ca/">by morehawes</a>
     </div>
 
     <div class="right">
