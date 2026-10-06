@@ -8418,7 +8418,7 @@ function Waymark_Map() {
 					'<path fill="#4C7BE1" d="M0 0h12v4H0z"></path>' +
 					'<path fill="#FFD500" d="M0 4h12v3H0z"></path>' +
 					'<path fill="#E0BC00" d="M0 7h12v1H0z"></path>' +
-					'</svg>Leaflet</a>',
+					"</svg>&nbsp;Leaflet</a>",
 			})
 			.addTo(Waymark.map);
 
