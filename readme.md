@@ -153,7 +153,7 @@ npm install
 # Start development server
 npm run dev
 
-# Build for production (Regenerate SKILL.md & Grunt watch mode)
+# Build for production (Grunt watch mode)
 npm run build
 
 # Run tests (see tests/readme.md)
