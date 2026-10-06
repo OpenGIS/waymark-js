@@ -89,6 +89,54 @@ describe('2. Map', () => {
     });
   });
 
+  describe('Attribution', () => {
+    it('should render the default attribution prefix with the layer credit and no target="_blank"', () => {
+      viewer = window.Waymark_Map_Factory.viewer();
+
+      // A view is required: Leaflet defers layer registration until the map
+      // fires "load" (via setView), and the default basemap only registers its
+      // OSM attribution when the layer is added.
+      viewer.init({
+        map_options: {
+          map_init_zoom: 10,
+          map_init_latlng: [50.6539, -128.0094],
+        },
+      });
+
+      const attribution = document.querySelector('.leaflet-control-attribution');
+      expect(attribution).not.toBeNull();
+
+      const html = attribution.innerHTML;
+
+      // Waymark prefix link
+      expect(html).toContain('https://www.ogis.org/waymark-js/');
+      expect(html).toContain('Waymark</a>');
+
+      // Leaflet link with the Ukrainian flag SVG
+      expect(html).toContain('https://leafletjs.com');
+      expect(html).toContain('<svg');
+      expect(html).toContain('class="leaflet-attribution-flag"');
+      expect(attribution.querySelector('svg.leaflet-attribution-flag')).not.toBeNull();
+
+      // The default basemap attribution still composites with the prefix
+      expect(html).toContain('openstreetmap.org/copyright');
+      expect(html).toContain('OpenStreetMap');
+
+      // Regression guard: no attribution link should open a new tab
+      expect(html).not.toContain('target="_blank"');
+      expect(attribution.querySelectorAll('a[target]').length).toBe(0);
+
+      // Order: Waymark prefix -> Leaflet flag -> OpenStreetMap layer credit
+      const waymarkIndex = html.indexOf('Waymark');
+      const leafletIndex = html.indexOf('leaflet-attribution-flag');
+      const osmIndex = html.indexOf('OpenStreetMap');
+
+      expect(waymarkIndex).toBeGreaterThan(-1);
+      expect(leafletIndex).toBeGreaterThan(waymarkIndex);
+      expect(osmIndex).toBeGreaterThan(leafletIndex);
+    });
+  });
+
   describe('Data', () => {
     it('should load GeoJSON data', () => {
       viewer = window.Waymark_Map_Factory.viewer();
