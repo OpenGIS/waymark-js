@@ -90,7 +90,7 @@ describe('2. Map', () => {
   });
 
   describe('Attribution', () => {
-    it('should render the default attribution prefix with the layer credit and no target="_blank"', () => {
+    it('should render the default attribution prefix and open all links in a new tab', async () => {
       viewer = window.Waymark_Map_Factory.viewer();
 
       // A view is required: Leaflet defers layer registration until the map
@@ -102,6 +102,10 @@ describe('2. Map', () => {
           map_init_latlng: [50.6539, -128.0094],
         },
       });
+
+      // The observer applies target/rel asynchronously after Leaflet rebuilds
+      // the control; let the microtask queue flush.
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       const attribution = document.querySelector('.leaflet-control-attribution');
       expect(attribution).not.toBeNull();
@@ -122,9 +126,14 @@ describe('2. Map', () => {
       expect(html).toContain('openstreetmap.org/copyright');
       expect(html).toContain('OpenStreetMap');
 
-      // Regression guard: no attribution link should open a new tab
-      expect(html).not.toContain('target="_blank"');
-      expect(attribution.querySelectorAll('a[target]').length).toBe(0);
+      // Every rendered attribution link opens in a new tab, safely
+      const links = attribution.querySelectorAll('a');
+      expect(links.length).toBeGreaterThan(0);
+
+      links.forEach((link) => {
+        expect(link.getAttribute('target')).toBe('_blank');
+        expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+      });
 
       // Order: Waymark prefix -> Leaflet flag -> OpenStreetMap layer credit
       const waymarkIndex = html.indexOf('Waymark');
@@ -134,6 +143,16 @@ describe('2. Map', () => {
       expect(waymarkIndex).toBeGreaterThan(-1);
       expect(leafletIndex).toBeGreaterThan(waymarkIndex);
       expect(osmIndex).toBeGreaterThan(leafletIndex);
+
+      // The control rebuilds its innerHTML whenever attributions change (as
+      // Leaflet does on a basemap switch); the observer must re-apply.
+      attribution.innerHTML = '<a href="https://example.com/">Example</a>';
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const reRendered = attribution.querySelector('a');
+      expect(reRendered).not.toBeNull();
+      expect(reRendered.getAttribute('target')).toBe('_blank');
+      expect(reRendered.getAttribute('rel')).toBe('noopener noreferrer');
     });
   });
 

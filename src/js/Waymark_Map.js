@@ -643,6 +643,29 @@ function Waymark_Map() {
 			})
 			.addTo(Waymark.map);
 
+		// All attribution links should open in a new tab. The control rebuilds
+		// its contents whenever attributions change (e.g. a basemap switch),
+		// so re-apply the attributes on every update.
+		var attribution_control = Waymark.map
+			.getContainer()
+			.querySelector(".leaflet-control-attribution");
+
+		var set_attribution_targets = function () {
+			var links = attribution_control.querySelectorAll("a");
+
+			for (var i = 0; i < links.length; i++) {
+				links[i].setAttribute("target", "_blank");
+				links[i].setAttribute("rel", "noopener noreferrer");
+			}
+		};
+
+		set_attribution_targets();
+
+		new MutationObserver(set_attribution_targets).observe(
+			attribution_control,
+			{ childList: true, subtree: true },
+		);
+
 		//Show scale?
 		if (Waymark.config.map_options.show_scale == true) {
 			Waymark_L.control.scale().addTo(Waymark.map);
