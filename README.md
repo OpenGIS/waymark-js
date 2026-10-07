@@ -1,167 +1,122 @@
----
-last_commit: "882d777cf270e4c6b2ef175bf1d7fdc0ccbd2523"
----
-
 # Waymark JS
 
-> Create, share and edit _meaningful_ Maps.
+> A headless GeoJSON runtime for MapLibre GL JS.
 
 > [!WARNING]
-> **v2 (Alpha)** — This is a ground-up rewrite. APIs are unstable and subject to change.
-
-> [!NOTE]
-> No API keys required. OpenStreetMap and Open GIS Outdoors tiles included out of the box.
+> **v2 (Alpha)** — APIs are unstable and subject to change.
 
 ## Overview
 
-Waymark JS is a browser library for rendering interactive maps with data layers. It stores geographic data as GeoJSON and supports raster and vector tile basemaps.
+Waymark JS renders GeoJSON layers on a [MapLibre GL JS](https://maplibre.org/) map. It is **headless**: the consumer creates and owns the map, container, style, camera, popups and cursors; Waymark mounts and manages its GeoJSON overlay on the injected map.
 
-v2 is a complete rewrite — from jQuery + Leaflet to a modern ES module built with [MapLibre GL](https://maplibre.org/), [Vue 3](https://vuejs.org/) and [Vite](https://vite.dev/).
+Waymark renders circle, line and fill geometry families with per-layer and typed paint (including icon name hooks), and keeps a serialisable document model that round-trips through `toJSON()`. It emits DOM `CustomEvent`s for layer lifecycle, runtime state and feature interaction — presentation stays in the consumer's hands.
+
+MapLibre GL JS is a **peer dependency**. Waymark ships no MapLibre code, worker or CSS: install MapLibre alongside Waymark and import MapLibre's stylesheet yourself.
 
 ## Installation
 
-Clone, install, and build from source:
-
 ```bash
-git clone https://github.com/OpenGIS/Waymark-JS
-cd Waymark-JS
-npm install
-npm run build
+npm install waymark-js maplibre-gl
 ```
-
-The library build outputs exactly two files: `dist/waymark.js` and `dist/waymark.css`. The MapLibre GL worker is inlined into `dist/waymark.js` as a base64 data URL, so there is no separate worker asset to serve.
 
 ## Quick start
 
-```html
-<div id="map" style="height: 400px"></div>
-
-<script type="module">
-  import { createInstance } from "./dist/waymark.js";
-  import "./dist/waymark.css";
-
-  const instance = createInstance({
-    config: {
-      id: "map",
-      map: {
-        options: {
-          center: [-0.1276, 51.5074],
-          zoom: 10,
-        },
-      },
-    },
-  });
-
-  instance.on("waymark:map.load", () => {
-    console.log("Map ready", instance.toJSON());
-  });
-</script>
-```
-
-## How it works
-
-Waymark uses a document-based architecture. Pass a serialisable **InstanceDocument** to `createInstance()` — the same shape returned by `instance.toJSON()`:
-
 ```js
+import { Map } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { createInstance } from "waymark-js";
+
+// The consumer creates and owns the map.
+const map = new Map({
+  container: "map",
+  style: "https://tiles.openfreemap.org/styles/bright",
+  center: [-128.0097, 50.6539],
+  zoom: 13,
+});
+
+// Waymark mounts its GeoJSON overlay onto the injected map.
 const instance = createInstance({
-  config: {
-    id: "map",
-    map: {
-      options: { center: [-0.1276, 51.5074], zoom: 10 },
-      basemaps: {
-        raster: [
-          {
-            tileURLTemplates: [
-              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  map,
+  document: {
+    config: { id: "map" },
+    data: {
+      layers: [
+        {
+          data: {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                properties: { title: "The Scarlet Ibis" },
+                geometry: { type: "Point", coordinates: [-128.0097, 50.6539] },
+              },
             ],
-            title: "OpenStreetMap",
           },
-        ],
-        vector: [
-          {
-            styleURL:
-              "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
-            title: "Open GIS Outdoors",
-          },
-          {
-            styleURL: "https://tiles.openfreemap.org/styles/bright",
-            title: "OpenFreeMap Bright",
-          },
-        ],
-      },
-    },
-  },
-  data: {
-    layers: [
-      {
-        data: {
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              properties: { title: "Hello" },
-              geometry: { type: "Point", coordinates: [-0.1276, 51.5074] },
-            },
-          ],
         },
-      },
-    ],
+      ],
+    },
   },
 });
+
+// Presentation is consumer-owned: Waymark emits, you decide what to show.
+instance.on("waymark:feature.click", (event) => {
+  const { feature, lngLat } = event.detail;
+  console.log(feature.properties, lngLat);
+});
+
+// Call destroy() to remove Waymark-owned layers and listeners.
+// The map itself stays yours to remove with map.remove().
+instance.destroy();
 ```
-
-Serialisable `config.map.options` values are passed through to the MapLibre `Map` constructor, except `container` (always set by Waymark) and `style` (managed via basemaps).
-
-Calling `createInstance()` with the same `id` destroys the previous instance and creates a fresh one.
-
-### Key concepts
-
-- **Instance** — the object returned by `createInstance()`, with lifecycle, event, data, and UI methods.
-- **InstanceDocument** — the serialisable payload accepted as input and returned by `toJSON()`. Round-trip safe.
-- **Config** — the authored baseline. Remains stable across serialisation.
-- **State** — runtime delta only. Persisted when values diverge from config.
-- **Data layers** — GeoJSON in `data.layers[]`, added at init or via `instance.data.addLayer()`.
 
 ## Events
 
-Events are dispatched as `CustomEvent`s on the instance container. Use the standard `on`/`off`/`once` API:
+Events are dispatched as `CustomEvent`s on the injected map's container (`map.getContainer()`). Use the standard `on`/`off`/`once` API:
 
 ```js
-instance.on("waymark:map.load", handler);
+instance.on("waymark:feature.click", handler);
 instance.once("waymark:instance.destroyed", handler);
 ```
 
-Lifecycle: `waymark:instance.created`, `waymark:instance.recreated`, `waymark:instance.destroyed`
+| Group               | Events                                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| Lifecycle           | `waymark:instance.created`, `waymark:instance.destroyed`                                         |
+| Data layers         | `waymark:data.layer.added`, `waymark:data.layer.mounted`, `waymark:data.layer.error`             |
+| State               | `waymark:state.changed`, `waymark:state.debug.changed`, `waymark:state.types.visibility.changed` |
+| Feature interaction | `waymark:feature.click`, `waymark:feature.hover`, `waymark:feature.leave`                        |
 
-Map: `waymark:map.load`, `waymark:map.moveend`, `waymark:map.zoomend`, `waymark:map.rotateend`, `waymark:map.pitchend`, `waymark:map.error`
+Popups, tooltips and cursor styling are consumer-owned. See the [API reference](docs/1.api.md#instance-event-api) for payload shapes.
 
-Data: `waymark:data.layer.added`, `waymark:data.layer.mounted`, `waymark:data.layer.error`
+## Serialisation
 
-State: `waymark:state.changed`, `waymark:state.*`
+`instance.toJSON()` returns the canonical **InstanceDocument**: a plain, serialisable object with `config`, `state` and `data` slices.
 
-See the [API reference](docs/1.api.md#instance-event-api) for payload shapes.
+```js
+const document = instance.toJSON();
 
-## Runtime requirements
+// The document is safe to persist and round-trip.
+const restored = createInstance({ map: anotherMap, document });
+```
 
-- Browser runtime with DOM access (not SSR-safe)
-- The target container element must exist before calling `createInstance()`
-- If `config.id` is omitted, Waymark generates one and appends the container to `document.body`
-- Map rendering depends on browser canvas/WebGL support via MapLibre GL
+- `config` — authored/default intent, kept stable across serialisation.
+- `state` — runtime delta only; unchanged branches are omitted.
+- `data.layers[]` — canonical `{ type: "geojson", data }` layers.
+
+Runtime-enriched metadata (MapLibre source/layer IDs, lifecycle phase) is excluded, and map/camera/basemap state is never serialised — the consumer's map owns those.
 
 ## Commands
 
 ```bash
-npm install          # Install dependencies
-npm run dev          # Start dev server
-npm test             # Unit tests (Vitest)
-npm run test:ci      # Full CI gate (format → docs sync → unit tests → browser tests)
-npm run test:browser # Browser tests (Playwright; builds dist/ automatically via pretest:browser)
-npm run build        # Production bundle to dist/
-npm run format       # Format with Prettier
-npm run docs:sync    # Sync generated docs and SKILL.md
+npm run dev           # Start the dev playground
+npm run build         # Build the library to dist/waymark.js
+npm run check:dist    # Assert the dist output shape (single bundle, bare maplibre-gl import, no CSS/worker/Vue)
+npm run format        # Format with Prettier
+npm run docs:sync     # Regenerate llms-full.txt; check docs contract and API doc sync
+npm run check:llms    # Fail if docs/llms-full.txt is stale
+npm test              # Unit tests (Vitest)
+npm run test:browser  # Browser tests (Playwright)
+npm run test:ci       # Full CI gate: format → llms check → docs sync → build → dist check → unit → browser tests
 ```
-
-`npm run test:browser` includes a built-bundle test that serves `dist/` via `vite preview` and verifies the map loads from the built bundle with the inlined worker (no dead-worker stall). It skips automatically when `dist/waymark.js` is missing — a fallback for direct `npx playwright test` runs, since `npm run test:browser` builds `dist/` automatically via the `pretest:browser` hook.
 
 ## CI/CD
 
@@ -170,14 +125,13 @@ Two GitHub Actions workflows automate the release pipeline:
 - **CI** (`.github/workflows/ci.yml`) — validates every PR and push to `master` with the full `test:ci` gate.
 - **Release** (`.github/workflows/release.yml`) — when `package.json` version changes on `master`, creates a git tag and a GitHub Release with auto-generated release notes.
 
-![Waymark JS — basemaps panel](tests/browser/screenshots/dev-basemaps-panel.png)
+![Waymark JS — development page](screenshots/dev-page.png)
 
 ## Further Reading
 
-- [API reference](docs/1.api.md) — Full consumer API contract, config defaults, events, and serialisation
+- [API reference](docs/1.api.md) — Consumer API contract, map injection, config defaults, events, and serialisation
 - [Development guide](docs/2.development.md) — Contributor workflow, conventions, and testing
 - [Instances](docs/3.instances.md) — Internal lifecycle and serialisation semantics
-- [Map module](docs/4.map.md) — MapLibre wiring, basemaps, and state sync
-- [UI module](docs/5.ui.md) — Shell components, mode system, and debug panel
+- [Map injection](docs/4.map.md) — Ownership boundaries, mounting, and cleanup
 - [Data & GeoJSON](docs/6.data.md) — Layer contract, validation, and runtime behaviour
 - [Docs index](docs/README.md)

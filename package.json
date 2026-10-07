@@ -1,13 +1,12 @@
 {
   "name": "waymark-js",
-  "version": "2.0.0-a5",
+  "version": "2.0.0-a6",
   "type": "module",
   "module": "./dist/waymark.js",
   "exports": {
     ".": {
       "import": "./dist/waymark.js"
-    },
-    "./waymark.css": "./dist/waymark.css"
+    }
   },
   "files": [
     "dist"
@@ -16,39 +15,31 @@
     "dev": "vite --config vite.config.dev.js --host 0.0.0.0",
     "dev:browser-tests": "vite --config vite.config.dev.js --host 127.0.0.1 --port 4173 --strictPort",
     "build": "vite build --config vite.config.lib.js",
-    "icons:build": "node scripts/icons.js",
-    "preview": "vite preview",
+    "check:dist": "node scripts/check-dist.mjs",
+    "check:llms": "node scripts/llms-full.mjs --check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:contract": "node scripts/check-doc-test-contract.mjs",
     "api:contract": "node scripts/generate-api-contract.mjs",
     "docs:api-sync": "npm run api:contract && node scripts/check-api-doc-sync.mjs",
-    "docs:sync": "node scripts/skill-md.js && npm run docs:contract && npm run docs:api-sync",
+    "docs:sync": "node scripts/llms-full.mjs && npm run docs:contract && npm run docs:api-sync",
     "test": "vitest run",
     "test:watch": "vitest",
-    "pretest:browser": "npm run build",
     "test:browser": "playwright test",
     "test:coverage": "vitest run --coverage",
-    "test:ci": "npm run format:check && npm run docs:sync && npm test && npm run test:browser"
+    "test:ci": "npm run format:check && npm run check:llms && npm run docs:sync && npm run build && npm run check:dist && npm test && npm run test:browser"
+  },
+  "peerDependencies": {
+    "maplibre-gl": "^6.7.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
-    "@vitejs/plugin-vue": "^6.0.2",
-    "fantasticon": "^3.0.0",
     "fs-extra": "^11.3.0",
     "glob": "^11.0.0",
     "jsdom": "^29.1.1",
-    "potrace": "^2.1.8",
+    "maplibre-gl": "^6.7.0",
     "prettier": "^3.8.4",
-    "sass": "^1.101.0",
-    "svg-path-commander": "^2.1.0",
-    "svg-sprite": "^2.0.0",
-    "svgo": "^4.0.0",
     "vite": "^8.0.12",
     "vitest": "^4.1.9"
-  },
-  "dependencies": {
-    "maplibre-gl": "^6.7.0",
-    "vue": "^3.5.38"
   }
 }

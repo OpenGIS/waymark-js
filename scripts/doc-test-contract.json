@@ -5,15 +5,14 @@
       "headings": [
         "Quick start",
         "Factory signature",
-        "Container resolution",
+        "Map injection",
         "Config defaults and merge behaviour",
-        "UI shell mode rendering",
-        "Map options pass-through",
         "Returned instance shape",
         "Instance reuse and destroy semantics",
         "Instance event API",
         "InstanceDocument shape",
-        "Initial GeoJSON overlay"
+        "Initial GeoJSON overlay",
+        "Feature interaction events"
       ]
     },
     {
@@ -22,17 +21,6 @@
         "Responsibilities",
         "Input and output boundaries",
         "Runtime behaviour",
-        "Internal files",
-        "Related API sections"
-      ]
-    },
-    {
-      "file": "docs/5.ui.md",
-      "headings": [
-        "Responsibilities",
-        "Mode contract",
-        "Shell behaviour",
-        "Runtime mode updates",
         "Internal files",
         "Related API sections"
       ]
@@ -69,15 +57,15 @@
     },
     {
       "docFile": "docs/1.api.md",
-      "heading": "Container resolution",
+      "heading": "Map injection",
       "tests": [
         {
           "file": "tests/docs/1.api.test.js",
-          "describe": "Container resolution"
+          "describe": "Map injection"
         },
         {
           "file": "tests/browser/1.api.test.js",
-          "describe": "Container resolution"
+          "describe": "Map injection"
         }
       ]
     },
@@ -92,34 +80,6 @@
         {
           "file": "tests/browser/1.api.test.js",
           "describe": "Config defaults and merge behaviour"
-        }
-      ]
-    },
-    {
-      "docFile": "docs/1.api.md",
-      "heading": "UI shell mode rendering",
-      "tests": [
-        {
-          "file": "tests/docs/1.api.test.js",
-          "describe": "UI shell mode rendering"
-        },
-        {
-          "file": "tests/browser/1.api.test.js",
-          "describe": "UI shell mode rendering"
-        }
-      ]
-    },
-    {
-      "docFile": "docs/1.api.md",
-      "heading": "Map options pass-through",
-      "tests": [
-        {
-          "file": "tests/docs/1.api.test.js",
-          "describe": "Map options pass-through"
-        },
-        {
-          "file": "tests/browser/1.api.test.js",
-          "describe": "Map options pass-through"
         }
       ]
     },
@@ -190,6 +150,20 @@
         {
           "file": "tests/browser/1.api.test.js",
           "describe": "Initial GeoJSON overlay"
+        }
+      ]
+    },
+    {
+      "docFile": "docs/1.api.md",
+      "heading": "Feature interaction events",
+      "tests": [
+        {
+          "file": "tests/docs/1.api.test.js",
+          "describe": "Feature interaction events"
+        },
+        {
+          "file": "tests/browser/1.api.test.js",
+          "describe": "Feature interaction events"
         }
       ]
     }

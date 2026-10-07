@@ -1,0 +1,16 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "title": "Sample point",
+        "waymarkType": "beer"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-127.998, 50.661]
+      }
+    }
+  ]
+}

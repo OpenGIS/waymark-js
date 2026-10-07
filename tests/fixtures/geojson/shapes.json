@@ -1,0 +1,26 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "title": "Cape Scott trail area",
+        "description": "Coastal hiking area between San Josef Bay and Cape Scott.",
+        "waymarkType": "area",
+        "image_medium_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15e1.jpg"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-128.0195, 50.6525],
+            [-128.0125, 50.6525],
+            [-128.0125, 50.6485],
+            [-128.0195, 50.6485],
+            [-128.0195, 50.6525]
+          ]
+        ]
+      }
+    }
+  ]
+}

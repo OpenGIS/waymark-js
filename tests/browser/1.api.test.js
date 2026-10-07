@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { defaultBasemapVector } from "../../src/config/defaults.js";
 import { screenshot } from "./helpers/screenshot.js";
 
 const INLINE_STYLE = {
@@ -8,106 +7,164 @@ const INLINE_STYLE = {
   layers: [],
 };
 
+const BACKGROUND_STYLE = {
+  version: 8,
+  sources: {},
+  layers: [{ id: "background", type: "background" }],
+};
+
 test.describe("1. API", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/browser-api.html");
   });
 
   test.describe("Quick start", () => {
-    test("renders a map canvas for a created instance", async ({ page }) => {
-      await page.evaluate(() => {
+    test("renders a map canvas for an injected instance", async ({ page }) => {
+      await page.evaluate((style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
         window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
+          map,
+          document: { config: { id: "map" } },
+        });
+      }, INLINE_STYLE);
+
+      await expect(page.locator("#map canvas")).toBeVisible();
+    });
+
+    test("renders MapLibre controls styled inside the map container", async ({
+      page,
+    }) => {
+      await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+        window.waymarkFixture.createInstance({
+          map,
+          document: { config: { id: "map" } },
+        });
+
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
+      }, INLINE_STYLE);
+
+      const attribution = page.locator(".maplibregl-ctrl-attrib");
+      await expect(attribution).toBeVisible();
+
+      const [attributionBox, mapBox] = await Promise.all([
+        attribution.boundingBox(),
+        page.locator("#map").boundingBox(),
+      ]);
+
+      expect(attributionBox.x).toBeGreaterThanOrEqual(mapBox.x);
+      expect(attributionBox.y).toBeGreaterThanOrEqual(mapBox.y);
+      expect(attributionBox.x + attributionBox.width).toBeLessThanOrEqual(
+        mapBox.x + mapBox.width,
+      );
+      expect(attributionBox.y + attributionBox.height).toBeLessThanOrEqual(
+        mapBox.y + mapBox.height,
+      );
+    });
+
+    test("API browser screens emit zero console or page errors", async ({
+      page,
+    }) => {
+      const errors = [];
+      page.on("console", (message) => {
+        if (message.type() === "error") {
+          errors.push(message.text());
+        }
+      });
+      page.on("pageerror", (error) => {
+        errors.push(error.message);
+      });
+
+      await page.evaluate((style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+        const instance = window.waymarkFixture.createInstance({
+          map,
+          document: {
+            config: { id: "map" },
+            data: {
+              layers: [{ data: { type: "FeatureCollection", features: [] } }],
             },
           },
         });
+
+        window.__test = { map, instance };
+      }, INLINE_STYLE);
+
+      await page.waitForFunction(() => window.__test?.map?.loaded());
+
+      await page.evaluate(() => {
+        const { instance } = window.__test;
+        instance.data.addLayer({
+          data: { type: "FeatureCollection", features: [] },
+        });
+        instance.data.fitBounds();
+        instance.debug.setEnabled(false);
       });
 
-      await expect(page.locator("#map canvas")).toBeVisible();
+      await page.waitForTimeout(500);
+
+      expect(errors).toEqual([]);
     });
   });
 
   test.describe("Factory signature", () => {
-    test("accepts an instance document", async ({ page }) => {
-      const result = await page.evaluate(() => {
+    test("accepts a map and an instance document", async ({ page }) => {
+      const result = await page.evaluate((style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-              options: {
-                zoom: 10,
-              },
+          map,
+          document: {
+            config: { id: "map" },
+            data: {
+              layers: [{ data: { type: "FeatureCollection", features: [] } }],
             },
-          },
-          data: {
-            layers: [{ data: { type: "FeatureCollection", features: [] } }],
           },
         });
 
         return {
           id: instance.id,
-          zoom: instance.toJSON().config.map.options.zoom,
+          layerCount: instance.toJSON().data.layers.length,
         };
-      });
+      }, INLINE_STYLE);
 
-      expect(result).toEqual({ id: "map", zoom: 10 });
+      expect(result).toEqual({ id: "map", layerCount: 1 });
     });
 
     test("accepts an empty instance document", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const instance = window.waymarkFixture.createInstance({});
+      const result = await page.evaluate((style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+        const instance = window.waymarkFixture.createInstance({ map });
 
         return {
           id: instance.id,
           hasGeoJSON: instance.toJSON().data.layers.length > 0,
         };
-      });
+      }, INLINE_STYLE);
 
       expect(result.id.startsWith("waymark-")).toBe(true);
       expect(result.hasGeoJSON).toBe(false);
     });
 
     test("supports round-trip instance document reuse", async ({ page }) => {
-      const result = await page.evaluate(async (inlineStyle) => {
+      const result = await page.evaluate((style) => {
         const first = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            ui: { mode: "debug" },
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: inlineStyle,
-                  },
-                ],
-              },
-              options: {
-                zoom: 7,
-              },
+          map: window.waymarkFixture.makeMap({ id: "map", style }),
+          document: {
+            config: { id: "map" },
+            data: {
+              layers: [{ data: { type: "FeatureCollection", features: [] } }],
             },
-          },
-          data: {
-            layers: [{ data: { type: "FeatureCollection", features: [] } }],
           },
         });
 
-        const second = window.waymarkFixture.createInstance(first.toJSON());
+        window.waymarkFixture.createContainer("map-two");
+
+        const second = window.waymarkFixture.createInstance({
+          map: window.waymarkFixture.makeMap({ id: "map-two", style }),
+          document: first.toJSON(),
+        });
 
         return {
           equal:
@@ -119,21 +176,22 @@ test.describe("1. API", () => {
     });
 
     test("rejects invalid GeoJSON data-layer shapes", async ({ page }) => {
-      const result = await page.evaluate(() => {
+      const result = await page.evaluate((style) => {
         try {
           window.waymarkFixture.createInstance({
-            config: {
-              id: "map",
-            },
-            data: {
-              layers: [
-                {
-                  data: {
-                    type: "LineString",
-                    coordinates: [[0, 0]],
+            map: window.waymarkFixture.makeMap({ id: "map", style }),
+            document: {
+              config: { id: "map" },
+              data: {
+                layers: [
+                  {
+                    data: {
+                      type: "LineString",
+                      coordinates: [[0, 0]],
+                    },
                   },
-                },
-              ],
+                ],
+              },
             },
           });
 
@@ -144,7 +202,7 @@ test.describe("1. API", () => {
             message: error instanceof Error ? error.message : String(error),
           };
         }
-      });
+      }, INLINE_STYLE);
 
       expect(result).toEqual({
         ok: false,
@@ -154,618 +212,180 @@ test.describe("1. API", () => {
     });
   });
 
-  test.describe("Container resolution", () => {
-    test("throws when a provided container is missing", async ({ page }) => {
-      const message = await page.evaluate(() => {
+  test.describe("Map injection", () => {
+    test("throws a TypeError for a missing or invalid map", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const readMessage = (fn) => {
+          try {
+            fn();
+            return null;
+          } catch (error) {
+            return error instanceof Error ? error.message : String(error);
+          }
+        };
+
+        return {
+          missing: readMessage(() => window.waymarkFixture.createInstance({})),
+          invalid: readMessage(() =>
+            window.waymarkFixture.createInstance({ map: {} }),
+          ),
+        };
+      });
+
+      expect(result.missing).toBe(
+        "createInstance({ map }) requires a MapLibre-compatible map instance; received undefined.",
+      );
+      expect(result.invalid).toContain(
+        "createInstance({ map }) requires a MapLibre-compatible map instance. Missing method(s):",
+      );
+    });
+
+    test("throws when the same map already has a runtime", async ({ page }) => {
+      const message = await page.evaluate((style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+        window.waymarkFixture.createInstance({
+          map,
+          document: { config: { id: "map" } },
+        });
+
         try {
           window.waymarkFixture.createInstance({
-            config: {
-              id: "missing-browser-container",
-            },
+            map,
+            document: { config: { id: "map" } },
           });
           return null;
         } catch (error) {
-          return String(error.message);
+          return error instanceof Error ? error.message : String(error);
         }
-      });
+      }, INLINE_STYLE);
 
       expect(message).toBe(
-        'Waymark container "missing-browser-container" was not found.',
+        "This map already has a Waymark instance. Call destroy() on the existing instance before creating another.",
       );
+    });
+
+    test("mounts immediately when the injected map is already loaded", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
+
+        window.waymarkFixture.createInstance({
+          map,
+          document: {
+            config: { id: "map" },
+            data: {
+              layers: [{ data: { type: "FeatureCollection", features: [] } }],
+            },
+          },
+        });
+
+        return {
+          hasSource: Boolean(map.getSource("waymark-map-geojson-source-0")),
+          hasLayer: Boolean(map.getLayer("waymark-map-geojson-layer-0-line")),
+        };
+      }, INLINE_STYLE);
+
+      expect(result).toEqual({ hasSource: true, hasLayer: true });
+    });
+
+    test("waits for load when the injected map is not yet loaded", async ({
+      page,
+    }) => {
+      const result = await page.evaluate((style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+
+        window.waymarkFixture.createInstance({
+          map,
+          document: {
+            config: { id: "map" },
+            data: {
+              layers: [{ data: { type: "FeatureCollection", features: [] } }],
+            },
+          },
+        });
+
+        const before = Boolean(map.getSource("waymark-map-geojson-source-0"));
+
+        return new Promise((resolve) => {
+          const finish = () =>
+            resolve({
+              before,
+              after: Boolean(map.getSource("waymark-map-geojson-source-0")),
+            });
+
+          if (map.loaded()) {
+            finish();
+            return;
+          }
+
+          map.once("load", finish);
+        });
+      }, INLINE_STYLE);
+
+      expect(result.before).toBe(false);
+      expect(result.after).toBe(true);
     });
   });
 
   test.describe("Config defaults and merge behaviour", () => {
-    test("does not inject camera defaults into config", async ({ page }) => {
-      const result = await page.evaluate(() => {
+    test("resolves debug defaults without map slices", async ({ page }) => {
+      const result = await page.evaluate((style) => {
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
+          map: window.waymarkFixture.makeMap({ id: "map", style }),
+          document: { config: { id: "map" } },
         });
+
+        const instanceDocument = instance.toJSON();
 
         return {
-          hasCenter: Object.hasOwn(
-            instance.toJSON().config.map.options,
-            "center",
-          ),
-          hasZoom: Object.hasOwn(instance.toJSON().config.map.options, "zoom"),
-          attributionControl:
-            instance.toJSON().config.map.options.attributionControl,
-        };
-      });
-
-      expect(result.hasCenter).toBe(false);
-      expect(result.hasZoom).toBe(false);
-      expect(result.attributionControl).toBe(false);
-    });
-
-    test("injects Open GIS Outdoors default only when no basemaps are provided", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        const defaultInstance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-          },
-        });
-
-        window.waymarkFixture.createContainer("map-raster-only");
-        const rasterOnlyInstance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-raster-only",
-            map: {
-              basemaps: {
-                raster: [
-                  {
-                    tileURLTemplates: [
-                      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    ],
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        const defaultCore = window.waymarkFixture.getRuntimeCore(
-          defaultInstance.id,
-        );
-        const rasterOnlyCore = window.waymarkFixture.getRuntimeCore(
-          rasterOnlyInstance.id,
-        );
-
-        return {
-          defaultVectorStyleURL:
-            defaultCore.config.map.basemaps.vector[0]?.styleURL,
-          rasterOnlyVectorCount:
-            rasterOnlyCore.config.map.basemaps.vector.length,
-        };
-      });
-
-      expect(result.defaultVectorStyleURL).toBe(
-        "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
-      );
-      expect(result.rasterOnlyVectorCount).toBe(0);
-    });
-
-    test("falls back to view mode when ui.mode is invalid", async ({
-      page,
-    }) => {
-      const mode = await page.evaluate(() => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            ui: { mode: "invalid-mode" },
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        return instance.toJSON().config.ui.mode;
-      });
-
-      expect(mode).toBe("view");
-    });
-
-    test("rejects legacy map.options.style and invalid basemap entries", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        try {
-          window.waymarkFixture.createInstance({
-            config: {
-              id: "map",
-              map: {
-                options: {
-                  style: "https://example.com/style.json",
-                },
-              },
-            },
-          });
-          return { legacyStyleError: null, invalidBasemapError: null };
-        } catch (error) {
-          const legacyStyleError = String(error.message);
-
-          try {
-            window.waymarkFixture.createInstance({
-              config: {
-                id: "map",
-                map: {
-                  basemaps: {
-                    raster: [
-                      {
-                        tiles: [
-                          "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                        ],
-                      },
-                    ],
-                  },
-                },
-              },
-            });
-            return { legacyStyleError, invalidBasemapError: null };
-          } catch (secondError) {
-            return {
-              legacyStyleError,
-              invalidBasemapError: String(secondError.message),
-            };
-          }
-        }
-      });
-
-      expect(result.legacyStyleError).toBe(
-        "Invalid config.map.options.style: use config.map.basemaps.vector[] instead.",
-      );
-      expect(result.invalidBasemapError).toBe(
-        "Invalid config.map.basemaps.raster[0].tiles: unexpected key for raster basemap entry.",
-      );
-    });
-  });
-
-  test.describe("UI shell mode rendering", () => {
-    test("keeps shell mounted in view mode and renders debug sections in debug mode", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(async (inlineStyle) => {
-        window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            ui: { mode: "view" },
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: inlineStyle,
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        const viewShell = document.querySelector(
-          '#map [data-waymark-app="true"]',
-        );
-        const viewHasDebugPanel = Boolean(
-          viewShell?.querySelector('[data-waymark-debug-panel="true"]'),
-        );
-        const viewHasModal = Boolean(
-          viewShell?.querySelector('[data-waymark-modal="true"]'),
-        );
-
-        window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            ui: { mode: "debug" },
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: inlineStyle,
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        const debugShell = document.querySelector(
-          '#map [data-waymark-app="true"]',
-        );
-
-        const debugPanel = debugShell?.querySelector(
-          '[data-waymark-debug-panel="true"]',
-        );
-        const debugModal = debugShell?.querySelector(
-          '[data-waymark-modal="true"]',
-        );
-        const debugControl = debugShell?.querySelector(
-          '[data-waymark-control="debug-output-toggle"]',
-        );
-        const headingTexts = [
-          ...(debugPanel?.querySelectorAll("h2") ?? []),
-        ].map((heading) => heading.textContent);
-        window.waymarkFixture
-          .getRuntimeMap("map")
-          .fire("moveend", { type: "moveend", source: "browser-test" });
-        await Promise.resolve();
-        const eventsJSON =
-          debugPanel?.querySelectorAll("pre")?.[1]?.textContent ?? "[]";
-        const events = JSON.parse(eventsJSON);
-
-        return {
-          hasShell: Boolean(viewShell),
-          viewHasDebugPanel,
-          viewHasModal,
-          hasDebugPanel: Boolean(debugPanel),
-          hasDebugModal: Boolean(debugModal),
-          hasDebugControl: Boolean(debugControl),
-          headingTexts,
-          eventsLength: events.length,
-          lastEventType: events.at(-1)?.type ?? null,
-          lastEventSummary: events.at(-1)?.detail ?? null,
-        };
-      }, INLINE_STYLE);
-
-      expect(result.hasShell).toBe(true);
-      expect(result.viewHasDebugPanel).toBe(false);
-      expect(result.viewHasModal).toBe(false);
-      expect(result.hasDebugPanel).toBe(true);
-      expect(result.hasDebugModal).toBe(true);
-      expect(result.hasDebugControl).toBe(true);
-      expect(result.headingTexts).toEqual([
-        "Instance document",
-        "Waymark events (last 25)",
-      ]);
-      expect(result.eventsLength).toBeGreaterThan(0);
-      expect(result.lastEventType).toBe("waymark:map.moveend");
-      expect(result.lastEventSummary).toEqual(
-        expect.objectContaining({
-          mapEvent: "moveend",
-          hasOriginalEvent: true,
-          originalEventType: "moveend",
-        }),
-      );
-    });
-
-    test("updates debug instance document camera output after map moveend", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(async (inlineStyle) => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            ui: { mode: "debug" },
-            map: {
-              options: {
-                center: [10, 20],
-                zoom: 4,
-                bearing: 5,
-                pitch: 6,
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: inlineStyle,
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        map?.jumpTo({
-          center: [11, 21],
-          zoom: 7,
-          bearing: 9,
-          pitch: 12,
-        });
-        map?.fire("moveend", {
-          type: "moveend",
-          source: "browser-test",
-        });
-
-        await Promise.resolve();
-
-        const shell = document.querySelector('#map [data-waymark-app="true"]');
-        const instanceDocumentJSON =
-          shell?.querySelectorAll("pre")?.[0]?.textContent ?? "{}";
-
-        return JSON.parse(instanceDocumentJSON)?.state?.map?.options ?? null;
-      }, INLINE_STYLE);
-
-      expect(result).toEqual({
-        center: [11, 21],
-        zoom: 7,
-        bearing: 9,
-        pitch: 12,
-      });
-    });
-
-    test("toggles debug outputs from the internal debug control", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(async (inlineStyle) => {
-        window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            ui: { mode: "debug" },
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: inlineStyle,
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        const shell = document.querySelector('#map [data-waymark-app="true"]');
-        const control = shell?.querySelector(
-          '[data-waymark-control="debug-output-toggle"]',
-        );
-        const hasPanelInitially = Boolean(
-          shell?.querySelector('[data-waymark-debug-panel="true"]'),
-        );
-        const hasModalInitially = Boolean(
-          shell?.querySelector('[data-waymark-modal="true"]'),
-        );
-
-        control?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        await Promise.resolve();
-        const hasPanelAfterFirstClick = Boolean(
-          shell?.querySelector('[data-waymark-debug-panel="true"]'),
-        );
-        const hasModalAfterFirstClick = Boolean(
-          shell?.querySelector('[data-waymark-modal="true"]'),
-        );
-
-        control?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        await Promise.resolve();
-        const hasPanelAfterSecondClick = Boolean(
-          shell?.querySelector('[data-waymark-debug-panel="true"]'),
-        );
-        const hasModalAfterSecondClick = Boolean(
-          shell?.querySelector('[data-waymark-modal="true"]'),
-        );
-        const eventsJSON =
-          shell?.querySelectorAll("pre")?.[1]?.textContent ?? "[]";
-        const eventTypes = JSON.parse(eventsJSON).map((entry) => entry.type);
-
-        return {
-          hasControl: Boolean(control),
-          hasPanelInitially,
-          hasModalInitially,
-          hasPanelAfterFirstClick,
-          hasModalAfterFirstClick,
-          hasPanelAfterSecondClick,
-          hasModalAfterSecondClick,
-          eventTypes,
+          debug: instanceDocument.config.debug,
+          hasConfigMap: Object.hasOwn(instanceDocument.config, "map"),
+          hasStateMap: Object.hasOwn(instanceDocument.state, "map"),
         };
       }, INLINE_STYLE);
 
       expect(result).toEqual({
-        hasControl: true,
-        hasPanelInitially: true,
-        hasModalInitially: true,
-        hasPanelAfterFirstClick: false,
-        hasModalAfterFirstClick: false,
-        hasPanelAfterSecondClick: true,
-        hasModalAfterSecondClick: true,
-        eventTypes: expect.arrayContaining([
-          "waymark:state.changed",
-          "waymark:state.ui.panel.changed",
-        ]),
+        debug: false,
+        hasConfigMap: false,
+        hasStateMap: false,
       });
-    });
-  });
-
-  test.describe("Map options pass-through", () => {
-    test("forwards options.center/options.zoom and arbitrary options", async ({
-      page,
-    }) => {
-      const result = await page.evaluate((inlineStyle) => {
-        const map = window.waymarkFixture.createContainer("map-options-test");
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-options-test",
-            map: {
-              options: {
-                center: [-0.1276, 51.5074],
-                zoom: 10,
-                bearing: 25,
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: inlineStyle,
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        return {
-          hasCanvas: Boolean(map.querySelector("canvas")),
-          center: instance.toJSON().config.map.options.center,
-          zoom: instance.toJSON().config.map.options.zoom,
-          bearing: instance.toJSON().config.map.options.bearing,
-        };
-      }, INLINE_STYLE);
-
-      expect(result.hasCanvas).toBe(true);
-      expect(result.center.map((v) => Number(v.toFixed(4)))).toEqual([
-        -0.1276, 51.5074,
-      ]);
-      expect(Number(result.zoom.toFixed(2))).toBe(10);
-      expect(Number(result.bearing.toFixed(2))).toBe(25);
-    });
-
-    test("keeps serialisable map options only", async ({ page }) => {
-      const result = await page.evaluate((inlineStyle) => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: {
-                transformRequest: () => ({ url: "x" }),
-                nested: {
-                  onClick: () => {},
-                  ok: true,
-                },
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: inlineStyle,
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        return instance.toJSON().config.map.options;
-      }, INLINE_STYLE);
-
-      expect(result.transformRequest).toBeUndefined();
-      expect(result.nested).toEqual({ ok: true });
-    });
-
-    test("uses the first vector basemap and stacks raster overlays with index 0 on top", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: {
-                      version: 8,
-                      sources: {},
-                      layers: [{ id: "background", type: "background" }],
-                    },
-                  },
-                  {
-                    styleURL: "https://example.com/unused-style.json",
-                  },
-                ],
-                raster: [
-                  {
-                    tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-                    opacity: 0.6,
-                  },
-                  {
-                    tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-                    opacity: 0.3,
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        return new Promise((resolve) => {
-          const readLayers = () => {
-            const styleLayers = map.getStyle().layers;
-            resolve(
-              styleLayers.map((layer) => ({
-                id: layer.id,
-                type: layer.type,
-                opacity: layer.paint?.["raster-opacity"],
-              })),
-            );
-          };
-
-          if (map.loaded()) {
-            readLayers();
-            return;
-          }
-
-          map.on("load", readLayers);
-        });
-      });
-
-      expect(result).toEqual([
-        { id: "background", type: "background", opacity: undefined },
-        {
-          id: "waymark-map-basemap-raster-layer-1",
-          type: "raster",
-          opacity: 0.3,
-        },
-        {
-          id: "waymark-map-basemap-raster-layer-0",
-          type: "raster",
-          opacity: 0.6,
-        },
-      ]);
     });
   });
 
   test.describe("Returned instance shape", () => {
     test("returns documented properties and methods", async ({ page }) => {
-      const result = await page.evaluate(() => {
+      const result = await page.evaluate((style) => {
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
+          map: window.waymarkFixture.makeMap({ id: "map", style }),
+          document: { config: { id: "map" } },
         });
 
         return {
           id: instance.id,
-          hasUI: Boolean(instance.ui),
           hasData: Boolean(instance.data),
           hasToJSON: typeof instance.toJSON === "function",
           hasAddLayer: typeof instance.data?.addLayer === "function",
-          hasSetMode: typeof instance.ui?.setMode === "function",
+          hasFitBounds: typeof instance.data?.fitBounds === "function",
           hasDestroy: typeof instance.destroy === "function",
           hasOn: typeof instance.on === "function",
           hasOff: typeof instance.off === "function",
           hasOnce: typeof instance.once === "function",
         };
-      });
+      }, INLINE_STYLE);
 
       expect(result).toEqual({
         id: "map",
-        hasUI: true,
         hasData: true,
         hasToJSON: true,
         hasAddLayer: true,
-        hasSetMode: true,
+        hasFitBounds: true,
         hasDestroy: true,
         hasOn: true,
         hasOff: true,
@@ -775,198 +395,107 @@ test.describe("1. API", () => {
   });
 
   test.describe("Instance reuse and destroy semantics", () => {
-    test("recreates existing instance on same id and applies incoming document", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        const first = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: {
-                zoom: 12,
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
+    test("destroy leaves the map and container intact", async ({ page }) => {
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
+
+        let removeCalled = false;
+        const originalRemove = map.remove.bind(map);
+        map.remove = () => {
+          removeCalled = true;
+          return originalRemove();
+        };
+
+        const instance = window.waymarkFixture.createInstance({
+          map,
+          document: {
+            config: { id: "map" },
+            data: {
+              layers: [{ data: { type: "FeatureCollection", features: [] } }],
             },
           },
         });
 
-        const second = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: {
-                zoom: 5,
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
-          data: {
-            layers: [{ data: { type: "FeatureCollection", features: [] } }],
-          },
+        instance.destroy();
+
+        return {
+          removeCalled,
+          containerInDocument: document.body.contains(map.getContainer()),
+          coreGone: window.waymarkFixture.getRuntimeCore(map) === null,
+          hasSource: Boolean(map.getSource("waymark-map-geojson-source-0")),
+          hasLayer: Boolean(map.getLayer("waymark-map-geojson-layer-0-line")),
+        };
+      }, INLINE_STYLE);
+
+      expect(result).toEqual({
+        removeCalled: false,
+        containerInDocument: true,
+        coreGone: true,
+        hasSource: false,
+        hasLayer: false,
+      });
+    });
+
+    test("allows a fresh instance on the same map after destroy", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
+
+        const first = window.waymarkFixture.createInstance({
+          map,
+          document: { config: { id: "map" } },
         });
 
         first.destroy();
-        const third = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: {},
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
+        first.destroy();
+
+        const second = window.waymarkFixture.createInstance({
+          map,
+          document: { config: { id: "map" } },
         });
 
-        return {
-          secondIsNew: second !== first,
-          secondZoom: second.toJSON().config.map.options.zoom,
-          secondHasDataLayers: second.toJSON().data.layers.length > 0,
-          thirdIsNew: third !== second,
-        };
-      });
+        return { secondIsNew: second !== first };
+      }, INLINE_STYLE);
 
-      expect(result).toEqual({
-        secondIsNew: true,
-        secondZoom: 5,
-        secondHasDataLayers: true,
-        thirdIsNew: true,
-      });
+      expect(result.secondIsNew).toBe(true);
     });
   });
 
   test.describe("Instance event API", () => {
-    test("supports lifecycle and forwarded map events with originalEvent", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
+    test("supports lifecycle events on the map container", async ({ page }) => {
+      const result = await page.evaluate((style) => {
         const container = document.getElementById("map");
         const seen = [];
         container.addEventListener("waymark:instance.created", (event) => {
           seen.push({ type: event.type, detail: event.detail });
         });
+        container.addEventListener("waymark:instance.destroyed", (event) => {
+          seen.push({ type: event.type, detail: event.detail });
+        });
 
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
+          map: window.waymarkFixture.makeMap({ id: "map", style }),
+          document: { config: { id: "map" } },
         });
 
-        container.addEventListener("waymark:map.moveend", (event) => {
-          seen.push({
-            type: event.type,
-            detail: {
-              id: event.detail.id,
-              mapEvent: event.detail.mapEvent,
-              hasOriginalEvent: Boolean(event.detail.originalEvent),
-            },
-          });
-        });
-
-        container.addEventListener("waymark:map.error", (event) => {
-          seen.push({
-            type: event.type,
-            detail: {
-              id: event.detail.id,
-              mapEvent: event.detail.mapEvent,
-              hasOriginalEvent: Boolean(event.detail.originalEvent),
-            },
-          });
-        });
-
-        window.waymarkFixture
-          .getRuntimeMap(instance.id)
-          .fire("moveend", { source: "playwright", test: true });
-        window.waymarkFixture
-          .getRuntimeMap(instance.id)
-          .fire("error", { source: "playwright", test: true });
+        instance.destroy();
 
         return seen;
-      });
+      }, INLINE_STYLE);
 
       expect(result).toEqual([
         { type: "waymark:instance.created", detail: { id: "map" } },
-        {
-          type: "waymark:map.moveend",
-          detail: {
-            id: "map",
-            mapEvent: "moveend",
-            hasOriginalEvent: true,
-          },
-        },
-        {
-          type: "waymark:map.error",
-          detail: {
-            id: "map",
-            mapEvent: "error",
-            hasOriginalEvent: true,
-          },
-        },
+        { type: "waymark:instance.destroyed", detail: { id: "map" } },
       ]);
-    });
-
-    test("emits waymark:ui.mode.changed with module payload", async ({
-      page,
-    }) => {
-      const detail = await page.evaluate(() => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            ui: { mode: "view" },
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        return new Promise((resolve) => {
-          instance.on("waymark:ui.mode.changed", (event) => {
-            resolve(event.detail);
-          });
-          instance.ui.setMode("debug");
-        });
-      });
-
-      expect(detail).toEqual({
-        id: "map",
-        module: "ui",
-        event: "mode.changed",
-        previous: "view",
-        next: "debug",
-        source: "public:ui.setMode",
-      });
     });
   });
 
@@ -974,105 +503,40 @@ test.describe("1. API", () => {
     test("toJSON returns a serialisable config/state/data payload", async ({
       page,
     }) => {
-      const instanceDocument = await page.evaluate(() => {
+      const result = await page.evaluate((style) => {
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: {
-                zoom: 9,
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
+          map: window.waymarkFixture.makeMap({ id: "map", style }),
+          document: {
+            config: {
+              id: "map",
+              types: {
+                beer: { paint: { circle: { "circle-color": "#754423" } } },
               },
             },
           },
         });
 
-        return instance.toJSON();
-      });
+        instance.types.setVisibility("beer", false);
+        instance.debug.setEnabled(true);
 
-      expect(instanceDocument).toEqual(
-        expect.objectContaining({
-          config: expect.objectContaining({
-            id: "map",
-          }),
-          state: {},
-          data: expect.objectContaining({
-            layers: [],
-          }),
-        }),
-      );
-      expect(instanceDocument.config.map.options.zoom).toBe(9);
-      expect(instanceDocument.state.map).toBeUndefined();
-      expect(instanceDocument.state.ui).toBeUndefined();
-    });
-
-    test("keeps resolved defaults and authored basemaps stable in config", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        const defaultInstance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-          },
-        });
-
-        window.waymarkFixture.createContainer("map-explicit");
-        const explicitInstance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-explicit",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: "https://tiles.openfreemap.org/styles/bright",
-                  },
-                ],
-                raster: [
-                  {
-                    tileURLTemplates: [
-                      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    ],
-                  },
-                ],
-              },
-            },
-          },
-        });
+        const instanceDocument = instance.toJSON();
 
         return {
-          defaultBasemaps: defaultInstance.toJSON().config.map.basemaps,
-          explicitBasemaps: explicitInstance.toJSON().config.map.basemaps,
-          explicitBasemapKeys: Object.keys(
-            explicitInstance.toJSON().config.map.basemaps,
-          ),
+          keys: Object.keys(instanceDocument),
+          id: instanceDocument.config.id,
+          stateTypes: instanceDocument.state.types,
+          stateDebug: instanceDocument.state.debug,
+          hasConfigMap: Object.hasOwn(instanceDocument.config, "map"),
+          hasStateMap: Object.hasOwn(instanceDocument.state, "map"),
         };
-      });
+      }, INLINE_STYLE);
 
-      expect(result.defaultBasemaps).toEqual({
-        vector: [
-          {
-            title: defaultBasemapVector.title,
-            styleURL: defaultBasemapVector.styleURL,
-          },
-        ],
-      });
-      expect(result.explicitBasemaps).toEqual({
-        raster: [
-          {
-            tileURLTemplates: [
-              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            ],
-          },
-        ],
-        vector: [{ styleURL: "https://tiles.openfreemap.org/styles/bright" }],
-      });
-      expect(result.explicitBasemapKeys).toEqual(["raster", "vector"]);
+      expect(result.keys).toEqual(["config", "state", "data"]);
+      expect(result.id).toBe("map");
+      expect(result.stateTypes).toEqual({ beer: { visible: false } });
+      expect(result.stateDebug).toBe(true);
+      expect(result.hasConfigMap).toBe(false);
+      expect(result.hasStateMap).toBe(false);
     });
   });
 
@@ -1080,21 +544,16 @@ test.describe("1. API", () => {
     test("emits data-layer added and validation error events for runtime addLayer", async ({
       page,
     }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-geojson-events");
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
+
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-geojson-events",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
+          map,
+          document: { config: { id: "map" } },
         });
 
         const added = [];
@@ -1108,46 +567,34 @@ test.describe("1. API", () => {
         });
 
         instance.data.addLayer({
-          data: {
-            type: "FeatureCollection",
-            features: [],
-          },
+          data: { type: "FeatureCollection", features: [] },
         });
 
         let thrownMessage = null;
         try {
           instance.data.addLayer({
-            data: {
-              type: "FeatureCollection",
-            },
+            data: { type: "FeatureCollection" },
           });
         } catch (error) {
           thrownMessage =
             error instanceof Error ? error.message : String(error);
         }
 
-        return {
-          added,
-          errors,
-          thrownMessage,
-        };
-      });
+        return { added, errors, thrownMessage };
+      }, INLINE_STYLE);
 
       expect(result.added).toEqual([
         {
-          id: "map-geojson-events",
+          id: "map",
           layer: {
             type: "geojson",
-            data: {
-              type: "FeatureCollection",
-              features: [],
-            },
+            data: { type: "FeatureCollection", features: [] },
           },
         },
       ]);
       expect(result.errors).toEqual([
         {
-          id: "map-geojson-events",
+          id: "map",
           stage: "validation",
           message: "Invalid data.layers[1].data.features: expected an array.",
         },
@@ -1157,125 +604,30 @@ test.describe("1. API", () => {
       );
     });
 
-    test("adds a layer at runtime via instance.data.addLayer", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-geojson-runtime-add");
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-geojson-runtime-add",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        instance.data.addLayer({
-          data: {
-            type: "FeatureCollection",
-            features: [],
-          },
-        });
-
-        return new Promise((resolve) => {
-          const map = window.waymarkFixture.getRuntimeMap(instance.id);
-
-          const check = () => {
-            resolve({
-              hasSource: Boolean(
-                map.getSource(
-                  "waymark-map-geojson-runtime-add-geojson-source-0",
-                ),
-              ),
-              hasLayer: Boolean(
-                map.getLayer(
-                  "waymark-map-geojson-runtime-add-geojson-layer-0-line",
-                ),
-              ),
-              serialisedLayer: instance.toJSON().data.layers[0],
-            });
-          };
-
-          if (map.loaded()) {
-            check();
-            return;
-          }
-
-          map.on("load", check);
-        });
-      });
-
-      expect(result).toEqual({
-        hasSource: true,
-        hasLayer: true,
-        serialisedLayer: {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: [],
-          },
-        },
-      });
-    });
-
     test("creates instance-scoped source and layer ids from data.layers", async ({
       page,
     }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-geojson-test");
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-geojson-test",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+        window.waymarkFixture.createInstance({
+          map,
+          document: {
+            config: { id: "map" },
+            data: {
+              layers: [{ data: { type: "FeatureCollection", features: [] } }],
             },
           },
-          data: {
-            layers: [
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [],
-                },
-              },
-            ],
-          },
         });
 
-        return new Promise((resolve) => {
-          const map = window.waymarkFixture.getRuntimeMap(instance.id);
-          const check = () => {
-            resolve({
-              hasSource: Boolean(
-                map.getSource("waymark-map-geojson-test-geojson-source-0"),
-              ),
-              hasLayer: Boolean(
-                map.getLayer("waymark-map-geojson-test-geojson-layer-0-line"),
-              ),
-            });
-          };
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
 
-          if (map.loaded()) {
-            check();
-            return;
-          }
-
-          map.on("load", check);
-        });
-      });
+        return {
+          hasSource: Boolean(map.getSource("waymark-map-geojson-source-0")),
+          hasLayer: Boolean(map.getLayer("waymark-map-geojson-layer-0-line")),
+        };
+      }, INLINE_STYLE);
 
       expect(result).toEqual({ hasSource: true, hasLayer: true });
     });
@@ -1283,291 +635,128 @@ test.describe("1. API", () => {
     test("renders geometry families as circle, line, and fill layers", async ({
       page,
     }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-geojson-family-test");
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-geojson-family-test",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: {
-                      version: 8,
-                      sources: {},
-                      layers: [],
-                    },
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+        window.waymarkFixture.createInstance({
+          map,
+          document: {
+            config: { id: "map" },
+            data: {
+              layers: [
+                {
+                  data: {
+                    type: "FeatureCollection",
+                    features: [
+                      {
+                        type: "Feature",
+                        geometry: {
+                          type: "MultiPoint",
+                          coordinates: [
+                            [-0.1276, 51.5074],
+                            [-1.2577, 51.752],
+                          ],
+                        },
+                        properties: {},
+                      },
+                    ],
                   },
-                ],
-              },
-            },
-          },
-          data: {
-            layers: [
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "MultiPoint",
-                        coordinates: [
-                          [-0.1276, 51.5074],
-                          [-1.2577, 51.752],
-                        ],
-                      },
-                      properties: {},
-                    },
-                  ],
                 },
-              },
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "MultiLineString",
-                        coordinates: [
-                          [
-                            [0, 0],
-                            [1, 1],
-                          ],
-                          [
-                            [1, 1],
-                            [2, 2],
-                          ],
-                        ],
-                      },
-                      properties: {},
-                    },
-                  ],
-                },
-              },
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "MultiPolygon",
-                        coordinates: [
-                          [
+                {
+                  data: {
+                    type: "FeatureCollection",
+                    features: [
+                      {
+                        type: "Feature",
+                        geometry: {
+                          type: "MultiLineString",
+                          coordinates: [
                             [
                               [0, 0],
-                              [1, 0],
                               [1, 1],
-                              [0, 1],
-                              [0, 0],
+                            ],
+                            [
+                              [1, 1],
+                              [2, 2],
                             ],
                           ],
-                        ],
+                        },
+                        properties: {},
                       },
-                      properties: {},
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-        });
-
-        return new Promise((resolve) => {
-          const map = window.waymarkFixture.getRuntimeMap(instance.id);
-          const expectedLayerIds = [
-            "waymark-map-geojson-family-test-geojson-layer-2-fill",
-            "waymark-map-geojson-family-test-geojson-layer-1-line",
-            "waymark-map-geojson-family-test-geojson-layer-0-circle",
-          ];
-          const startedAt = Date.now();
-
-          const check = () => {
-            const layer0 = map.getLayer(
-              "waymark-map-geojson-family-test-geojson-layer-0-circle",
-            );
-            const layer1 = map.getLayer(
-              "waymark-map-geojson-family-test-geojson-layer-1-line",
-            );
-            const layer2 = map.getLayer(
-              "waymark-map-geojson-family-test-geojson-layer-2-fill",
-            );
-            const layerIds = (map.getStyle()?.layers ?? []).map(
-              (layer) => layer.id,
-            );
-
-            const hasExpectedLayers = expectedLayerIds.every((layerId) =>
-              layerIds.includes(layerId),
-            );
-
-            if (!hasExpectedLayers && Date.now() - startedAt < 5000) {
-              setTimeout(check, 50);
-              return;
-            }
-
-            resolve({
-              layerTypes: [
-                layer0?.type ?? null,
-                layer1?.type ?? null,
-                layer2?.type ?? null,
-              ],
-              layerIds,
-            });
-          };
-
-          check();
-        });
-      });
-
-      expect(result.layerTypes).toEqual(["circle", "line", "fill"]);
-      expect(result.layerIds).toEqual([
-        "waymark-map-geojson-family-test-geojson-layer-2-fill",
-        "waymark-map-geojson-family-test-geojson-layer-1-line",
-        "waymark-map-geojson-family-test-geojson-layer-0-circle-hit",
-        "waymark-map-geojson-family-test-geojson-layer-0-circle",
-      ]);
-    });
-
-    test("renders point, line, and polygon sublayers for one mixed FeatureCollection", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-geojson-mixed-family-test");
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-geojson-mixed-family-test",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: {
-                      version: 8,
-                      sources: {},
-                      layers: [],
-                    },
+                    ],
                   },
-                ],
-              },
+                },
+                {
+                  data: {
+                    type: "FeatureCollection",
+                    features: [
+                      {
+                        type: "Feature",
+                        geometry: {
+                          type: "MultiPolygon",
+                          coordinates: [
+                            [
+                              [
+                                [0, 0],
+                                [1, 0],
+                                [1, 1],
+                                [0, 1],
+                                [0, 0],
+                              ],
+                            ],
+                          ],
+                        },
+                        properties: {},
+                      },
+                    ],
+                  },
+                },
+              ],
             },
           },
-          data: {
-            layers: [
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "Point",
-                        coordinates: [-0.1276, 51.5074],
-                      },
-                      properties: {},
-                    },
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "LineString",
-                        coordinates: [
-                          [0, 0],
-                          [1, 1],
-                        ],
-                      },
-                      properties: {},
-                    },
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "Polygon",
-                        coordinates: [
-                          [
-                            [0, 0],
-                            [2, 0],
-                            [2, 2],
-                            [0, 2],
-                            [0, 0],
-                          ],
-                        ],
-                      },
-                      properties: {},
-                    },
-                  ],
-                },
-              },
-            ],
-          },
         });
 
-        return new Promise((resolve) => {
-          const map = window.waymarkFixture.getRuntimeMap(instance.id);
-          const expected = [
-            "waymark-map-geojson-mixed-family-test-geojson-layer-0-fill",
-            "waymark-map-geojson-mixed-family-test-geojson-layer-0-line",
-            "waymark-map-geojson-mixed-family-test-geojson-layer-0-circle",
-          ];
-          const startedAt = Date.now();
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
 
-          const check = () => {
-            const styleLayers = map.getStyle()?.layers ?? [];
-            const layerIds = styleLayers.map((layer) => layer.id);
-            const hasExpected = expected.every((layerId) =>
-              layerIds.includes(layerId),
-            );
+        const layerIds = (map.getStyle()?.layers ?? []).map(
+          (layer) => layer.id,
+        );
 
-            if (!hasExpected && Date.now() - startedAt < 5000) {
-              setTimeout(check, 50);
-              return;
-            }
+        return {
+          types: [
+            map.getLayer("waymark-map-geojson-layer-0-circle")?.type ?? null,
+            map.getLayer("waymark-map-geojson-layer-1-line")?.type ?? null,
+            map.getLayer("waymark-map-geojson-layer-2-fill")?.type ?? null,
+          ],
+          layerIds,
+        };
+      }, INLINE_STYLE);
 
-            resolve({
-              layerIds,
-              layerTypes: expected.map(
-                (layerId) => map.getLayer(layerId)?.type,
-              ),
-            });
-          };
-
-          check();
-        });
-      });
-
-      expect(result.layerTypes).toEqual(["fill", "line", "circle"]);
+      expect(result.types).toEqual(["circle", "line", "fill"]);
       expect(result.layerIds).toEqual([
-        "waymark-map-geojson-mixed-family-test-geojson-layer-0-circle-hit",
-        "waymark-map-geojson-mixed-family-test-geojson-layer-0-fill",
-        "waymark-map-geojson-mixed-family-test-geojson-layer-0-line",
-        "waymark-map-geojson-mixed-family-test-geojson-layer-0-circle",
+        "waymark-map-geojson-layer-2-fill",
+        "waymark-map-geojson-layer-1-line",
+        "waymark-map-geojson-layer-0-circle-hit",
+        "waymark-map-geojson-layer-0-circle",
       ]);
     });
 
     test("emits waymark:data.layer.mounted for mounted data sublayers", async ({
       page,
     }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-geojson-mounted-event");
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-geojson-mounted-event",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: {
-                      version: 8,
-                      sources: {},
-                      layers: [],
-                    },
-                  },
-                ],
-              },
-            },
-          },
+          map,
+          document: { config: { id: "map" } },
         });
 
-        const mounted = [];
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
 
+        const mounted = [];
         instance.on("waymark:data.layer.mounted", (event) => {
           mounted.push(event.detail);
         });
@@ -1578,10 +767,7 @@ test.describe("1. API", () => {
             features: [
               {
                 type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: [0, 0],
-                },
+                geometry: { type: "Point", coordinates: [0, 0] },
                 properties: {},
               },
               {
@@ -1599,320 +785,88 @@ test.describe("1. API", () => {
           },
         });
 
-        return new Promise((resolve) => {
-          const startedAt = Date.now();
-          const check = () => {
-            if (mounted.length > 0 || Date.now() - startedAt >= 5000) {
-              resolve({ mounted });
-              return;
-            }
+        return mounted;
+      }, INLINE_STYLE);
 
-            setTimeout(check, 50);
-          };
-
-          check();
-        });
-      });
-
-      expect(result.mounted).toEqual([
+      expect(result).toEqual([
         {
-          id: "map-geojson-mounted-event",
+          id: "map",
           layerIndex: 0,
           mountedFamilies: ["circle", "line", "circle"],
           mountedLayerIds: [
-            "waymark-map-geojson-mounted-event-geojson-layer-0-circle",
-            "waymark-map-geojson-mounted-event-geojson-layer-0-line",
-            "waymark-map-geojson-mounted-event-geojson-layer-0-circle-hit",
+            "waymark-map-geojson-layer-0-circle",
+            "waymark-map-geojson-layer-0-line",
+            "waymark-map-geojson-layer-0-circle-hit",
           ],
           mountedTypes: [],
         },
       ]);
     });
 
-    test("renders all data layers with index 0 on top above raster basemaps", async ({
+    test("keeps GeoJSON layers mounted after a consumer style swap", async ({
       page,
     }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-geojson-stack-test");
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-geojson-stack-test",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: {
-                      version: 8,
-                      sources: {},
-                      layers: [{ id: "background", type: "background" }],
-                    },
-                  },
-                ],
-                raster: [
-                  {
-                    tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-                    opacity: 0.6,
-                  },
-                  {
-                    tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-                    opacity: 0.3,
-                  },
-                ],
-              },
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({ id: "map", style });
+        window.waymarkFixture.createInstance({
+          map,
+          document: {
+            config: { id: "map" },
+            data: {
+              layers: [{ data: { type: "FeatureCollection", features: [] } }],
             },
-          },
-          data: {
-            layers: [
-              { data: { type: "FeatureCollection", features: [] } },
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "LineString",
-                        coordinates: [
-                          [0, 0],
-                          [1, 1],
-                        ],
-                      },
-                      properties: {},
-                    },
-                  ],
-                },
-              },
-            ],
           },
         });
 
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
+
+        const before = Boolean(map.getSource("waymark-map-geojson-source-0"));
+
+        map.setStyle({ version: 8, sources: {}, layers: [] });
+
         return new Promise((resolve) => {
-          const map = window.waymarkFixture.getRuntimeMap(instance.id);
-          const expectedLayerIds = [
-            "waymark-map-geojson-stack-test-basemap-raster-layer-1",
-            "waymark-map-geojson-stack-test-basemap-raster-layer-0",
-            "waymark-map-geojson-stack-test-geojson-layer-1-line",
-            "waymark-map-geojson-stack-test-geojson-layer-0-line",
-          ];
           const startedAt = Date.now();
           const check = () => {
-            const styleLayers = map.getStyle()?.layers ?? [];
-            const layerIds = styleLayers.map((layer) => layer.id);
-            const hasExpectedLayers = expectedLayerIds.every((layerId) =>
-              layerIds.includes(layerId),
+            const hasSource = Boolean(
+              map.getSource("waymark-map-geojson-source-0"),
             );
 
-            if (!hasExpectedLayers && Date.now() - startedAt < 5000) {
+            if (!hasSource && Date.now() - startedAt < 5000) {
               setTimeout(check, 50);
               return;
             }
 
-            resolve({
-              layerIds,
-              serialisedLayers: instance.toJSON().data.layers,
-            });
+            resolve({ before, after: hasSource });
           };
 
           check();
         });
-      });
+      }, BACKGROUND_STYLE);
 
-      expect(result.layerIds).toEqual([
-        "background",
-        "waymark-map-geojson-stack-test-basemap-raster-layer-1",
-        "waymark-map-geojson-stack-test-basemap-raster-layer-0",
-        "waymark-map-geojson-stack-test-geojson-layer-1-line",
-        "waymark-map-geojson-stack-test-geojson-layer-0-line",
-      ]);
-      expect(result.serialisedLayers).toEqual([
-        {
-          type: "geojson",
-          data: { type: "FeatureCollection", features: [] },
-        },
-        {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: [
-              {
-                type: "Feature",
-                geometry: {
-                  type: "LineString",
-                  coordinates: [
-                    [0, 0],
-                    [1, 1],
-                  ],
-                },
-                properties: {},
-              },
-            ],
-          },
-        },
-      ]);
-    });
-
-    test("keeps GeoJSON sources/layers after vector basemap style reload and preserves top-first order", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-geojson-style-reload-test");
-        const styleOne = {
-          version: 8,
-          sources: {},
-          layers: [{ id: "background", type: "background" }],
-        };
-        const styleTwo = {
-          version: 8,
-          sources: {},
-          layers: [{ id: "background", type: "background" }],
-        };
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-geojson-style-reload-test",
-            map: {
-              basemaps: {
-                vector: [{ styleURL: styleOne }, { styleURL: styleTwo }],
-              },
-            },
-          },
-          data: {
-            layers: [
-              { data: { type: "FeatureCollection", features: [] } },
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "LineString",
-                        coordinates: [
-                          [0, 0],
-                          [1, 1],
-                        ],
-                      },
-                      properties: {},
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-        });
-
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        const core = window.waymarkFixture.getRuntimeCore(instance.id);
-        const dataLayerIds = [
-          "waymark-map-geojson-style-reload-test-geojson-layer-1-line",
-          "waymark-map-geojson-style-reload-test-geojson-layer-0-line",
-        ];
-        const dataSourceIds = [
-          "waymark-map-geojson-style-reload-test-geojson-source-0",
-          "waymark-map-geojson-style-reload-test-geojson-source-1",
-        ];
-
-        const readSnapshot = () => {
-          const style = map.getStyle() ?? { sources: {}, layers: [] };
-          const layerIds = (style.layers ?? []).map((layer) => layer.id);
-
-          return {
-            hasSources: dataSourceIds.every((sourceId) =>
-              Boolean(map.getSource(sourceId)),
-            ),
-            hasLayers: dataLayerIds.every((layerId) =>
-              Boolean(map.getLayer(layerId)),
-            ),
-            dataLayerOrder: layerIds.filter((layerId) =>
-              dataLayerIds.includes(layerId),
-            ),
-            allLayerIds: layerIds,
-          };
-        };
-
-        return new Promise((resolve) => {
-          const timeoutMs = 5000;
-          const intervalMs = 50;
-
-          const waitForDataLayers = () =>
-            new Promise((resolveWait) => {
-              const startedAt = Date.now();
-
-              const poll = () => {
-                const snapshot = readSnapshot();
-                const complete = snapshot.hasSources && snapshot.hasLayers;
-                if (complete || Date.now() - startedAt >= timeoutMs) {
-                  resolveWait(snapshot);
-                  return;
-                }
-                setTimeout(poll, intervalMs);
-              };
-
-              poll();
-            });
-
-          const run = async () => {
-            const initial = await waitForDataLayers();
-
-            core.commands.basemaps.setActiveVectorBasemap("vector-1");
-            const afterStyleReload = await waitForDataLayers();
-
-            resolve({ initial, afterStyleReload });
-          };
-
-          run();
-        });
-      });
-
-      expect(result.initial.hasSources).toBe(true);
-      expect(result.initial.hasLayers).toBe(true);
-      expect(result.initial.dataLayerOrder).toEqual([
-        "waymark-map-geojson-style-reload-test-geojson-layer-1-line",
-        "waymark-map-geojson-style-reload-test-geojson-layer-0-line",
-      ]);
-      expect(result.initial.allLayerIds).toEqual([
-        "background",
-        "waymark-map-geojson-style-reload-test-geojson-layer-1-line",
-        "waymark-map-geojson-style-reload-test-geojson-layer-0-line",
-      ]);
-
-      expect(result.afterStyleReload.hasSources).toBe(true);
-      expect(result.afterStyleReload.hasLayers).toBe(true);
-      expect(result.afterStyleReload.dataLayerOrder).toEqual([
-        "waymark-map-geojson-style-reload-test-geojson-layer-1-line",
-        "waymark-map-geojson-style-reload-test-geojson-layer-0-line",
-      ]);
-      expect(result.afterStyleReload.allLayerIds).toEqual([
-        "background",
-        "waymark-map-geojson-style-reload-test-geojson-layer-1-line",
-        "waymark-map-geojson-style-reload-test-geojson-layer-0-line",
-      ]);
+      expect(result.before).toBe(true);
+      expect(result.after).toBe(true);
     });
 
     test("fits map bounds when addLayer fitBounds defaults to true", async ({
       page,
     }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-fitbounds-default");
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({
+          id: "map",
+          style,
+          center: [0, 0],
+          zoom: 2,
+        });
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-fitbounds-default",
-            map: {
-              options: {
-                center: [0, 0],
-                zoom: 2,
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
+          map,
+          document: { config: { id: "map" } },
         });
 
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
 
         instance.data.addLayer({
           data: {
@@ -1946,9 +900,7 @@ test.describe("1. API", () => {
           const startedAt = Date.now();
           const check = () => {
             const hasLayer = Boolean(
-              map.getLayer(
-                "waymark-map-fitbounds-default-geojson-layer-0-line",
-              ),
+              map.getLayer("waymark-map-geojson-layer-0-line"),
             );
 
             if (!hasLayer && Date.now() - startedAt < 5000) {
@@ -1976,7 +928,7 @@ test.describe("1. API", () => {
 
           check();
         });
-      });
+      }, INLINE_STYLE);
 
       expect(result.center[0]).toBeCloseTo(10.5, 2);
       expect(result.center[1]).toBeCloseTo(10.5, 2);
@@ -1984,28 +936,21 @@ test.describe("1. API", () => {
     });
 
     test("skips bounds fitting when fitBounds is false", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-fitbounds-false");
+      const result = await page.evaluate(async (style) => {
+        const map = window.waymarkFixture.makeMap({
+          id: "map",
+          style,
+          center: [0, 0],
+          zoom: 2,
+        });
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-fitbounds-false",
-            map: {
-              options: {
-                center: [0, 0],
-                zoom: 2,
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
+          map,
+          document: { config: { id: "map" } },
         });
 
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
+        if (!map.loaded()) {
+          await new Promise((resolve) => map.once("load", resolve));
+        }
 
         instance.data.addLayer(
           {
@@ -2033,7 +978,7 @@ test.describe("1. API", () => {
           const startedAt = Date.now();
           const check = () => {
             const hasLayer = Boolean(
-              map.getLayer("waymark-map-fitbounds-false-geojson-layer-0-line"),
+              map.getLayer("waymark-map-geojson-layer-0-line"),
             );
 
             if (!hasLayer && Date.now() - startedAt < 5000) {
@@ -2049,231 +994,11 @@ test.describe("1. API", () => {
 
           check();
         });
-      });
+      }, INLINE_STYLE);
 
       expect(result.center[0]).toBeCloseTo(0, 2);
       expect(result.center[1]).toBeCloseTo(0, 2);
       expect(result.zoom).toBeCloseTo(2, 1);
-    });
-
-    test("fits map bounds when fitBounds is explicitly true", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        window.waymarkFixture.createContainer("map-fitbounds-true");
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-fitbounds-true",
-            map: {
-              options: {
-                center: [0, 0],
-                zoom: 2,
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-
-        instance.data.addLayer(
-          {
-            data: {
-              type: "FeatureCollection",
-              features: [
-                {
-                  type: "Feature",
-                  geometry: {
-                    type: "LineString",
-                    coordinates: [
-                      [10, 10],
-                      [11, 11],
-                    ],
-                  },
-                  properties: {},
-                },
-              ],
-            },
-          },
-          { fitBounds: true },
-        );
-
-        return new Promise((resolve) => {
-          let settled = false;
-          const settle = (value) => {
-            if (settled) {
-              return;
-            }
-            settled = true;
-            resolve(value);
-          };
-
-          const startedAt = Date.now();
-          const check = () => {
-            const hasLayer = Boolean(
-              map.getLayer("waymark-map-fitbounds-true-geojson-layer-0-line"),
-            );
-
-            if (!hasLayer && Date.now() - startedAt < 5000) {
-              setTimeout(check, 50);
-              return;
-            }
-
-            const onMoveEnd = () => {
-              settle({
-                center: [map.getCenter().lng, map.getCenter().lat],
-                zoom: map.getZoom(),
-              });
-            };
-
-            map.once("moveend", onMoveEnd);
-
-            setTimeout(() => {
-              map.off("moveend", onMoveEnd);
-              settle({
-                center: [map.getCenter().lng, map.getCenter().lat],
-                zoom: map.getZoom(),
-              });
-            }, 1500);
-          };
-
-          check();
-        });
-      });
-
-      expect(result.center[0]).toBeCloseTo(10.5, 2);
-      expect(result.center[1]).toBeCloseTo(10.5, 2);
-      expect(result.zoom).toBeGreaterThan(2);
-    });
-
-    test("instance.data.fitBounds fits to all loaded layers combined", async ({
-      page,
-    }) => {
-      const result = await page.evaluate(() => {
-        const container = window.waymarkFixture.createContainer(
-          "map-fitbounds-combined",
-        );
-        container.style.width = "800px";
-        container.style.height = "600px";
-
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map-fitbounds-combined",
-            map: {
-              options: {
-                center: [0, 0],
-                zoom: 2,
-              },
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: { version: 8, sources: {}, layers: [] },
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-
-        // Add two layers in different geographic locations
-        instance.data.addLayer({
-          data: {
-            type: "FeatureCollection",
-            features: [
-              {
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: [-10, -10],
-                },
-                properties: {},
-              },
-            ],
-          },
-        });
-
-        instance.data.addLayer({
-          data: {
-            type: "FeatureCollection",
-            features: [
-              {
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: [20, 20],
-                },
-                properties: {},
-              },
-            ],
-          },
-        });
-
-        return new Promise((resolve) => {
-          let settled = false;
-          const settle = (value) => {
-            if (settled) return;
-            settled = true;
-            resolve(value);
-          };
-
-          // Wait for both layers to mount, then call fitBounds
-          const startedAt = Date.now();
-          const check = () => {
-            const hasLayer1 = Boolean(
-              map.getLayer(
-                "waymark-map-fitbounds-combined-geojson-layer-0-circle",
-              ),
-            );
-            const hasLayer2 = Boolean(
-              map.getLayer(
-                "waymark-map-fitbounds-combined-geojson-layer-1-circle",
-              ),
-            );
-
-            if ((!hasLayer1 || !hasLayer2) && Date.now() - startedAt < 5000) {
-              setTimeout(check, 50);
-              return;
-            }
-
-            // Both layers mounted — now call fitBounds
-            instance.data.fitBounds({ padding: 20 });
-
-            const onMoveEnd = () => {
-              settle({
-                center: [map.getCenter().lng, map.getCenter().lat],
-                zoom: map.getZoom(),
-              });
-            };
-
-            map.once("moveend", onMoveEnd);
-
-            setTimeout(() => {
-              map.off("moveend", onMoveEnd);
-              settle({
-                center: [map.getCenter().lng, map.getCenter().lat],
-                zoom: map.getZoom(),
-              });
-            }, 1500);
-          };
-
-          check();
-        });
-      });
-
-      // Center should be roughly midway between [-10, -10] and [20, 20]
-      expect(result.center[0]).toBeCloseTo(5, 0);
-      expect(result.center[1]).toBeCloseTo(5, 0);
-      // Zoom should be lower (wider view) than the per-layer fitBounds test
-      // since we're encompassing a larger area
-      expect(result.zoom).toBeGreaterThan(1);
     });
   });
 
@@ -2283,336 +1008,465 @@ test.describe("1. API", () => {
       styleURL: "https://tiles.openfreemap.org/styles/bright",
     };
 
-    test("api-quick-start — basic map with vector tiles", async ({ page }) => {
-      await page.goto("/browser-api.html");
-      await page.evaluate(async (vector) => {
+    // Explicit closeup over the Holberg / San Josef demo area so the point,
+    // the track line and the ~494 m "Cape Scott trail area" polygon all sit
+    // comfortably in frame on the 640×360 API canvas. The centre is pulled
+    // west and south of the raw demo centroid so the polygon clears the bottom
+    // edge; at z14 it projects to ~163 px wide (494 m / (78271.5 · cos 50.65° / 2^14)).
+    const HOLBERG_CLOSEUP = { center: [-128.0145, 50.6525], zoom: 14 };
+
+    test("api-quick-start — injected map with a GeoJSON layer", async ({
+      page,
+    }) => {
+      const mounted = await page.evaluate(async (styleURL) => {
+        const markers = await fetch("/geojson/markers.json").then((response) =>
+          response.json(),
+        );
+
+        const map = window.waymarkFixture.makeMap({
+          id: "map",
+          style: styleURL,
+          center: [-127.85, 50.7],
+          zoom: 9,
+        });
+
         const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: { center: [-0.1276, 51.5074], zoom: 10 },
-              basemaps: { vector: [vector] },
-            },
+          map,
+          document: {
+            config: { id: "map" },
+            data: { layers: [{ data: markers }] },
           },
         });
 
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        if (!map?.loaded()) {
+        if (!map.loaded()) {
           await new Promise((resolve) => map.once("load", resolve));
         }
-      }, apiDefaultVector);
 
+        instance.data.fitBounds();
+
+        // Bounded poll until the point family has painted at least one feature,
+        // so the capture cannot catch an unmounted layer.
+        return await new Promise((resolve) => {
+          const startedAt = Date.now();
+
+          const check = () => {
+            const rendered = map.queryRenderedFeatures({
+              layers: ["waymark-map-geojson-layer-0-circle"],
+            }).length;
+
+            if (rendered > 0 || Date.now() - startedAt > 5_000) {
+              resolve({ rendered, markerCount: markers.features.length });
+              return;
+            }
+
+            setTimeout(check, 50);
+          };
+
+          check();
+        });
+      }, apiDefaultVector.styleURL);
+
+      expect(mounted.rendered).toBeGreaterThanOrEqual(1);
       await expect(page.locator("#map canvas")).toBeVisible();
       await screenshot(page, "api-quick-start");
-    });
-
-    test("api-raster-stacked — raster on vector basemaps", async ({ page }) => {
-      await page.goto("/browser-api.html");
-      await page.evaluate(async (vector) => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: { center: [-0.1276, 51.5074], zoom: 10 },
-              basemaps: {
-                vector: [vector],
-                raster: [
-                  {
-                    title: "OpenStreetMap",
-                    tileURLTemplates: [
-                      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    ],
-                  },
-                ],
-              },
-            },
-          },
-        });
-
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        if (!map?.loaded()) {
-          await new Promise((resolve) => map.once("load", resolve));
-        }
-      }, apiDefaultVector);
-
-      await expect(page.locator("#map canvas")).toBeVisible();
-      await screenshot(page, "api-raster-stacked");
-    });
-
-    test("api-view-mode — UI shell in view mode", async ({ page }) => {
-      await page.goto("/browser-api.html");
-      await page.evaluate(async (vector) => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            ui: { mode: "view" },
-            map: {
-              options: { center: [-0.1276, 51.5074], zoom: 10 },
-              basemaps: { vector: [vector] },
-            },
-          },
-        });
-
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        if (!map?.loaded()) {
-          await new Promise((resolve) => map.once("load", resolve));
-        }
-      }, apiDefaultVector);
-
-      await expect(page.locator('#map [data-waymark-app="true"]')).toHaveCount(
-        1,
-      );
-      await expect(
-        page.locator('#map [data-waymark-debug-panel="true"]'),
-      ).toHaveCount(0);
-      await screenshot(page, "api-view-mode");
-    });
-
-    test("api-debug-mode — UI shell in debug mode", async ({ page }) => {
-      await page.goto("/browser-api.html");
-      await page.evaluate(async (vector) => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            ui: { mode: "debug" },
-            map: {
-              options: { center: [-0.1276, 51.5074], zoom: 10 },
-              basemaps: { vector: [vector] },
-            },
-          },
-        });
-
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        if (!map?.loaded()) {
-          await new Promise((resolve) => map.once("load", resolve));
-        }
-      }, apiDefaultVector);
-
-      await expect(
-        page.locator('#map [data-waymark-debug-panel="true"]'),
-      ).toHaveCount(1);
-      await screenshot(page, "api-debug-mode");
     });
 
     test("api-geojson-families — circle, line, fill layers", async ({
       page,
     }) => {
-      await page.goto("/browser-api.html");
-      await page.evaluate(async (vector) => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: { center: [-0.1276, 51.5074], zoom: 10 },
-              basemaps: { vector: [vector] },
-            },
-          },
-          data: {
-            layers: [
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "MultiPoint",
-                        coordinates: [
-                          [-0.1276, 51.5074],
-                          [-0.1576, 51.5174],
-                        ],
-                      },
-                      properties: {},
-                    },
-                  ],
-                },
-              },
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "MultiLineString",
-                        coordinates: [
-                          [
-                            [-0.15, 51.5],
-                            [-0.1, 51.52],
-                          ],
-                        ],
-                      },
-                      properties: {},
-                    },
-                  ],
-                },
-              },
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "MultiPolygon",
-                        coordinates: [
-                          [
-                            [
-                              [-0.14, 51.5],
-                              [-0.11, 51.5],
-                              [-0.11, 51.52],
-                              [-0.14, 51.52],
-                              [-0.14, 51.5],
-                            ],
-                          ],
-                        ],
-                      },
-                      properties: {},
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-        });
+      const evidence = await page.evaluate(
+        async ({ styleURL, closeup }) => {
+          const [markers, track, shapes] = await Promise.all([
+            fetch("/geojson/markers.json").then((response) => response.json()),
+            fetch("/geojson/track-port-hardy-cape-scott.geojson").then(
+              (response) => response.json(),
+            ),
+            fetch("/geojson/shapes.json").then((response) => response.json()),
+          ]);
 
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        if (!map?.loaded()) {
-          await new Promise((resolve) => map.once("load", resolve));
-        }
-      }, apiDefaultVector);
+          const map = window.waymarkFixture.makeMap({
+            id: "map",
+            style: styleURL,
+            center: closeup.center,
+            zoom: closeup.zoom,
+          });
+
+          window.waymarkFixture.createInstance({
+            map,
+            document: {
+              config: { id: "map" },
+              data: {
+                layers: [{ data: markers }, { data: track }, { data: shapes }],
+              },
+            },
+          });
+
+          await new Promise((resolve) => {
+            let settled = false;
+            const settle = () => {
+              if (settled) {
+                return;
+              }
+              settled = true;
+              resolve();
+            };
+
+            if (map.loaded() && map.areTilesLoaded() && !map.isMoving()) {
+              settle();
+              return;
+            }
+
+            map.once("idle", settle);
+            setTimeout(settle, 10_000);
+          });
+
+          const ring = shapes.features[0].geometry.coordinates[0];
+          const lngs = ring.map((position) => position[0]);
+          const lats = ring.map((position) => position[1]);
+          const midLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+          const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+          const west = map.project([Math.min(...lngs), midLat]);
+          const east = map.project([Math.max(...lngs), midLat]);
+          const north = map.project([midLng, Math.max(...lats)]);
+          const south = map.project([midLng, Math.min(...lats)]);
+          const container = map.getContainer();
+
+          return {
+            polygonWidth: Math.abs(east.x - west.x),
+            polygonHeight: Math.abs(south.y - north.y),
+            polygonBox: {
+              left: west.x,
+              right: east.x,
+              top: north.y,
+              bottom: south.y,
+            },
+            canvas: {
+              width: container.clientWidth,
+              height: container.clientHeight,
+            },
+            renderedFill: map.queryRenderedFeatures({
+              layers: ["waymark-map-geojson-layer-2-fill"],
+            }).length,
+            zoom: map.getZoom(),
+          };
+        },
+        { styleURL: apiDefaultVector.styleURL, closeup: HOLBERG_CLOSEUP },
+      );
+
+      // Guard against a region-wide fit: the 494 m polygon must read as a
+      // visible shape, not a few pixels, and sit fully inside the canvas.
+      expect(evidence.polygonWidth).toBeGreaterThanOrEqual(40);
+      expect(evidence.polygonHeight).toBeGreaterThanOrEqual(40);
+      expect(evidence.polygonBox.left).toBeGreaterThanOrEqual(0);
+      expect(evidence.polygonBox.top).toBeGreaterThanOrEqual(0);
+      expect(evidence.polygonBox.right).toBeLessThanOrEqual(
+        evidence.canvas.width,
+      );
+      expect(evidence.polygonBox.bottom).toBeLessThanOrEqual(
+        evidence.canvas.height,
+      );
+      expect(evidence.renderedFill).toBeGreaterThanOrEqual(1);
+      expect(evidence.zoom).toBeCloseTo(HOLBERG_CLOSEUP.zoom, 1);
 
       await expect(page.locator("#map canvas")).toBeVisible();
       await screenshot(page, "api-geojson-families");
     });
 
     test("api-geojson-mixed — mixed FeatureCollection", async ({ page }) => {
-      await page.goto("/browser-api.html");
-      await page.evaluate(async (vector) => {
-        const instance = window.waymarkFixture.createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: { center: [-0.1276, 51.5074], zoom: 10 },
-              basemaps: { vector: [vector] },
-            },
-          },
-          data: {
-            layers: [
-              {
-                data: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "Point",
-                        coordinates: [-0.1276, 51.5074],
-                      },
-                      properties: {},
-                    },
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "LineString",
-                        coordinates: [
-                          [-0.15, 51.5],
-                          [-0.1, 51.52],
-                        ],
-                      },
-                      properties: {},
-                    },
-                    {
-                      type: "Feature",
-                      geometry: {
-                        type: "Polygon",
-                        coordinates: [
-                          [
-                            [-0.14, 51.5],
-                            [-0.11, 51.5],
-                            [-0.11, 51.52],
-                            [-0.14, 51.52],
-                            [-0.14, 51.5],
-                          ],
-                        ],
-                      },
-                      properties: {},
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-        });
+      const result = await page.evaluate(
+        async ({ styleURL, closeup }) => {
+          const [markers, track, shapes] = await Promise.all([
+            fetch("/geojson/markers.json").then((response) => response.json()),
+            fetch("/geojson/track-port-hardy-cape-scott.geojson").then(
+              (response) => response.json(),
+            ),
+            fetch("/geojson/shapes.json").then((response) => response.json()),
+          ]);
 
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        if (!map?.loaded()) {
-          await new Promise((resolve) => map.once("load", resolve));
-        }
-      }, apiDefaultVector);
+          const mixed = {
+            type: "FeatureCollection",
+            features: [
+              markers.features[0],
+              track.features[0],
+              shapes.features[0],
+            ],
+          };
+
+          const map = window.waymarkFixture.makeMap({
+            id: "map",
+            style: styleURL,
+            center: closeup.center,
+            zoom: closeup.zoom,
+          });
+
+          const instance = window.waymarkFixture.createInstance({
+            map,
+            document: {
+              config: { id: "map" },
+              data: { layers: [{ data: mixed }] },
+            },
+          });
+
+          await new Promise((resolve) => {
+            let settled = false;
+            const settle = () => {
+              if (settled) {
+                return;
+              }
+              settled = true;
+              resolve();
+            };
+
+            if (map.loaded() && map.areTilesLoaded() && !map.isMoving()) {
+              settle();
+              return;
+            }
+
+            map.once("idle", settle);
+            setTimeout(settle, 10_000);
+          });
+
+          const authored = instance.toJSON().data.layers[0].data;
+
+          const geometryTypesRenderedFor = (layerId) => [
+            ...new Set(
+              map
+                .queryRenderedFeatures({ layers: [layerId] })
+                .map((feature) => feature.geometry?.type)
+                .filter(Boolean),
+            ),
+          ];
+
+          return {
+            geometryTypes: mixed.features.map(
+              (feature) => feature.geometry.type,
+            ),
+            authoredCount: authored.features.length,
+            filters: {
+              circle:
+                map.getLayer("waymark-map-geojson-layer-0-circle")?.filter ??
+                null,
+              line:
+                map.getLayer("waymark-map-geojson-layer-0-line")?.filter ??
+                null,
+              fill:
+                map.getLayer("waymark-map-geojson-layer-0-fill")?.filter ??
+                null,
+            },
+            rendered: {
+              circle: map.queryRenderedFeatures({
+                layers: ["waymark-map-geojson-layer-0-circle"],
+              }).length,
+              line: map.queryRenderedFeatures({
+                layers: ["waymark-map-geojson-layer-0-line"],
+              }).length,
+              fill: map.queryRenderedFeatures({
+                layers: ["waymark-map-geojson-layer-0-fill"],
+              }).length,
+            },
+            renderedGeometryTypes: {
+              circle: geometryTypesRenderedFor(
+                "waymark-map-geojson-layer-0-circle",
+              ),
+              line: geometryTypesRenderedFor(
+                "waymark-map-geojson-layer-0-line",
+              ),
+              fill: geometryTypesRenderedFor(
+                "waymark-map-geojson-layer-0-fill",
+              ),
+            },
+          };
+        },
+        { styleURL: apiDefaultVector.styleURL, closeup: HOLBERG_CLOSEUP },
+      );
+
+      // The assembled FeatureCollection must be exactly one point, one line
+      // and one polygon, and every family layer must have rendered at least
+      // one feature in the closeup.
+      expect(result.authoredCount).toBe(3);
+      expect(result.geometryTypes).toEqual(["Point", "LineString", "Polygon"]);
+      expect(result.rendered.circle).toBeGreaterThanOrEqual(1);
+      expect(result.rendered.line).toBeGreaterThanOrEqual(1);
+      expect(result.rendered.fill).toBeGreaterThanOrEqual(1);
+
+      // Each family layer constrains itself to its own geometry type, so the
+      // circle layer no longer beads the line and the fill layer no longer
+      // closes and washes the line.
+      expect(result.filters).toEqual({
+        circle: ["==", ["geometry-type"], "Point"],
+        line: ["==", ["geometry-type"], "LineString"],
+        fill: ["==", ["geometry-type"], "Polygon"],
+      });
+      expect(result.renderedGeometryTypes.circle).toEqual(["Point"]);
+      expect(result.renderedGeometryTypes.line.length).toBeGreaterThanOrEqual(
+        1,
+      );
+      expect(
+        result.renderedGeometryTypes.line.every((type) =>
+          ["LineString", "MultiLineString"].includes(type),
+        ),
+      ).toBe(true);
+      expect(result.renderedGeometryTypes.fill.length).toBeGreaterThanOrEqual(
+        1,
+      );
+      expect(
+        result.renderedGeometryTypes.fill.every((type) =>
+          ["Polygon", "MultiPolygon"].includes(type),
+        ),
+      ).toBe(true);
 
       await expect(page.locator("#map canvas")).toBeVisible();
       await screenshot(page, "api-geojson-mixed");
     });
   });
 
-  test.describe("Popup focus behaviour", () => {
-    test("opening a feature popup does not steal focus or scroll the page", async ({
-      page,
-    }) => {
-      await page.evaluate(async () => {
-        const spacer = document.createElement("div");
-        spacer.style.height = "2000px";
-        document.getElementById("map").before(spacer);
+  test.describe("Feature interaction events", () => {
+    const COORDS = [-127.998, 50.661];
+    const HIT_LAYER = "waymark-map-geojson-layer-0-circle-hit";
 
-        const feature = {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [-0.1276, 51.5074] },
-          properties: { name: "Test" },
-        };
+    /**
+     * Create a map with a single point feature, wire interaction listeners,
+     * and wait until the point is queryable. Returns the projected pixel.
+     */
+    async function mountPoint(page, { destroy = false } = {}) {
+      return page.evaluate(
+        async ({ style, coords, hitLayer, destroy }) => {
+          const samplePoint = await fetch("/geojson/sample-point.geojson").then(
+            (response) => response.json(),
+          );
 
-        const instance = window.waymarkFixture.createInstance({
-          config: {
+          const map = window.waymarkFixture.makeMap({
             id: "map",
-            map: {
-              options: { center: [-0.1276, 51.5074], zoom: 12 },
-              basemaps: {
-                vector: [{ styleURL: { version: 8, sources: {}, layers: [] } }],
+            style,
+            center: coords,
+            zoom: 12,
+          });
+
+          const instance = window.waymarkFixture.createInstance({
+            map,
+            document: {
+              config: { id: "map" },
+              data: {
+                layers: [{ data: samplePoint }],
               },
             },
-          },
-          data: {
-            layers: [
-              { data: { type: "FeatureCollection", features: [feature] } },
-            ],
-          },
-        });
+          });
 
-        const map = window.waymarkFixture.getRuntimeMap(instance.id);
-        if (!map?.loaded()) {
-          await new Promise((resolve) => map.once("load", resolve));
-        }
+          if (!map.loaded()) {
+            await new Promise((resolve) => map.once("load", resolve));
+          }
 
-        instance.data.featureProperties.showPopup(feature);
+          window.__events = [];
+
+          for (const type of [
+            "waymark:feature.click",
+            "waymark:feature.hover",
+            "waymark:feature.leave",
+          ]) {
+            instance.on(type, (event) => {
+              const detail = event.detail;
+              window.__events.push({
+                type,
+                id: detail.id,
+                layerId: detail.layerId,
+                title: detail.feature?.properties?.title ?? null,
+                lngLat: detail.lngLat
+                  ? [detail.lngLat.lng, detail.lngLat.lat]
+                  : null,
+                hasOriginalEvent: Boolean(detail.originalEvent),
+              });
+            });
+          }
+
+          await new Promise((resolve) => {
+            const startedAt = Date.now();
+            const check = () => {
+              const at = map.project(coords);
+              const hit = map.queryRenderedFeatures(at, {
+                layers: [hitLayer],
+              });
+
+              if (hit.length > 0 || Date.now() - startedAt > 5000) {
+                resolve();
+                return;
+              }
+
+              setTimeout(check, 50);
+            };
+
+            check();
+          });
+
+          if (destroy) {
+            instance.destroy();
+          }
+
+          const projected = map.project(coords);
+          return { x: projected.x, y: projected.y };
+        },
+        { style: INLINE_STYLE, coords: COORDS, hitLayer: HIT_LAYER, destroy },
+      );
+    }
+
+    test("emits feature click, hover and leave events for rendered features", async ({
+      page,
+    }) => {
+      const point = await mountPoint(page);
+      const box = await page.locator("#map canvas").boundingBox();
+
+      await page.mouse.move(box.x + point.x, box.y + point.y);
+      await page.mouse.move(box.x + point.x, box.y + point.y);
+      await page.mouse.click(box.x + point.x, box.y + point.y);
+      await page.mouse.move(box.x + 5, box.y + 5);
+
+      const events = await page.evaluate(() => window.__events);
+
+      const click = events.find(
+        (event) => event.type === "waymark:feature.click",
+      );
+      expect(click).toMatchObject({
+        id: "map",
+        layerId: HIT_LAYER,
+        title: "Sample point",
+        hasOriginalEvent: true,
+      });
+      expect(click.lngLat[0]).toBeCloseTo(COORDS[0], 4);
+      expect(click.lngLat[1]).toBeCloseTo(COORDS[1], 4);
+
+      const hover = events.find(
+        (event) => event.type === "waymark:feature.hover",
+      );
+      expect(hover).toMatchObject({
+        id: "map",
+        layerId: HIT_LAYER,
+        title: "Sample point",
       });
 
-      const popup = page.locator(".maplibregl-popup");
-      await expect(popup).toBeVisible();
-      await expect(popup).toContainText("Test");
+      const leave = events.find(
+        (event) => event.type === "waymark:feature.leave",
+      );
+      expect(leave).toMatchObject({
+        id: "map",
+        layerId: HIT_LAYER,
+        title: "Sample point",
+      });
 
-      const focusState = await page.evaluate(() => ({
-        activeElementIsCloseButton: document.activeElement?.classList?.contains(
-          "maplibregl-popup-close-button",
-        ),
-        activeElementInsidePopup: Boolean(
-          document.activeElement?.closest?.(".maplibregl-popup"),
-        ),
-        scrollY: window.scrollY,
-      }));
+      // Hover is emitted once on entry, not repeatedly while over the feature.
+      expect(
+        events.filter((event) => event.type === "waymark:feature.hover"),
+      ).toHaveLength(1);
+    });
 
-      expect(focusState.activeElementIsCloseButton).toBe(false);
-      expect(focusState.activeElementInsidePopup).toBe(false);
-      expect(focusState.scrollY).toBe(0);
+    test("stops emitting feature events after destroy", async ({ page }) => {
+      const point = await mountPoint(page, { destroy: true });
+      const box = await page.locator("#map canvas").boundingBox();
+
+      await page.mouse.move(box.x + point.x, box.y + point.y);
+      await page.mouse.click(box.x + point.x, box.y + point.y);
+      await page.mouse.move(box.x + 5, box.y + 5);
+
+      const events = await page.evaluate(() => window.__events);
+      expect(events).toEqual([]);
     });
   });
 });

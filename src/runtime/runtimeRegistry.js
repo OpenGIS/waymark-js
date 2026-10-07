@@ -1,32 +1,35 @@
-const runtimeCoreRegistry = new Map();
+let runtimeCoreRegistry = new WeakMap();
 
 /**
  * @typedef {import('./createInstanceCore.js').WaymarkInstanceCore} WaymarkInstanceCore
  */
 
 /**
- * @param {string} instanceId
+ * @param {object} map
  * @returns {WaymarkInstanceCore | undefined}
  */
-export function getCoreById(instanceId) {
-  return runtimeCoreRegistry.get(instanceId);
+export function getCoreByMap(map) {
+  return runtimeCoreRegistry.get(map);
 }
 
 /**
- * @param {string} instanceId
+ * @param {object} map
  * @param {WaymarkInstanceCore} core
  */
-export function setCoreById(instanceId, core) {
-  runtimeCoreRegistry.set(instanceId, core);
+export function setCoreByMap(map, core) {
+  runtimeCoreRegistry.set(map, core);
 }
 
 /**
- * @param {string} instanceId
+ * @param {object} map
  */
-export function deleteCoreById(instanceId) {
-  runtimeCoreRegistry.delete(instanceId);
+export function deleteCoreByMap(map) {
+  runtimeCoreRegistry.delete(map);
 }
 
+/**
+ * Drop all runtime registrations. Intended for tests only.
+ */
 export function clearRuntimeRegistry() {
-  runtimeCoreRegistry.clear();
+  runtimeCoreRegistry = new WeakMap();
 }

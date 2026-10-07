@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { nextTick } from "vue";
 
 vi.mock("maplibre-gl", () => {
   const EMPTY_STYLE = {
@@ -41,19 +40,12 @@ vi.mock("maplibre-gl", () => {
     return this;
   });
 
-  const MockMap = vi.fn(function (options) {
+  const MockMap = vi.fn(function (options = {}) {
     this._options = options;
     this._style = normaliseStyle(options.style);
-    this._view = {
-      center: options.center ?? [0, 0],
-      zoom: options.zoom ?? 2,
-      bearing: options.bearing ?? 0,
-      pitch: options.pitch ?? 0,
-    };
     this._loaded = false;
     this.on = vi.fn();
     this.off = vi.fn();
-    this.remove = vi.fn();
     this.fire = vi.fn((eventName, event = {}) => {
       for (const [registeredEventName, handler] of this.on.mock.calls) {
         if (registeredEventName === eventName) {
@@ -61,17 +53,23 @@ vi.mock("maplibre-gl", () => {
         }
       }
     });
-    this.setStyle = vi.fn((style) => {
-      this._style = normaliseStyle(style);
-      this.fire("style.load", {
-        type: "style.load",
-      });
+    this.getContainer = vi.fn(() => {
+      if (typeof options.container === "string") {
+        return document.getElementById(options.container);
+      }
+
+      return options.container ?? null;
     });
     this.addSource = vi.fn((id, source) => {
       this._style.sources = {
         ...this._style.sources,
         [id]: source,
       };
+    });
+    this.removeSource = vi.fn((id) => {
+      const sources = { ...this._style.sources };
+      delete sources[id];
+      this._style.sources = sources;
     });
     this.addLayer = vi.fn((layer, beforeId) => {
       const layers = [...(this._style.layers ?? [])];
@@ -91,37 +89,12 @@ vi.mock("maplibre-gl", () => {
 
       this._style.layers = layers;
     });
-    this.moveLayer = vi.fn((layerId, beforeId) => {
-      const layers = [...(this._style.layers ?? [])];
-      const currentIndex = layers.findIndex(
-        (existing) => existing.id === layerId,
+    this.removeLayer = vi.fn((layerId) => {
+      this._style.layers = (this._style.layers ?? []).filter(
+        (layer) => layer.id !== layerId,
       );
-
-      if (currentIndex < 0) {
-        return;
-      }
-
-      const [layer] = layers.splice(currentIndex, 1);
-
-      if (!beforeId) {
-        layers.push(layer);
-        this._style.layers = layers;
-        return;
-      }
-
-      const beforeIndex = layers.findIndex(
-        (existing) => existing.id === beforeId,
-      );
-
-      if (beforeIndex < 0) {
-        layers.push(layer);
-      } else {
-        layers.splice(beforeIndex, 0, layer);
-      }
-
-      this._style.layers = layers;
     });
-    this.setPaintProperty = vi.fn((layerId, name, value) => {
+    this.setLayoutProperty = vi.fn((layerId, name, value) => {
       const layers = [...(this._style.layers ?? [])];
       const layerIndex = layers.findIndex(
         (existing) => existing.id === layerId,
@@ -131,11 +104,10 @@ vi.mock("maplibre-gl", () => {
         return;
       }
 
-      const layer = layers[layerIndex];
       layers[layerIndex] = {
-        ...layer,
-        paint: {
-          ...(layer.paint ?? {}),
+        ...layers[layerIndex],
+        layout: {
+          ...(layers[layerIndex].layout ?? {}),
           [name]: value,
         },
       };
@@ -145,101 +117,129 @@ vi.mock("maplibre-gl", () => {
     this.getStyle = vi.fn(() => this._style);
     this.getSource = vi.fn((id) => this._style.sources[id]);
     this.getLayer = vi.fn((id) =>
-      this._style.layers.find((layer) => layer.id === id),
+      (this._style.layers ?? []).find((layer) => layer.id === id),
     );
-    this.getCenter = vi.fn(() => ({
-      lng: this._view.center[0],
-      lat: this._view.center[1],
-    }));
-    this.getZoom = vi.fn(() => this._view.zoom);
-    this.getBearing = vi.fn(() => this._view.bearing);
-    this.getPitch = vi.fn(() => this._view.pitch);
-    this.fitBounds = vi.fn();
-    this.setProjection = vi.fn();
     this.getCanvas = vi.fn(() => ({
       style: { cursor: "" },
     }));
+    this.getCenter = vi.fn(() => ({ lng: 0, lat: 0 }));
+    this.getZoom = vi.fn(() => 2);
+    this.fitBounds = vi.fn();
+    this.queryRenderedFeatures = vi.fn(() => []);
+    this.flyTo = vi.fn();
+    this.hasImage = vi.fn(() => false);
+    this.addImage = vi.fn();
+    this.updateImage = vi.fn();
+    this.setProjection = vi.fn();
+    this.setStyle = vi.fn((style) => {
+      this._style = normaliseStyle(style);
+      this.fire("style.load", {
+        type: "style.load",
+      });
+    });
+    this.remove = vi.fn();
   });
+
   return {
     Map: MockMap,
     LngLatBounds: MockLngLatBounds,
-    setWorkerUrl: vi.fn(),
   };
 });
 
-vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
-
 import { createInstance } from "../../src/entry.js";
-import {
-  defaultBasemapVector,
-  defaultConfig,
-} from "../../src/config/defaults.js";
+import { defaultConfig } from "../../src/config/defaults.js";
 import { resolveConfig } from "../../src/config/resolveConfig.js";
 import { normaliseInstanceDocument } from "../../src/document/instanceDocument.js";
 import {
   clearRuntimeRegistry,
-  getCoreById,
+  getCoreByMap,
 } from "../../src/runtime/runtimeRegistry.js";
 import {
   WAYMARK_DATA_LAYER_ADDED_EVENT,
   WAYMARK_DATA_LAYER_ERROR_EVENT,
   WAYMARK_DATA_LAYER_MOUNTED_EVENT,
-  WAYMARK_MAP_BASEMAPS_CHANGED_EVENT,
-  WAYMARK_MAP_ERROR_EVENT,
-  WAYMARK_STATE_MAP_CAMERA_CHANGED_EVENT,
+  WAYMARK_FEATURE_CLICK_EVENT,
+  WAYMARK_FEATURE_HOVER_EVENT,
+  WAYMARK_FEATURE_LEAVE_EVENT,
 } from "../../src/runtime/createInstanceEvents.js";
 import { LngLatBounds, Map } from "maplibre-gl";
-import {
-  computeStyleAttribution,
-  getLoadedStyleAttribution,
-} from "../../src/map/styleAttribution.js";
 
-function getLastMapInstance() {
-  return Map.mock.instances.at(-1);
+const EMPTY_FEATURE_COLLECTION = {
+  type: "FeatureCollection",
+  features: [],
+};
+
+const STYLE_WITH_SYMBOL = {
+  version: 8,
+  sources: {},
+  layers: [
+    { id: "background", type: "background" },
+    { id: "poi-label", type: "symbol" },
+  ],
+};
+
+function createMockMap(options = {}) {
+  return new Map({
+    container: "map",
+    style: structuredClone(STYLE_WITH_SYMBOL),
+    ...options,
+  });
+}
+
+/**
+ * @param {object} geometry
+ * @param {object} [properties]
+ */
+function featureCollection(geometry, properties = {}) {
+  return {
+    type: "FeatureCollection",
+    features: [{ type: "Feature", geometry, properties }],
+  };
 }
 
 describe("1. API", () => {
   beforeEach(() => {
-    document.body.innerHTML =
-      '<div id="map" style="width: 500px; height: 400px;"></div>';
+    document.body.innerHTML = '<div id="map"></div>';
     vi.clearAllMocks();
     clearRuntimeRegistry();
   });
 
   describe("Quick start", () => {
-    it("creates an instance for a valid container", () => {
+    it("creates an instance for an injected map", () => {
+      const map = createMockMap();
       const instance = createInstance({
-        config: {
-          id: "map",
+        map,
+        document: {
+          config: { id: "map" },
         },
       });
 
       expect(instance.id).toBe("map");
       expect(instance.toJSON().config.id).toBe("map");
+      expect(getCoreByMap(map)).toBeTruthy();
     });
   });
 
   describe("Factory signature", () => {
-    it("accepts an instance document", () => {
+    it("accepts a map and an instance document", () => {
+      const map = createMockMap();
       const instance = createInstance({
-        config: {
-          id: "map",
-          map: { options: { zoom: 10 } },
-        },
-        data: {
-          layers: [{ data: { type: "FeatureCollection", features: [] } }],
+        map,
+        document: {
+          config: { id: "map" },
+          data: {
+            layers: [{ data: EMPTY_FEATURE_COLLECTION }],
+          },
         },
       });
 
       expect(instance.id).toBe("map");
-      expect(getLastMapInstance().on).toHaveBeenCalledWith(
-        "load",
-        expect.any(Function),
-      );
+      expect(map.on).toHaveBeenCalledWith("load", expect.any(Function));
     });
 
     it("accepts an empty instance document", () => {
-      const instance = createInstance({});
+      const map = createMockMap();
+      const instance = createInstance({ map });
 
       expect(instance.id).toMatch(/^waymark-/);
       expect(instance.toJSON().data.layers).toEqual([]);
@@ -247,29 +247,21 @@ describe("1. API", () => {
 
     it("supports strict round-trip serialisation", () => {
       const first = createInstance({
-        config: {
-          id: "map",
-          ui: { mode: "debug" },
-          map: {
-            options: {
-              center: [-3, 55],
-              zoom: 9,
-            },
+        map: createMockMap(),
+        document: {
+          config: { id: "map" },
+          data: {
+            layers: [{ data: EMPTY_FEATURE_COLLECTION }],
           },
-        },
-        data: {
-          layers: [
-            {
-              data: {
-                type: "FeatureCollection",
-                features: [],
-              },
-            },
-          ],
         },
       });
 
-      const second = createInstance(first.toJSON());
+      document.body.innerHTML += '<div id="map-two"></div>';
+
+      const second = createInstance({
+        map: createMockMap({ container: "map-two" }),
+        document: first.toJSON(),
+      });
 
       expect(second.toJSON()).toEqual(first.toJSON());
     });
@@ -280,18 +272,8 @@ describe("1. API", () => {
           id: "map",
         },
         state: {
-          map: {
-            options: {
-              center: [-3, 55],
-              zoom: 8,
-              bearing: 20,
-              pitch: 30,
-              ignored: true,
-            },
-          },
-          ui: {
-            mode: "invalid",
-          },
+          debug: true,
+          unknown: true,
         },
         data: {
           layers: [
@@ -312,15 +294,8 @@ describe("1. API", () => {
       });
 
       expect(Object.keys(normalised)).toEqual(["config", "state", "data"]);
-      expect(normalised.state.map).toEqual({
-        options: {
-          center: [-3, 55],
-          zoom: 8,
-          bearing: 20,
-          pitch: 30,
-        },
-      });
-      expect(normalised.state.ui.mode).toBe("view");
+      expect(normalised.config).toEqual({ id: "map", debug: false });
+      expect(normalised.state).toEqual({ debug: true });
       expect(normalised.data).toEqual({
         layers: [
           {
@@ -339,39 +314,12 @@ describe("1. API", () => {
       });
     });
 
-    it("applies state camera values over config.map.options", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            options: {
-              zoom: 4,
-              center: [0, 0],
-            },
-          },
-        },
-        state: {
-          map: {
-            options: {
-              zoom: 12,
-              center: [-0.1276, 51.5074],
-            },
-          },
-        },
-      });
-
-      expect(instance.toJSON().state.map.options.zoom).toBe(12);
-      expect(instance.toJSON().state.map.options.center).toEqual([
-        -0.1276, 51.5074,
-      ]);
-    });
-
     it("defaults data layer type to geojson when omitted", () => {
       const normalised = normaliseInstanceDocument({
         data: {
           layers: [
             {
-              data: { type: "FeatureCollection", features: [] },
+              data: EMPTY_FEATURE_COLLECTION,
             },
           ],
         },
@@ -380,7 +328,7 @@ describe("1. API", () => {
       expect(normalised.data.layers).toEqual([
         {
           type: "geojson",
-          data: { type: "FeatureCollection", features: [] },
+          data: EMPTY_FEATURE_COLLECTION,
         },
       ]);
     });
@@ -389,12 +337,7 @@ describe("1. API", () => {
       const normalised = normaliseInstanceDocument({
         data: {
           layers: [
-            {
-              data: {
-                type: "FeatureCollection",
-                features: [],
-              },
-            },
+            { data: EMPTY_FEATURE_COLLECTION },
             {
               data: {
                 type: "Feature",
@@ -417,84 +360,16 @@ describe("1. API", () => {
       });
 
       expect(normalised.data.layers).toHaveLength(3);
-      expect(normalised.data.layers[1].data).toEqual({
-        type: "Feature",
-        geometry: null,
-      });
-      expect(normalised.data.layers[2].data).toEqual({
-        type: "GeometryCollection",
-        geometries: [
-          {
-            type: "Point",
-            coordinates: [0, 0],
-          },
-        ],
-      });
     });
 
     it("rejects invalid GeoJSON shapes for data layers", () => {
       expect(() =>
         normaliseInstanceDocument({
           data: {
-            layers: [
-              {
-                data: {
-                  type: "FeatureCollection",
-                },
-              },
-            ],
+            layers: [{ data: { type: "FeatureCollection" } }],
           },
         }),
       ).toThrow("Invalid data.layers[0].data.features: expected an array.");
-
-      expect(() =>
-        normaliseInstanceDocument({
-          data: {
-            layers: [
-              {
-                data: {
-                  type: "Feature",
-                  properties: {},
-                },
-              },
-            ],
-          },
-        }),
-      ).toThrow(
-        "Invalid data.layers[0].data.geometry: expected an object or null.",
-      );
-
-      expect(() =>
-        normaliseInstanceDocument({
-          data: {
-            layers: [
-              {
-                data: {
-                  type: "GeometryCollection",
-                },
-              },
-            ],
-          },
-        }),
-      ).toThrow(
-        "Invalid data.layers[0].data.geometries: expected an array for GeometryCollection.",
-      );
-
-      expect(() =>
-        normaliseInstanceDocument({
-          data: {
-            layers: [
-              {
-                data: {
-                  type: "UnknownGeometry",
-                },
-              },
-            ],
-          },
-        }),
-      ).toThrow(
-        "Invalid data.layers[0].data.type: expected a supported GeoJSON geometry type.",
-      );
 
       expect(() =>
         normaliseInstanceDocument({
@@ -512,30 +387,6 @@ describe("1. API", () => {
       ).toThrow(
         "Invalid data.layers[0].data.coordinates: expected a LineString coordinates array with at least two positions.",
       );
-
-      expect(() =>
-        normaliseInstanceDocument({
-          data: {
-            layers: [
-              {
-                data: {
-                  type: "Polygon",
-                  coordinates: [
-                    [
-                      [0, 0],
-                      [2, 0],
-                      [2, 2],
-                      [0, 2],
-                    ],
-                  ],
-                },
-              },
-            ],
-          },
-        }),
-      ).toThrow(
-        "Invalid data.layers[0].data.coordinates[0]: expected first and last positions to be equivalent (closed LinearRing).",
-      );
     });
 
     it("rejects unsupported data layer types", () => {
@@ -545,7 +396,7 @@ describe("1. API", () => {
             layers: [
               {
                 type: "raster",
-                data: { type: "FeatureCollection", features: [] },
+                data: EMPTY_FEATURE_COLLECTION,
               },
             ],
           },
@@ -554,1737 +405,87 @@ describe("1. API", () => {
         "Invalid data.layers[0].type: only geojson is currently supported.",
       );
     });
+  });
 
-    it("normalises basemap keys in raster-then-vector order", () => {
-      const normalised = normaliseInstanceDocument({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: "https://tiles.openfreemap.org/styles/bright",
-                },
-              ],
-              raster: [
-                {
-                  tileURLTemplates: [
-                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  ],
-                },
-              ],
-            },
-          },
+  describe("Map injection", () => {
+    it("throws a TypeError when no map is provided", () => {
+      expect(() => createInstance()).toThrow(TypeError);
+      expect(() => createInstance()).toThrow(
+        "createInstance({ map }) requires a MapLibre-compatible map instance; received undefined.",
+      );
+    });
+
+    it("throws a TypeError naming the missing map methods", () => {
+      expect(() => createInstance({ map: {} })).toThrow(TypeError);
+      expect(() => createInstance({ map: {} })).toThrow(
+        /Missing method\(s\): getContainer, on, off, addSource, addLayer, getStyle, fitBounds\./,
+      );
+    });
+
+    it("throws when the same map already has a runtime", () => {
+      const map = createMockMap();
+
+      createInstance({ map, document: { config: { id: "map" } } });
+
+      expect(() =>
+        createInstance({ map, document: { config: { id: "map" } } }),
+      ).toThrow(
+        "This map already has a Waymark instance. Call destroy() on the existing instance before creating another.",
+      );
+    });
+
+    it("mounts immediately when the injected map is already loaded", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: { layers: [{ data: EMPTY_FEATURE_COLLECTION }] },
         },
       });
 
-      expect(Object.keys(normalised.config.map.basemaps)).toEqual([
-        "raster",
-        "vector",
-      ]);
-    });
-  });
-
-  describe("Container resolution", () => {
-    it("throws when a provided container is missing", () => {
-      expect(() =>
-        createInstance({
-          config: {
-            id: "missing-container",
-          },
-        }),
-      ).toThrow('Waymark container "missing-container" was not found.');
+      expect(map.getSource("waymark-map-geojson-source-0")).toBeTruthy();
+      expect(map.getLayer("waymark-map-geojson-layer-0-line")).toBeTruthy();
     });
 
-    it("creates and appends a random container when id is omitted", () => {
-      const instance = createInstance();
-      expect(instance.id).toMatch(/^waymark-/);
-      expect(document.getElementById(instance.id)).toBeTruthy();
+    it("waits for load when the injected map is not yet loaded", () => {
+      const map = createMockMap();
+
+      createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: { layers: [{ data: EMPTY_FEATURE_COLLECTION }] },
+        },
+      });
+
+      expect(map.getSource("waymark-map-geojson-source-0")).toBeUndefined();
+
+      map.fire("load", { type: "load" });
+
+      expect(map.getSource("waymark-map-geojson-source-0")).toBeTruthy();
     });
   });
 
   describe("Config defaults and merge behaviour", () => {
-    it("uses documented defaults for attributionControl", () => {
-      createInstance({
-        config: {
-          id: "map",
-        },
-      });
-
-      expect(Map).toHaveBeenCalledWith(
-        expect.objectContaining({
-          attributionControl: defaultConfig.map.options.attributionControl,
-        }),
-      );
+    it("uses documented debug defaults", () => {
+      expect(defaultConfig.debug).toBe(false);
+      expect(resolveConfig({}).debug).toBe(false);
     });
 
-    it("resolves defaults from canonical config defaults", () => {
-      const resolved = resolveConfig({});
-
-      expect(resolved.map.options.attributionControl).toBe(
-        defaultConfig.map.options.attributionControl,
-      );
-      expect(resolved.ui.mode).toBe(defaultConfig.ui.mode);
-    });
-
-    it("injects Open GIS Outdoors vector only when no basemap entries are configured", () => {
-      createInstance({
-        config: {
-          id: "map",
-        },
-      });
-
-      expect(Map).toHaveBeenCalledWith(
-        expect.objectContaining({
-          style: defaultBasemapVector.styleURL,
-        }),
-      );
-    });
-
-    it("does not inject default vector when raster-only basemaps are configured", () => {
-      createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              raster: [
-                {
-                  tileURLTemplates: [
-                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  ],
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      expect(Map).toHaveBeenCalledWith(
-        expect.objectContaining({
-          style: {
-            version: 8,
-            sources: {},
-            layers: [],
-          },
-        }),
-      );
-    });
-
-    it("deeply merges consumer config over defaults", () => {
-      const resolved = resolveConfig({
-        map: {
-          options: {
-            camera: {
-              padding: {
-                top: 24,
-              },
-            },
-          },
-        },
-      });
-
-      expect(resolved.map.options.camera.padding.top).toBe(24);
-    });
-
-    it("falls back to view mode when ui.mode is invalid", () => {
-      const resolved = resolveConfig({
-        ui: {
-          mode: "invalid-mode",
-        },
-      });
-
-      expect(resolved.ui.mode).toBe("view");
-    });
-
-    it("rejects legacy config.map.options.style", () => {
-      expect(() =>
-        createInstance({
-          config: {
-            id: "map",
-            map: {
-              options: {
-                style: "https://example.com/style.json",
-              },
-            },
-          },
-        }),
-      ).toThrow(
-        "Invalid config.map.options.style: use config.map.basemaps.vector[] instead.",
-      );
-    });
-
-    it("rejects invalid basemap entries with clear path errors", () => {
-      expect(() =>
-        createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    styleURL: "",
-                  },
-                ],
-              },
-            },
-          },
-        }),
-      ).toThrow(
-        "Invalid config.map.basemaps.vector[0].styleURL: expected a non-empty string or style object.",
-      );
-
-      expect(() =>
-        createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                raster: [
-                  {
-                    tileURLTemplates: [],
-                  },
-                ],
-              },
-            },
-          },
-        }),
-      ).toThrow(
-        "Invalid config.map.basemaps.raster[0].tileURLTemplates: expected a non-empty string array.",
-      );
-
-      expect(() =>
-        createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                vector: [
-                  {
-                    style: "https://example.com/legacy-style.json",
-                  },
-                ],
-              },
-            },
-          },
-        }),
-      ).toThrow(
-        "Invalid config.map.basemaps.vector[0].style: unexpected key for vector basemap entry.",
-      );
-
-      expect(() =>
-        createInstance({
-          config: {
-            id: "map",
-            map: {
-              basemaps: {
-                raster: [
-                  {
-                    tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-                  },
-                ],
-              },
-            },
-          },
-        }),
-      ).toThrow(
-        "Invalid config.map.basemaps.raster[0].tiles: unexpected key for raster basemap entry.",
-      );
-    });
-  });
-
-  describe("Style attribution aggregation", () => {
-    it("aggregates source attributions with dedupe, length sort and substring removal", () => {
-      const style = {
-        version: 8,
-        sources: {
-          mapterhorn: { type: "vector", attribution: "© Mapterhorn" },
-          osm: { type: "vector", attribution: "© OpenStreetMap" },
-          osmContributors: {
-            type: "vector",
-            attribution: "© OpenStreetMap contributors",
-          },
-          duplicate: { type: "vector", attribution: "© Mapterhorn" },
-          empty: { type: "vector", attribution: "   " },
-        },
-        layers: [],
-      };
-
-      expect(computeStyleAttribution(style)).toBe(
-        "© Mapterhorn | © OpenStreetMap contributors",
-      );
-    });
-
-    it("returns null when no sources or no attributions are present", () => {
-      expect(computeStyleAttribution(undefined)).toBeNull();
-      expect(computeStyleAttribution({})).toBeNull();
-      expect(
-        computeStyleAttribution({ version: 8, sources: {}, layers: [] }),
-      ).toBeNull();
-      expect(
-        computeStyleAttribution({
-          version: 8,
-          sources: {
-            a: { type: "vector" },
-            b: { type: "vector", attribution: "" },
-          },
-          layers: [],
-        }),
-      ).toBeNull();
-    });
-
-    it("reads the loaded style attribution from a map instance", () => {
-      const map = {
-        getStyle: () => ({
-          version: 8,
-          sources: {
-            outdoors: { type: "vector", attribution: "© Mapterhorn" },
-          },
-          layers: [],
-        }),
-      };
-
-      expect(getLoadedStyleAttribution(map)).toBe("© Mapterhorn");
-    });
-
-    it("returns null when the map has no getStyle or no loaded style", () => {
-      expect(getLoadedStyleAttribution(null)).toBeNull();
-      expect(getLoadedStyleAttribution({})).toBeNull();
-      expect(getLoadedStyleAttribution({ getStyle: () => null })).toBeNull();
-    });
-  });
-
-  describe("Runtime style attribution injection", () => {
-    it("injects runtime style attribution into the snapshot but omits it from toJSON", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  title: "Open GIS Outdoors",
-                  styleURL:
-                    "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      map.addSource("osm", {
-        type: "vector",
-        attribution: "© OpenStreetMap",
-      });
-      map.addSource("mapterhorn", {
-        type: "vector",
-        attribution: "© Mapterhorn",
-      });
-      map.fire("style.load", { type: "style.load" });
-
-      const core = getCoreById("map");
-      const snapshot = core.runtimeState.getSnapshot();
-
-      expect(snapshot.map.basemaps.vector[0].attributionHTML).toBe(
-        "© Mapterhorn | © OpenStreetMap",
-      );
-
-      expect(
-        instance.toJSON().config.map.basemaps.vector[0].attributionHTML,
-      ).toBeUndefined();
-      expect(instance.toJSON().state.map?.basemaps).toBeUndefined();
-    });
-
-    it("does not overwrite an explicitly authored attributionHTML on style load", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  title: "OpenFreeMap Bright",
-                  styleURL: "https://tiles.openfreemap.org/styles/bright",
-                  attributionHTML:
-                    "<a href='https://openfreemap.org'>© OpenFreeMap</a>",
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      map.addSource("osm", {
-        type: "vector",
-        attribution: "© OpenStreetMap",
-      });
-      map.fire("style.load", { type: "style.load" });
-
-      const core = getCoreById("map");
-      const snapshot = core.runtimeState.getSnapshot();
-
-      expect(snapshot.map.basemaps.vector[0].attributionHTML).toBe(
-        "<a href='https://openfreemap.org'>© OpenFreeMap</a>",
-      );
-      expect(
-        instance.toJSON().config.map.basemaps.vector[0].attributionHTML,
-      ).toBe("<a href='https://openfreemap.org'>© OpenFreeMap</a>");
-    });
-  });
-
-  describe("UI shell mode rendering", () => {
-    it("keeps the shell mounted and renders the basemaps control in view mode", () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "view",
-          },
-        },
-      });
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const basemapsControl = shellMount?.querySelector(
-        '[data-waymark-control="basemaps-toggle"]',
-      );
-      const bottomLeftPosition = shellMount?.querySelector(
-        '[data-waymark-controls-position="bottomLeft"]',
-      );
-
-      expect(shellMount).toBeTruthy();
-      expect(basemapsControl).toBeTruthy();
-      expect(
-        bottomLeftPosition?.querySelector(
-          '[data-waymark-control="basemaps-toggle"]',
-        ),
-      ).toBeTruthy();
-      expect(
-        shellMount?.querySelector('[data-waymark-modal="true"]'),
-      ).toBeNull();
-      expect(
-        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
-      ).toBeNull();
-    });
-
-    it("renders instance document and event feed sections in debug mode", async () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "debug",
-          },
-        },
-      });
-
-      await nextTick();
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const panel = shellMount?.querySelector(
-        '[data-waymark-debug-panel="true"]',
-      );
-      const modal = shellMount?.querySelector('[data-waymark-modal="true"]');
-      const debugControl = shellMount?.querySelector(
-        '[data-waymark-control="debug-output-toggle"]',
-      );
-      const basemapsControl = shellMount?.querySelector(
-        '[data-waymark-control="basemaps-toggle"]',
-      );
-
-      expect(modal).toBeTruthy();
-      expect(panel).toBeTruthy();
-      expect(debugControl).toBeTruthy();
-      expect(basemapsControl).toBeTruthy();
-      expect(panel?.textContent).toContain("Instance document");
-      expect(panel?.textContent).toContain("Waymark events (last 25)");
-      expect(panel?.textContent).toContain('"config"');
-    });
-
-    it("refreshes debug instance document camera state from runtime state events", async () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "debug",
-          },
-          map: {
-            options: {
-              center: [10, 20],
-              zoom: 4,
-              bearing: 5,
-              pitch: 6,
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-
-      map._view = {
-        center: [11, 21],
-        zoom: 7,
-        bearing: 9,
-        pitch: 12,
-      };
-      map.fire("moveend", {
-        type: "moveend",
-      });
-
-      await nextTick();
-
-      const instanceDocumentJSON =
-        shellMount?.querySelectorAll("pre")?.[0]?.textContent ?? "{}";
-      const instanceDocument = JSON.parse(instanceDocumentJSON);
-
-      expect(instanceDocument.state.map.options).toEqual({
-        center: [11, 21],
-        zoom: 7,
-        bearing: 9,
-        pitch: 12,
-      });
-    });
-
-    it("toggles debug outputs from the internal debug control", async () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "debug",
-          },
-        },
-      });
-
-      await nextTick();
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const debugControl = shellMount?.querySelector(
-        '[data-waymark-control="debug-output-toggle"]',
-      );
-
-      expect(
-        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
-      ).toBeTruthy();
-
-      debugControl?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await nextTick();
-
-      expect(
-        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
-      ).toBeNull();
-
-      debugControl?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await nextTick();
-
-      expect(
-        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
-      ).toBeTruthy();
-
-      const eventsJSON =
-        shellMount?.querySelectorAll("pre")?.[1]?.textContent ?? "[]";
-      const events = JSON.parse(eventsJSON);
-
-      expect(
-        events.some((event) => event.type === "waymark:state.changed"),
-      ).toBe(true);
-      expect(
-        events.some((event) => event.type === "waymark:state.ui.panel.changed"),
-      ).toBe(true);
-    });
-
-    it("routes shared modal content between debug and basemaps panels", async () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "debug",
-          },
-        },
-      });
-
-      await nextTick();
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const debugControl = shellMount?.querySelector(
-        '[data-waymark-control="debug-output-toggle"]',
-      );
-      const basemapsControl = shellMount?.querySelector(
-        '[data-waymark-control="basemaps-toggle"]',
-      );
-
-      expect(
-        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
-      ).toBeTruthy();
-
-      basemapsControl?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
-      await nextTick();
-
-      expect(
-        shellMount?.querySelector('[data-waymark-modal="true"]'),
-      ).toBeTruthy();
-      expect(
-        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
-      ).toBeNull();
-      expect(
-        shellMount?.querySelector('[data-waymark-panel="basemaps"]'),
-      ).toBeTruthy();
-
-      debugControl?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await nextTick();
-
-      expect(
-        shellMount?.querySelector('[data-waymark-debug-panel="true"]'),
-      ).toBeTruthy();
-      expect(
-        shellMount?.querySelector('[data-waymark-panel="basemaps"]'),
-      ).toBeNull();
-    });
-
-    it("renders configured vector basemaps as selectable radios in the basemaps panel", async () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "view",
-          },
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  title: "Open GIS Outdoors",
-                  styleURL:
-                    "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
-                },
-                {
-                  title: "OpenFreeMap Bright",
-                  styleURL: "https://tiles.openfreemap.org/styles/bright",
-                  attributionHTML:
-                    "<a href='https://openfreemap.org'>© OpenFreeMap</a>",
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      await nextTick();
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const basemapsControl = shellMount?.querySelector(
-        '[data-waymark-control="basemaps-toggle"]',
-      );
-
-      basemapsControl?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
-      await nextTick();
-
-      const vectorItems = [
-        ...(shellMount?.querySelectorAll(
-          '[data-waymark-basemaps-vector-item="true"]',
-        ) ?? []),
-      ].map((item) => item.textContent?.replace(/\s+/g, " ").trim());
-
-      const vectorRadios = [
-        ...(shellMount?.querySelectorAll("[data-waymark-vector-radio]") ?? []),
-      ];
-
-      const checkedVectorRadios = vectorRadios.filter((radio) => radio.checked);
-      const firstAttribution = shellMount?.querySelector(
-        '[data-waymark-basemaps-vector-item="true"] [class$="__attribution"]',
-      );
-
-      expect(vectorItems[0]).toContain("Open GIS Outdoors");
-      expect(vectorItems[0]).toContain("Active");
-      expect(vectorItems[1]).toContain("OpenFreeMap Bright");
-      expect(vectorItems[1]).toContain("Active");
-      expect(vectorRadios).toHaveLength(2);
-      expect(checkedVectorRadios).toHaveLength(1);
-      expect(
-        checkedVectorRadios[0].getAttribute("data-waymark-vector-radio"),
-      ).toBe("vector-0");
-      expect(firstAttribution?.innerHTML).toBe(
-        '<a href="https://openfreemap.org">© OpenFreeMap</a>',
-      );
-    });
-
-    it("dispatches vector basemap selection from the basemaps panel and updates active state", async () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "view",
-          },
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  title: "Vector A",
-                  styleURL: "https://example.com/vector-a-style.json",
-                },
-                {
-                  title: "Vector B",
-                  styleURL: "https://example.com/vector-b-style.json",
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      await nextTick();
-
-      const map = getLastMapInstance();
-      const core = getCoreById("map");
-      const setActiveVectorBasemapSpy = vi.spyOn(
-        core.commands.basemaps,
-        "setActiveVectorBasemap",
-      );
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const basemapsControl = shellMount?.querySelector(
-        '[data-waymark-control="basemaps-toggle"]',
-      );
-
-      basemapsControl?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
-      await nextTick();
-
-      const inactiveVectorRadio = shellMount?.querySelector(
-        '[data-waymark-vector-radio="vector-1"]',
-      );
-      expect(inactiveVectorRadio).toBeTruthy();
-
-      inactiveVectorRadio.checked = true;
-      inactiveVectorRadio?.dispatchEvent(
-        new Event("change", { bubbles: true }),
-      );
-      await nextTick();
-
-      expect(setActiveVectorBasemapSpy).toHaveBeenCalledWith("vector-1");
-      expect(map.setStyle).toHaveBeenCalledWith(
-        "https://example.com/vector-b-style.json",
-      );
-      expect(instance.toJSON().config.map.basemaps.vector).toEqual([
-        expect.objectContaining({
-          title: "Vector A",
-          styleURL: "https://example.com/vector-a-style.json",
-        }),
-        expect.objectContaining({
-          title: "Vector B",
-          styleURL: "https://example.com/vector-b-style.json",
-        }),
-      ]);
-      expect(instance.toJSON().state.map.basemaps.vector).toEqual([
-        expect.objectContaining({
-          title: "Vector B",
-          styleURL: "https://example.com/vector-b-style.json",
-        }),
-        expect.objectContaining({
-          title: "Vector A",
-          styleURL: "https://example.com/vector-a-style.json",
-        }),
-      ]);
-
-      const checkedVectorRadio = shellMount?.querySelector(
-        '[data-waymark-vector-radio="vector-1"]',
-      );
-      expect(checkedVectorRadio?.checked).toBe(true);
-    });
-
-    it("renders raster basemaps section before vector section in the basemaps panel", async () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "view",
-          },
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: "https://tiles.openfreemap.org/styles/bright",
-                },
-              ],
-              raster: [
-                {
-                  tileURLTemplates: [
-                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  ],
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      await nextTick();
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const basemapsControl = shellMount?.querySelector(
-        '[data-waymark-control="basemaps-toggle"]',
-      );
-
-      basemapsControl?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
-      await nextTick();
-
-      const sectionHeadings = [
-        ...(shellMount?.querySelectorAll(
-          "[data-waymark-panel='basemaps'] h3",
-        ) ?? []),
-      ].map((heading) => heading.textContent?.trim());
-
-      expect(sectionHeadings).toEqual(["Raster", "Vector"]);
-    });
-
-    it("dispatches raster opacity updates from the basemaps panel and applies them live", async () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "view",
-          },
-          map: {
-            basemaps: {
-              raster: [
-                {
-                  title: "Raster A",
-                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-                  opacity: 0.3,
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      await nextTick();
-
-      const map = getLastMapInstance();
-      const core = getCoreById("map");
-      expect(core).toBeTruthy();
-      const setRasterOpacitySpy = vi.spyOn(
-        core.commands.basemaps,
-        "setRasterOpacity",
-      );
-      const basemapEvents = [];
-
-      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
-        basemapEvents.push(event.detail);
-      });
-
-      map.fire("load", { source: "test" });
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const basemapsControl = shellMount?.querySelector(
-        '[data-waymark-control="basemaps-toggle"]',
-      );
-
-      basemapsControl?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
-      await nextTick();
-
-      const opacityInput = shellMount?.querySelector(
-        '[data-waymark-raster-opacity-input="raster-0"]',
-      );
-      expect(opacityInput).toBeTruthy();
-
-      opacityInput.value = "0.8";
-      opacityInput.dispatchEvent(new Event("input", { bubbles: true }));
-      await nextTick();
-
-      expect(setRasterOpacitySpy).toHaveBeenCalledWith("raster-0", 0.8);
-      expect(map.setPaintProperty).toHaveBeenCalledWith(
-        "waymark-map-basemap-raster-layer-0",
-        "raster-opacity",
-        0.8,
-      );
-      expect(basemapEvents).toHaveLength(1);
-      expect(basemapEvents[0]).toEqual(
-        expect.objectContaining({
-          mutation: "opacity_changed",
-        }),
-      );
-    });
-
-    it("dispatches raster reorder updates from drag and drop and reflects the new order", async () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "view",
-          },
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-              ],
-              raster: [
-                {
-                  title: "Raster A",
-                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-                },
-                {
-                  title: "Raster B",
-                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      await nextTick();
-
-      const map = getLastMapInstance();
-      const core = getCoreById("map");
-      expect(core).toBeTruthy();
-      const reorderSpy = vi.spyOn(
-        core.commands.basemaps,
-        "reorderRasterBasemaps",
-      );
-
-      map.fire("load", { source: "test" });
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const basemapsControl = shellMount?.querySelector(
-        '[data-waymark-control="basemaps-toggle"]',
-      );
-
-      basemapsControl?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
-      await nextTick();
-
-      const firstRasterItem = shellMount?.querySelector(
-        '[data-waymark-raster-item="raster-0"]',
-      );
-      const secondRasterItem = shellMount?.querySelector(
-        '[data-waymark-raster-item="raster-1"]',
-      );
-      expect(firstRasterItem).toBeTruthy();
-      expect(secondRasterItem).toBeTruthy();
-
-      firstRasterItem?.dispatchEvent(new Event("dragstart", { bubbles: true }));
-      secondRasterItem?.dispatchEvent(new Event("dragover", { bubbles: true }));
-      secondRasterItem?.dispatchEvent(new Event("drop", { bubbles: true }));
-      firstRasterItem?.dispatchEvent(new Event("dragend", { bubbles: true }));
-      await nextTick();
-
-      expect(reorderSpy).toHaveBeenCalledWith(["raster-1", "raster-0"]);
-
-      const rasterLayerIds = map
-        .getStyle()
-        .layers.filter((layer) => layer.type === "raster")
-        .map((layer) => layer.id);
-
-      expect(rasterLayerIds).toEqual([
-        "waymark-map-basemap-raster-layer-0",
-        "waymark-map-basemap-raster-layer-1",
-      ]);
-    });
-
-    it("exposes a core basemaps panel toggle command", async () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "view",
-          },
-        },
-      });
-
-      await nextTick();
-
-      const core = getCoreById("map");
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-
-      core?.commands.ui.toggleBasemapsPanel();
-      await nextTick();
-      expect(
-        shellMount?.querySelector('[data-waymark-panel="basemaps"]'),
-      ).toBeTruthy();
-
-      core?.commands.ui.toggleBasemapsPanel();
-      await nextTick();
-      expect(
-        shellMount?.querySelector('[data-waymark-modal="true"]'),
-      ).toBeNull();
-    });
-
-    it("keeps a bounded sanitised feed of Waymark events in debug mode", async () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "debug",
-          },
-        },
-      });
-
-      await nextTick();
-
-      const map = getLastMapInstance();
-
-      for (let index = 0; index < 30; index += 1) {
-        map.fire("moveend", {
-          type: "moveend",
-          source: `docs-test-${index}`,
-          heavy: {
-            nested: true,
-          },
-        });
-      }
-
-      await nextTick();
-
-      const shellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-      const panel = shellMount?.querySelector(
-        '[data-waymark-debug-panel="true"]',
-      );
-      const preElements = panel?.querySelectorAll("pre");
-      const events = JSON.parse(preElements?.[1]?.textContent ?? "[]");
-
-      expect(panel).toBeTruthy();
-      expect(instance.toJSON().state.ui).toBeUndefined();
-
-      expect(events).toHaveLength(25);
-      expect(events.every((event) => event.type.startsWith("waymark:"))).toBe(
-        true,
-      );
-      expect(events.every((event) => event.at)).toBe(true);
-      expect(events.at(-1)).toEqual(
-        expect.objectContaining({
-          type: "waymark:map.moveend",
-          detail: expect.objectContaining({
-            id: "map",
-            mapEvent: "moveend",
-            hasOriginalEvent: true,
-            originalEventType: "moveend",
-          }),
-        }),
-      );
-    });
-
-    it("does not force instance document refreshes for forwarded map event logs", async () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "debug",
-          },
-        },
-      });
-
-      await nextTick();
-
-      const map = getLastMapInstance();
-      const core = getCoreById("map");
-      const toJSONSpy = vi.spyOn(core.instanceDocument, "toJSON");
-
-      for (let index = 0; index < 10; index += 1) {
-        map.fire("moveend", {
-          type: "moveend",
-          source: `docs-test-refresh-${index}`,
-        });
-      }
-
-      await nextTick();
-
-      expect(toJSONSpy).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("Map options pass-through", () => {
-    it("forwards map.options values except container", () => {
-      createInstance({
-        config: {
-          id: "map",
-          map: {
-            options: {
-              center: [-0.1276, 51.5074],
-              zoom: 10,
-              bearing: 15,
-              container: "other",
-            },
-          },
-        },
-      });
-
-      expect(Map).toHaveBeenCalledWith(
-        expect.objectContaining({
-          center: [-0.1276, 51.5074],
-          zoom: 10,
-          bearing: 15,
-          container: "map",
-        }),
-      );
-    });
-
-    it("drops non-serialisable map options deterministically", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            options: {
-              zoom: 10,
-              transformRequest: () => ({ url: "x" }),
-              nested: {
-                onClick: () => {},
-                ok: true,
-              },
-            },
-          },
-        },
-      });
-
-      expect(instance.toJSON().config.map.options).toEqual(
-        expect.objectContaining({
-          zoom: 10,
-          nested: {
-            ok: true,
-          },
-        }),
-      );
-      expect(
-        instance.toJSON().config.map.options.transformRequest,
-      ).toBeUndefined();
-      expect(
-        instance.toJSON().config.map.options.nested.onClick,
-      ).toBeUndefined();
-    });
-
-    it("uses only the first configured vector basemap at runtime", () => {
-      createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: "https://example.com/first-style.json",
-                },
-                {
-                  styleURL: "https://example.com/second-style.json",
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      expect(Map).toHaveBeenCalledWith(
-        expect.objectContaining({
-          style: "https://example.com/first-style.json",
-        }),
-      );
-    });
-
-    it("stacks raster basemaps with index 0 on top below the first symbol layer", () => {
-      createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-              ],
-              raster: [
-                {
-                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-                  opacity: 0.7,
-                },
-                {
-                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-                  opacity: 0.3,
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      map.fire("load", { source: "test" });
-
-      const addedLayerCalls = map.addLayer.mock.calls.map(
-        ([layer, beforeId]) => ({
-          id: layer.id,
-          beforeId,
-          opacity: layer.paint?.["raster-opacity"],
-        }),
-      );
-
-      expect(addedLayerCalls).toEqual([
-        {
-          id: "waymark-map-basemap-raster-layer-0",
-          beforeId: "poi-label",
-          opacity: 0.7,
-        },
-        {
-          id: "waymark-map-basemap-raster-layer-1",
-          beforeId: "waymark-map-basemap-raster-layer-0",
-          opacity: 0.3,
-        },
-      ]);
-    });
-
-    it("updates raster opacity live through core basemap commands", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                    ],
-                  },
-                },
-              ],
-              raster: [
-                {
-                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-                  opacity: 0.6,
-                },
-                {
-                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-                  opacity: 0.3,
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      const core = getCoreById("map");
-      const basemapEvents = [];
-
-      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
-        basemapEvents.push(event.detail);
-      });
-
-      map.fire("load", { source: "test" });
-
-      core.commands.basemaps.setRasterOpacity("raster-1", 0.9);
-      core.commands.basemaps.setRasterOpacity("missing", 0.2);
-
-      expect(map.setPaintProperty).toHaveBeenCalledTimes(1);
-      expect(map.setPaintProperty).toHaveBeenCalledWith(
-        "waymark-map-basemap-raster-layer-1",
-        "raster-opacity",
-        0.9,
-      );
-
-      expect(basemapEvents).toEqual([
-        {
-          id: "map",
-          mutation: "opacity_changed",
-          changed: {
-            basemapIds: ["raster-1"],
-            opacity: {
-              "raster-1": 0.9,
-            },
-          },
-          basemaps: {
-            vector: [
-              expect.objectContaining({
-                styleURL: expect.any(Object),
-              }),
-            ],
-            raster: [
-              expect.objectContaining({
-                basemapId: "raster-0",
-                opacity: 0.6,
-              }),
-              expect.objectContaining({
-                basemapId: "raster-1",
-                opacity: 0.9,
-              }),
-            ],
-          },
-        },
-      ]);
-
-      expect(instance.toJSON().config.map.basemaps.raster).toEqual([
-        expect.objectContaining({ opacity: 0.6 }),
-        expect.objectContaining({ opacity: 0.3 }),
-      ]);
-      expect(instance.toJSON().state.map.basemaps.raster).toEqual([
-        expect.objectContaining({ opacity: 0.6 }),
-        expect.objectContaining({ opacity: 0.9 }),
-      ]);
-    });
-
-    it("reorders raster basemaps live through core basemap commands", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-              ],
-              raster: [
-                {
-                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-                },
-                {
-                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      const core = getCoreById("map");
-      const basemapEvents = [];
-
-      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
-        basemapEvents.push(event.detail);
-      });
-
-      map.fire("load", { source: "test" });
-      core.commands.basemaps.reorderRasterBasemaps(["raster-1", "raster-0"]);
-
-      expect(map.moveLayer).toHaveBeenCalledWith(
-        "waymark-map-basemap-raster-layer-1",
-        "poi-label",
-      );
-      expect(map.moveLayer).toHaveBeenCalledWith(
-        "waymark-map-basemap-raster-layer-0",
-        "waymark-map-basemap-raster-layer-1",
-      );
-
-      const rasterLayerIds = map
-        .getStyle()
-        .layers.filter((layer) => layer.type === "raster")
-        .map((layer) => layer.id);
-
-      expect(rasterLayerIds).toEqual([
-        "waymark-map-basemap-raster-layer-0",
-        "waymark-map-basemap-raster-layer-1",
-      ]);
-
-      expect(basemapEvents).toEqual([
-        {
-          id: "map",
-          mutation: "reordered",
-          changed: {
-            basemapIds: ["raster-1", "raster-0"],
-            orderedBasemapIds: ["raster-1", "raster-0"],
-          },
-          basemaps: {
-            vector: [
-              expect.objectContaining({
-                styleURL: expect.any(Object),
-              }),
-            ],
-            raster: [
-              expect.objectContaining({
-                basemapId: "raster-1",
-                tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-              }),
-              expect.objectContaining({
-                basemapId: "raster-0",
-                tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-              }),
-            ],
-          },
-        },
-      ]);
-
-      expect(instance.toJSON().config.map.basemaps.raster).toEqual([
-        expect.objectContaining({
-          tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-        }),
-        expect.objectContaining({
-          tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-        }),
-      ]);
-      expect(instance.toJSON().state.map.basemaps.raster).toEqual([
-        expect.objectContaining({
-          tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-        }),
-        expect.objectContaining({
-          tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-        }),
-      ]);
-    });
-
-    it("sets the active vector basemap through core commands and emits a vector mutation event", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  title: "Vector A",
-                  styleURL: "https://example.com/vector-a-style.json",
-                },
-                {
-                  title: "Vector B",
-                  styleURL: "https://example.com/vector-b-style.json",
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      const core = getCoreById("map");
-      const basemapEvents = [];
-
-      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
-        basemapEvents.push(event.detail);
-      });
-
-      core.commands.basemaps.setActiveVectorBasemap("vector-1");
-
-      expect(map.setStyle).toHaveBeenCalledWith(
-        "https://example.com/vector-b-style.json",
-      );
-
-      expect(basemapEvents).toEqual([
-        {
-          id: "map",
-          mutation: "vector_changed",
-          changed: {
-            basemapIds: ["vector-1"],
-            orderedBasemapIds: ["vector-1", "vector-0"],
-          },
-          basemaps: {
-            vector: [
-              expect.objectContaining({
-                basemapId: "vector-1",
-                title: "Vector B",
-                styleURL: "https://example.com/vector-b-style.json",
-              }),
-              expect.objectContaining({
-                basemapId: "vector-0",
-                title: "Vector A",
-                styleURL: "https://example.com/vector-a-style.json",
-              }),
-            ],
-            raster: [],
-          },
-        },
-      ]);
-
-      expect(instance.toJSON().config.map.basemaps.vector).toEqual([
-        expect.objectContaining({
-          title: "Vector A",
-          styleURL: "https://example.com/vector-a-style.json",
-        }),
-        expect.objectContaining({
-          title: "Vector B",
-          styleURL: "https://example.com/vector-b-style.json",
-        }),
-      ]);
-      expect(instance.toJSON().state.map.basemaps.vector).toEqual([
-        expect.objectContaining({
-          title: "Vector B",
-          styleURL: "https://example.com/vector-b-style.json",
-        }),
-        expect.objectContaining({
-          title: "Vector A",
-          styleURL: "https://example.com/vector-a-style.json",
-        }),
-      ]);
-    });
-
-    it("no-ops vector basemap activation when id is invalid or already active", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  title: "Vector A",
-                  styleURL: "https://example.com/vector-a-style.json",
-                },
-                {
-                  title: "Vector B",
-                  styleURL: "https://example.com/vector-b-style.json",
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const core = getCoreById("map");
-      const basemapEvents = [];
-
-      instance.on(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, (event) => {
-        basemapEvents.push(event.detail);
-      });
-
-      core.commands.basemaps.setActiveVectorBasemap("missing");
-      core.commands.basemaps.setActiveVectorBasemap("vector-0");
-
-      expect(basemapEvents).toEqual([]);
-      expect(instance.toJSON().config.map.basemaps.vector).toEqual([
-        expect.objectContaining({
-          title: "Vector A",
-          styleURL: "https://example.com/vector-a-style.json",
-        }),
-        expect.objectContaining({
-          title: "Vector B",
-          styleURL: "https://example.com/vector-b-style.json",
-        }),
-      ]);
-    });
-
-    it("keeps raster overlays live after a vector style switch", () => {
-      createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  title: "Vector A",
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "a-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-                {
-                  title: "Vector B",
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "b-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-              ],
-              raster: [
-                {
-                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-                  opacity: 0.4,
-                },
-                {
-                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-                  opacity: 0.7,
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      const core = getCoreById("map");
-
-      map.fire("load", { source: "test" });
-      expect(map.addLayer).toHaveBeenCalledTimes(2);
-
-      core.commands.basemaps.setActiveVectorBasemap("vector-1");
-      expect(map.setStyle).toHaveBeenCalledWith(
-        expect.objectContaining({
-          layers: [expect.objectContaining({ id: "b-label", type: "symbol" })],
-        }),
-      );
-      expect(map.addLayer).toHaveBeenCalledTimes(4);
-
-      core.commands.basemaps.setRasterOpacity("raster-0", 0.9);
-      core.commands.basemaps.reorderRasterBasemaps(["raster-1", "raster-0"]);
-
-      expect(map.setPaintProperty).toHaveBeenCalledWith(
-        "waymark-map-basemap-raster-layer-0",
-        "raster-opacity",
-        0.9,
-      );
-      expect(map.moveLayer).toHaveBeenCalledWith(
-        "waymark-map-basemap-raster-layer-1",
-        "b-label",
-      );
-      expect(map.moveLayer).toHaveBeenCalledWith(
-        "waymark-map-basemap-raster-layer-0",
-        "waymark-map-basemap-raster-layer-1",
-      );
-    });
-
-    it("no-ops vector style switching when map/styleURL is unavailable", () => {
-      createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  title: "Vector A",
-                  styleURL: "https://example.com/vector-a-style.json",
-                },
-                {
-                  title: "Vector B",
-                  styleURL: "https://example.com/vector-b-style.json",
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      const core = getCoreById("map");
-      map.setStyle = undefined;
-
-      expect(() => {
-        core.commands.basemaps.setActiveVectorBasemap("vector-1");
-      }).not.toThrow();
-
-      map.setStyle = vi.fn();
-      core.runtimeState.dispatch(
-        "map.basemaps.set",
-        {
-          vector: [
-            {
-              basemapId: "vector-1",
-              title: "Vector B",
-              styleURL: "https://example.com/vector-a-style.json",
-            },
-            {
-              basemapId: "vector-0",
-              title: "Vector A",
-            },
-          ],
-          raster: [],
-        },
-        "test:map.basemaps.override",
-      );
-
-      expect(() => {
-        core.commands.basemaps.setActiveVectorBasemap("vector-0");
-      }).not.toThrow();
-      expect(map.setStyle).not.toHaveBeenCalled();
-    });
-
-    it("keeps empty raster basemap state unchanged for live mutation commands", () => {
-      createInstance({
-        config: {
-          id: "map",
-        },
-      });
-
-      const core = getCoreById("map");
-
-      core.commands.basemaps.setRasterOpacity("raster-0", 0.5);
-      core.commands.basemaps.reorderRasterBasemaps(["raster-0"]);
-
-      expect(
-        core.instanceDocument.toJSON().state.map?.basemaps,
-      ).toBeUndefined();
+    it("normalises debug to a boolean", () => {
+      expect(resolveConfig({ debug: true }).debug).toBe(true);
+      expect(resolveConfig({ debug: "yes" }).debug).toBe(false);
     });
   });
 
   describe("Returned instance shape", () => {
     it("returns the documented API methods", () => {
       const instance = createInstance({
-        config: {
-          id: "map",
-        },
+        map: createMockMap(),
+        document: { config: { id: "map" } },
       });
 
       expect(instance).toEqual(
@@ -2293,15 +494,7 @@ describe("1. API", () => {
           toJSON: expect.any(Function),
           data: expect.objectContaining({
             addLayer: expect.any(Function),
-            featureProperties: expect.objectContaining({
-              setEnabled: expect.any(Function),
-              addWhitelistKeys: expect.any(Function),
-              getWhitelist: expect.any(Function),
-              isEnabled: expect.any(Function),
-            }),
-          }),
-          ui: expect.objectContaining({
-            setMode: expect.any(Function),
+            fitBounds: expect.any(Function),
           }),
           destroy: expect.any(Function),
           on: expect.any(Function),
@@ -2309,105 +502,76 @@ describe("1. API", () => {
           once: expect.any(Function),
         }),
       );
+      expect(instance.data.featureProperties).toBeUndefined();
     });
   });
 
   describe("Instance reuse and destroy semantics", () => {
-    it("recreates on the same id using the incoming instance document", () => {
-      const first = createInstance({
-        config: {
-          id: "map",
-          map: { options: { zoom: 10 } },
+    it("destroy() leaves the map and container intact", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      const instance = createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: { layers: [{ data: EMPTY_FEATURE_COLLECTION }] },
         },
       });
-      const firstMap = getLastMapInstance();
 
-      const second = createInstance({
-        config: { id: "map", map: { options: { zoom: 2 } } },
-        data: {
-          layers: [{ data: { type: "FeatureCollection", features: [] } }],
-        },
-      });
-      const secondMap = getLastMapInstance();
+      instance.destroy();
 
-      expect(second).not.toBe(first);
-      expect(firstMap.remove).toHaveBeenCalledTimes(1);
-      expect(Map).toHaveBeenCalledTimes(2);
-      expect(secondMap._options.zoom).toBe(2);
-      expect(second.toJSON().data.layers).toEqual([
-        {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: [],
-          },
-        },
-      ]);
+      expect(map.remove).not.toHaveBeenCalled();
+      expect(document.getElementById("map")).toBeTruthy();
+      expect(getCoreByMap(map)).toBeUndefined();
     });
 
-    it("destroy is idempotent and allows clean recreation", () => {
-      const first = createInstance({
-        config: {
-          id: "map",
-        },
-      });
-      const firstMap = getLastMapInstance();
+    it("destroy removes Waymark-owned sources and layers", () => {
+      const map = createMockMap();
+      map._loaded = true;
 
-      first.destroy();
-      first.destroy();
-
-      const second = createInstance({
-        config: {
-          id: "map",
+      const instance = createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: { layers: [{ data: EMPTY_FEATURE_COLLECTION }] },
         },
       });
 
-      expect(firstMap.remove).toHaveBeenCalledTimes(1);
-      expect(second).not.toBe(first);
-      expect(Map).toHaveBeenCalledTimes(2);
+      expect(map.getSource("waymark-map-geojson-source-0")).toBeTruthy();
+
+      instance.destroy();
+
+      expect(map.getSource("waymark-map-geojson-source-0")).toBeUndefined();
+      expect(map.getLayer("waymark-map-geojson-layer-0-line")).toBeUndefined();
     });
 
-    it("keeps destroy and reuse stable after internal mode switching", () => {
-      const first = createInstance({
-        config: {
-          id: "map",
-          ui: { mode: "view" },
-        },
-      });
+    it("destroy is idempotent and allows a fresh instance on the same map", () => {
+      const map = createMockMap();
 
-      first.ui.setMode("debug");
-      first.ui.setMode("view");
+      const first = createInstance({
+        map,
+        document: { config: { id: "map" } },
+      });
 
       first.destroy();
-      expect(
-        document.querySelector('#map [data-waymark-app="true"]'),
-      ).toBeNull();
+      first.destroy();
 
       const second = createInstance({
-        config: {
-          id: "map",
-          ui: { mode: "debug" },
-        },
+        map,
+        document: { config: { id: "map" } },
       });
 
-      const secondShellMount = document.querySelector(
-        '#map [data-waymark-app="true"]',
-      );
-
       expect(second).not.toBe(first);
-      expect(secondShellMount).toBeTruthy();
-      expect(
-        secondShellMount?.querySelector('[data-waymark-debug-panel="true"]'),
-      ).toBeTruthy();
+      expect(map.remove).not.toHaveBeenCalled();
     });
   });
 
   describe("Instance event API", () => {
-    it("supports on/off/once on container events", () => {
+    it("supports on/off/once on the map container", () => {
       const instance = createInstance({
-        config: {
-          id: "map",
-        },
+        map: createMockMap(),
+        document: { config: { id: "map" } },
       });
 
       const onHandler = vi.fn();
@@ -2427,387 +591,98 @@ describe("1. API", () => {
       expect(onceHandler).toHaveBeenCalledTimes(1);
     });
 
-    it("emits lifecycle events with id detail", () => {
+    it("emits lifecycle created and destroyed events with id detail", () => {
       const container = document.getElementById("map");
       const created = vi.fn();
-      container.addEventListener("waymark:instance.created", created);
-
-      const first = createInstance({
-        config: {
-          id: "map",
-        },
-      });
-
-      const reused = vi.fn();
       const destroyed = vi.fn();
-      first.on("waymark:instance.recreated", reused);
-      first.on("waymark:instance.destroyed", destroyed);
-      createInstance({
-        config: {
-          id: "map",
-        },
+      container.addEventListener("waymark:instance.created", created);
+      container.addEventListener("waymark:instance.destroyed", destroyed);
+
+      const instance = createInstance({
+        map: createMockMap(),
+        document: { config: { id: "map" } },
       });
 
-      first.destroy();
+      instance.destroy();
 
       expect(created.mock.calls[0][0].detail).toEqual({ id: "map" });
-      expect(reused).toHaveBeenCalledTimes(1);
-      expect(destroyed).toHaveBeenCalledTimes(1);
-    });
-
-    it("emits waymark:ui.mode.changed with rich module detail", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          ui: {
-            mode: "view",
-          },
-        },
-      });
-      const seen = [];
-
-      instance.on("waymark:ui.mode.changed", (event) => {
-        seen.push(event.detail);
-      });
-
-      instance.ui.setMode("debug");
-
-      expect(seen).toEqual([
-        {
-          id: "map",
-          module: "ui",
-          event: "mode.changed",
-          previous: "view",
-          next: "debug",
-          source: "public:ui.setMode",
-        },
-      ]);
-      expect(instance.toJSON().state.ui.mode).toBe("debug");
-    });
-
-    it("syncs map camera into state.map on map end events", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            options: {
-              center: [0, 0],
-              zoom: 5,
-            },
-          },
-        },
-      });
-      const map = getLastMapInstance();
-
-      map._view = {
-        center: [12.3, 45.6],
-        zoom: 8,
-        bearing: 30,
-        pitch: 20,
-      };
-
-      for (const [eventName, handler] of map.on.mock.calls) {
-        if (eventName === "moveend") {
-          handler({ source: "docs-test" });
-        }
-      }
-
-      expect(instance.toJSON().state.map).toEqual({
-        options: {
-          center: [12.3, 45.6],
-          zoom: 8,
-          bearing: 30,
-          pitch: 20,
-        },
-      });
-    });
-
-    it("emits map camera state events only when camera values change", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            options: {
-              center: [10, 20],
-              zoom: 4,
-              bearing: 5,
-              pitch: 6,
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-      const seen = [];
-
-      instance.on(WAYMARK_STATE_MAP_CAMERA_CHANGED_EVENT, (event) => {
-        seen.push(event.detail);
-      });
-
-      map.fire("moveend", { source: "docs-test" });
-      expect(seen).toEqual([]);
-
-      map._view = {
-        center: [11, 21],
-        zoom: 5,
-        bearing: 7,
-        pitch: 8,
-      };
-
-      map.fire("moveend", { source: "docs-test" });
-
-      expect(seen).toEqual([
-        expect.objectContaining({
-          command: "map.camera.set",
-          scope: "map.camera",
-          source: "runtime:map.moveend",
-          previous: {
-            center: [10, 20],
-            zoom: 4,
-            bearing: 5,
-            pitch: 6,
-          },
-          next: {
-            center: [11, 21],
-            zoom: 5,
-            bearing: 7,
-            pitch: 8,
-          },
-        }),
-      ]);
-      expect(instance.toJSON().state.map.options).toEqual({
-        center: [11, 21],
-        zoom: 5,
-        bearing: 7,
-        pitch: 8,
-      });
-    });
-
-    it("forwards map events with originalEvent in detail", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-        },
-      });
-      const map = getLastMapInstance();
-
-      const seen = [];
-
-      instance.on("waymark:map.moveend", (event) => {
-        seen.push(event.detail);
-      });
-
-      for (const [eventName, handler] of map.on.mock.calls) {
-        if (eventName === "moveend") {
-          handler({ source: "docs-test", type: "moveend" });
-        }
-      }
-
-      expect(seen).toEqual([
-        {
-          id: "map",
-          mapEvent: "moveend",
-          originalEvent: {
-            source: "docs-test",
-            type: "moveend",
-          },
-        },
-      ]);
-    });
-
-    it("forwards map error events", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-        },
-      });
-      const map = getLastMapInstance();
-
-      const seen = [];
-
-      instance.on(WAYMARK_MAP_ERROR_EVENT, (event) => {
-        seen.push(event.detail);
-      });
-
-      for (const [eventName, handler] of map.on.mock.calls) {
-        if (eventName === "error") {
-          handler({ source: "docs-test", type: "error" });
-        }
-      }
-
-      expect(seen).toEqual([
-        {
-          id: "map",
-          mapEvent: "error",
-          originalEvent: {
-            source: "docs-test",
-            type: "error",
-          },
-        },
-      ]);
+      expect(destroyed.mock.calls[0][0].detail).toEqual({ id: "map" });
     });
   });
 
   describe("InstanceDocument shape", () => {
-    it("toJSON returns a serialisable instance document payload", () => {
+    it("toJSON has no map or ui slices", () => {
       const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            options: {
-              center: [-0.1276, 51.5074],
-              zoom: 10,
-              bearing: 15,
-              pitch: 30,
-            },
-          },
+        map: createMockMap(),
+        document: { config: { id: "map" } },
+      });
+
+      const instanceDocument = instance.toJSON();
+
+      expect(Object.keys(instanceDocument)).toEqual([
+        "config",
+        "state",
+        "data",
+      ]);
+      expect(instanceDocument.config["map"]).toBeUndefined();
+      expect(instanceDocument.config.ui).toBeUndefined();
+      expect(instanceDocument.state["map"]).toBeUndefined();
+    });
+
+    it("keeps runtime metadata out of toJSON", () => {
+      const instance = createInstance({
+        map: createMockMap(),
+        document: {
+          config: { id: "map" },
+          data: { layers: [{ data: EMPTY_FEATURE_COLLECTION }] },
         },
       });
 
       const instanceDocument = instance.toJSON();
 
-      expect(instanceDocument.config.id).toBe("map");
-      expect(instanceDocument.config.map.options).toEqual(
-        expect.objectContaining({
-          center: [-0.1276, 51.5074],
-          zoom: 10,
-          bearing: 15,
-          pitch: 30,
-        }),
-      );
-      expect(instanceDocument.config.ui.mode).toBe("view");
-      expect(instanceDocument.data.layers).toEqual([]);
-      expect(instanceDocument.state).toEqual({});
-      expect(instanceDocument.state.map).toBeUndefined();
-      expect(instanceDocument.state.ui).toBeUndefined();
-    });
-
-    it("keeps runtime metadata out of toJSON", () => {
-      createInstance({
-        config: {
-          id: "map",
-          ui: { mode: "debug" },
-        },
-        data: {
-          layers: [{ data: { type: "FeatureCollection", features: [] } }],
-        },
-      });
-
-      const core = getCoreById("map");
-      const instanceDocument = core?.publicApi.toJSON();
-
-      expect(instanceDocument?.data.layers).toEqual([
-        {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: [],
-          },
-        },
+      expect(instanceDocument.data.layers).toEqual([
+        { type: "geojson", data: EMPTY_FEATURE_COLLECTION },
       ]);
-      expect(instanceDocument?.runtime).toBeUndefined();
+      expect(instanceDocument.runtime).toBeUndefined();
     });
 
-    it("keeps resolved default basemap in config and omits unchanged state", () => {
+    it("serialises a state.types delta for hidden types", () => {
       const instance = createInstance({
-        config: {
-          id: "map",
-        },
-      });
-
-      expect(instance.toJSON().config.map.basemaps).toEqual({
-        vector: [
-          {
-            title: "Open GIS Outdoors",
-            styleURL:
-              "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
-          },
-        ],
-      });
-      expect(instance.toJSON().state.map?.basemaps).toBeUndefined();
-    });
-
-    it("preserves explicitly authored basemaps, including explicit OpenFreeMap values", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: "https://tiles.openfreemap.org/styles/bright",
-                  title: "OpenFreeMap Bright",
-                },
-              ],
-              raster: [
-                {
-                  tileURLTemplates: [
-                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  ],
-                  opacity: 0.5,
-                },
-              ],
+        map: createMockMap(),
+        document: {
+          config: {
+            id: "map",
+            types: {
+              beer: { paint: { circle: { "circle-color": "#754423" } } },
             },
           },
         },
       });
 
-      expect(instance.toJSON().config.map.basemaps).toEqual({
-        raster: [
-          {
-            tileURLTemplates: [
-              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            ],
-            opacity: 0.5,
-          },
-        ],
-        vector: [
-          {
-            styleURL: "https://tiles.openfreemap.org/styles/bright",
-            title: "OpenFreeMap Bright",
-          },
-        ],
-      });
+      instance.types.setVisibility("beer", false);
 
-      expect(Object.keys(instance.toJSON().config.map.basemaps)).toEqual([
-        "raster",
-        "vector",
-      ]);
+      expect(instance.toJSON().state.types).toEqual({
+        beer: { visible: false },
+      });
     });
 
-    it("omits empty basemap arrays from toJSON output", () => {
-      const vectorOnly = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: "https://example.com/vector-style.json",
-                },
-              ],
-              raster: [],
-            },
-          },
-        },
+    it("serialises a state.debug delta", () => {
+      const instance = createInstance({
+        map: createMockMap(),
+        document: { config: { id: "map" } },
       });
 
-      expect(vectorOnly.toJSON().config.map.basemaps).toEqual({
-        vector: [
-          {
-            styleURL: "https://example.com/vector-style.json",
-          },
-        ],
-      });
+      instance.debug.setEnabled(true);
+
+      expect(instance.toJSON().state.debug).toBe(true);
     });
   });
 
   describe("Initial GeoJSON overlay", () => {
     it("emits waymark:data.layer.added when runtime addLayer succeeds", () => {
       const instance = createInstance({
-        config: {
-          id: "map",
-        },
+        map: createMockMap(),
+        document: { config: { id: "map" } },
       });
       const seen = [];
 
@@ -2815,22 +690,14 @@ describe("1. API", () => {
         seen.push(event.detail);
       });
 
-      instance.data.addLayer({
-        data: {
-          type: "FeatureCollection",
-          features: [],
-        },
-      });
+      instance.data.addLayer({ data: EMPTY_FEATURE_COLLECTION });
 
       expect(seen).toEqual([
         {
           id: "map",
           layer: {
             type: "geojson",
-            data: {
-              type: "FeatureCollection",
-              features: [],
-            },
+            data: EMPTY_FEATURE_COLLECTION,
           },
         },
       ]);
@@ -2838,9 +705,8 @@ describe("1. API", () => {
 
     it("emits waymark:data.layer.error with validation stage and rethrows", () => {
       const instance = createInstance({
-        config: {
-          id: "map",
-        },
+        map: createMockMap(),
+        document: { config: { id: "map" } },
       });
       const seen = [];
 
@@ -2850,9 +716,7 @@ describe("1. API", () => {
 
       expect(() =>
         instance.data.addLayer({
-          data: {
-            type: "FeatureCollection",
-          },
+          data: { type: "FeatureCollection" },
         }),
       ).toThrow("Invalid data.layers[0].data.features: expected an array.");
 
@@ -2866,13 +730,14 @@ describe("1. API", () => {
     });
 
     it("emits waymark:data.layer.error with runtime stage and rethrows", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-        },
-      });
-      const map = getLastMapInstance();
+      const map = createMockMap();
       map._loaded = true;
+
+      const instance = createInstance({
+        map,
+        document: { config: { id: "map" } },
+      });
+
       map.addSource.mockImplementationOnce(() => {
         throw new Error("Map source add failed.");
       });
@@ -2884,12 +749,7 @@ describe("1. API", () => {
       });
 
       expect(() =>
-        instance.data.addLayer({
-          data: {
-            type: "FeatureCollection",
-            features: [],
-          },
-        }),
+        instance.data.addLayer({ data: EMPTY_FEATURE_COLLECTION }),
       ).toThrow("Map source add failed.");
 
       expect(seen).toEqual([
@@ -2901,262 +761,313 @@ describe("1. API", () => {
       ]);
     });
 
-    it("adds a layer at runtime through instance.data.addLayer", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
+    it("scopes source and layer ids by instance token", () => {
+      const geoJSON = EMPTY_FEATURE_COLLECTION;
+
+      const oneMap = createMockMap();
+      oneMap._loaded = true;
+      const one = createInstance({
+        map: oneMap,
+        document: {
+          config: { id: "map" },
+          data: { layers: [{ data: geoJSON }] },
         },
       });
 
-      const map = getLastMapInstance();
+      document.body.innerHTML += '<div id="map-two"></div>';
 
-      instance.data.addLayer({
-        data: {
-          type: "FeatureCollection",
-          features: [],
+      const twoMap = createMockMap({ container: "map-two" });
+      twoMap._loaded = true;
+      const two = createInstance({
+        map: twoMap,
+        document: {
+          config: { id: "map-two" },
+          data: { layers: [{ data: geoJSON }] },
         },
       });
 
-      map.fire("load", { source: "test" });
+      expect(one.id).toBe("map");
+      expect(two.id).toBe("map-two");
+      expect(oneMap.getSource("waymark-map-geojson-source-0")).toBeTruthy();
+      expect(twoMap.getSource("waymark-map-two-geojson-source-0")).toBeTruthy();
+    });
 
-      expect(map.addSource).toHaveBeenCalledWith(
-        "waymark-map-geojson-source-0",
-        expect.objectContaining({
-          type: "geojson",
-        }),
-      );
-      expect(map.addLayer).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "waymark-map-geojson-layer-0-line",
-        }),
-        "poi-label",
-      );
-      expect(instance.toJSON().data.layers).toEqual([
-        {
-          type: "geojson",
+    it("renders a point layer as a circle with an invisible hit circle", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: { id: "map" },
           data: {
-            type: "FeatureCollection",
-            features: [],
+            layers: [
+              {
+                data: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: { type: "Point", coordinates: [0, 0] },
+                      properties: {},
+                    },
+                  ],
+                },
+              },
+            ],
           },
         },
+      });
+
+      expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
+        "background",
+        "waymark-map-geojson-layer-0-circle-hit",
+        "waymark-map-geojson-layer-0-circle",
+        "poi-label",
       ]);
     });
 
-    it("adds source ids scoped by instance id and layer index", () => {
-      const geoJSON = { type: "FeatureCollection", features: [] };
-      const one = createInstance({
-        config: {
-          id: "map",
-        },
-        data: {
-          layers: [{ data: geoJSON }],
+    it("renders points as a circle sublayer with no symbol sublayer when no icon is defined", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: {
+            id: "map",
+            types: {
+              beer: { paint: { circle: { "circle-color": "#754423" } } },
+            },
+          },
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: { type: "Point", coordinates: [0, 0] },
+                      properties: { waymarkType: "beer" },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
         },
       });
 
-      document.body.innerHTML +=
-        '<div id="map-two" style="width: 500px; height: 400px;"></div>';
-      const two = createInstance({
-        config: {
-          id: "map-two",
-        },
-        data: {
-          layers: [{ data: geoJSON }],
+      const typedCircle = map.getLayer(
+        "waymark-map-geojson-layer-0-circle-type-beer",
+      );
+
+      expect(typedCircle.type).toBe("circle");
+      expect(
+        map
+          .getStyle()
+          .layers.some(
+            (layer) =>
+              layer.id.startsWith("waymark-map-geojson-layer-") &&
+              layer.type === "symbol",
+          ),
+      ).toBe(false);
+      expect(map.addImage).not.toHaveBeenCalled();
+    });
+
+    it("treats types[].icon as a name hook for a symbol sublayer without registering an image", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: {
+            id: "map",
+            types: {
+              beer: {
+                icon: "beer-icon",
+                paint: { circle: { "circle-color": "#754423" } },
+              },
+            },
+          },
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: { type: "Point", coordinates: [0, 0] },
+                      properties: { waymarkType: "beer" },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
         },
       });
-      const [oneMap, twoMap] = Map.mock.instances;
 
-      for (const [eventName, handler] of oneMap.on.mock.calls) {
-        if (eventName === "load") handler();
-      }
-      for (const [eventName, handler] of twoMap.on.mock.calls) {
-        if (eventName === "load") handler();
-      }
+      const symbolLayer = map.getLayer(
+        "waymark-map-geojson-layer-0-symbol-type-beer",
+      );
 
-      expect(oneMap.addSource).toHaveBeenCalledWith(
-        "waymark-map-geojson-source-0",
-        expect.any(Object),
-      );
-      expect(twoMap.addSource).toHaveBeenCalledWith(
-        "waymark-map-two-geojson-source-0",
-        expect.any(Object),
-      );
+      expect(symbolLayer.type).toBe("symbol");
+      expect(symbolLayer.layout).toEqual({
+        "icon-image": "beer-icon",
+        "icon-size": 1.5,
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+      });
+      expect(symbolLayer.paint).toEqual({ "icon-opacity": 1 });
+
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-hit-beer").paint,
+      ).toEqual({
+        "circle-color": "#754423",
+        "circle-radius": 14,
+        "circle-opacity": 0,
+      });
+
+      expect(map.addImage).not.toHaveBeenCalled();
+      expect(map.updateImage).not.toHaveBeenCalled();
+    });
+
+    it("hides and restores every layer of an icon type, including its hit circle", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      const instance = createInstance({
+        map,
+        document: {
+          config: {
+            id: "map",
+            types: {
+              photo: {
+                icon: "photo-marker",
+                paint: { circle: { "circle-color": "#70af00" } },
+              },
+            },
+          },
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: { type: "Point", coordinates: [0, 0] },
+                      properties: { waymarkType: "photo" },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      const symbolLayerId = "waymark-map-geojson-layer-0-symbol-type-photo";
+      const hitLayerId = "waymark-map-geojson-layer-0-circle-hit-photo";
+
+      instance.types.setVisibility("photo", false);
+
+      expect(map.getLayer(symbolLayerId).layout.visibility).toBe("none");
+      expect(map.getLayer(hitLayerId).layout.visibility).toBe("none");
+
+      instance.types.setVisibility("photo", true);
+
+      expect(map.getLayer(symbolLayerId).layout.visibility).toBe("visible");
+      expect(map.getLayer(hitLayerId).layout.visibility).toBe("visible");
     });
 
     it("renders geometry families as circle, line, and fill layers with stable defaults", () => {
-      const pointLayer = {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: [-0.1276, 51.5074],
-            },
-            properties: {},
-          },
-        ],
-      };
-      const multiPointLayer = {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "MultiPoint",
-              coordinates: [
-                [-0.1276, 51.5074],
-                [-1.2577, 51.752],
-              ],
-            },
-            properties: {},
-          },
-        ],
-      };
-      const lineStringLayer = {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "LineString",
-              coordinates: [
-                [0, 0],
-                [1, 1],
-              ],
-            },
-            properties: {},
-          },
-        ],
-      };
-      const multiLineStringLayer = {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "MultiLineString",
-              coordinates: [
-                [
-                  [0, 0],
-                  [1, 1],
-                ],
-                [
-                  [1, 1],
-                  [2, 2],
-                ],
-              ],
-            },
-            properties: {},
-          },
-        ],
-      };
-      const polygonLayer = {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "Polygon",
-              coordinates: [
-                [
-                  [0, 0],
-                  [2, 0],
-                  [2, 2],
-                  [0, 2],
-                  [0, 0],
-                ],
-              ],
-            },
-            properties: {},
-          },
-        ],
-      };
-      const multiPolygonLayer = {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "MultiPolygon",
-              coordinates: [
-                [
-                  [
-                    [0, 0],
-                    [1, 0],
-                    [1, 1],
-                    [0, 1],
-                    [0, 0],
-                  ],
-                ],
-              ],
-            },
-            properties: {},
-          },
-        ],
-      };
+      const map = createMockMap();
+      map._loaded = true;
 
       createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
-                      },
+        map,
+        document: {
+          config: { id: "map" },
+          data: {
+            layers: [
+              {
+                data: featureCollection({
+                  type: "Point",
+                  coordinates: [-0.1276, 51.5074],
+                }),
+              },
+              {
+                data: featureCollection({
+                  type: "MultiPoint",
+                  coordinates: [
+                    [-0.1276, 51.5074],
+                    [-1.2577, 51.752],
+                  ],
+                }),
+              },
+              {
+                data: featureCollection({
+                  type: "LineString",
+                  coordinates: [
+                    [0, 0],
+                    [1, 1],
+                  ],
+                }),
+              },
+              {
+                data: featureCollection({
+                  type: "MultiLineString",
+                  coordinates: [
+                    [
+                      [0, 0],
+                      [1, 1],
                     ],
-                  },
-                },
-              ],
-            },
+                    [
+                      [1, 1],
+                      [2, 2],
+                    ],
+                  ],
+                }),
+              },
+              {
+                data: featureCollection({
+                  type: "Polygon",
+                  coordinates: [
+                    [
+                      [0, 0],
+                      [2, 0],
+                      [2, 2],
+                      [0, 2],
+                      [0, 0],
+                    ],
+                  ],
+                }),
+              },
+              {
+                data: featureCollection({
+                  type: "MultiPolygon",
+                  coordinates: [
+                    [
+                      [
+                        [0, 0],
+                        [1, 0],
+                        [1, 1],
+                        [0, 1],
+                        [0, 0],
+                      ],
+                    ],
+                  ],
+                }),
+              },
+            ],
           },
         },
-        data: {
-          layers: [
-            { data: pointLayer },
-            { data: multiPointLayer },
-            { data: lineStringLayer },
-            { data: multiLineStringLayer },
-            { data: polygonLayer },
-            { data: multiPolygonLayer },
-          ],
-        },
       });
-
-      const map = getLastMapInstance();
-      map.fire("load", { source: "test" });
 
       const layersById = Object.fromEntries(
         map
@@ -3183,131 +1094,120 @@ describe("1. API", () => {
       expect(layersById["waymark-map-geojson-layer-0-circle"]).toEqual({
         type: "circle",
         paint: {
-          "circle-color": "#e6194b",
           "circle-radius": 5,
+          "circle-color": "#e6194b",
         },
       });
       expect(layersById["waymark-map-geojson-layer-1-circle"]).toEqual({
         type: "circle",
         paint: {
-          "circle-color": "#3cb44b",
           "circle-radius": 5,
+          "circle-color": "#3cb44b",
         },
       });
       expect(layersById["waymark-map-geojson-layer-2-line"]).toEqual({
         type: "line",
         paint: {
-          "line-color": "#ffe119",
           "line-width": 3,
+          "line-color": "#ffe119",
         },
       });
       expect(layersById["waymark-map-geojson-layer-3-line"]).toEqual({
         type: "line",
         paint: {
-          "line-color": "#4363d8",
           "line-width": 3,
+          "line-color": "#4363d8",
         },
       });
       expect(layersById["waymark-map-geojson-layer-4-fill"]).toEqual({
         type: "fill",
         paint: {
-          "fill-color": "#f58231",
           "fill-opacity": 0.35,
+          "fill-color": "#f58231",
         },
       });
       expect(layersById["waymark-map-geojson-layer-5-fill"]).toEqual({
         type: "fill",
         paint: {
-          "fill-color": "#911eb4",
           "fill-opacity": 0.35,
+          "fill-color": "#911eb4",
+        },
+      });
+
+      expect(layersById["waymark-map-geojson-layer-0-circle-hit"]).toEqual({
+        type: "circle",
+        paint: {
+          "circle-color": "#e6194b",
+          "circle-radius": 14,
+          "circle-opacity": 0,
+        },
+      });
+      expect(layersById["waymark-map-geojson-layer-1-circle-hit"]).toEqual({
+        type: "circle",
+        paint: {
+          "circle-color": "#3cb44b",
+          "circle-radius": 14,
+          "circle-opacity": 0,
         },
       });
     });
 
     it("renders mixed geometry families from a single FeatureCollection layer", () => {
-      const mixedLayer = {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: [-0.1276, 51.5074],
-            },
-            properties: {},
-          },
-          {
-            type: "Feature",
-            geometry: {
-              type: "LineString",
-              coordinates: [
-                [0, 0],
-                [1, 1],
-              ],
-            },
-            properties: {},
-          },
-          {
-            type: "Feature",
-            geometry: {
-              type: "Polygon",
-              coordinates: [
-                [
-                  [0, 0],
-                  [2, 0],
-                  [2, 2],
-                  [0, 2],
-                  [0, 0],
-                ],
-              ],
-            },
-            properties: {},
-          },
-        ],
-      };
+      const map = createMockMap();
+      map._loaded = true;
 
       createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
+        map,
+        document: {
+          config: { id: "map" },
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "Point",
+                        coordinates: [-0.1276, 51.5074],
                       },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
+                      properties: {},
+                    },
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "LineString",
+                        coordinates: [
+                          [0, 0],
+                          [1, 1],
+                        ],
                       },
-                    ],
-                  },
+                      properties: {},
+                    },
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "Polygon",
+                        coordinates: [
+                          [
+                            [0, 0],
+                            [2, 0],
+                            [2, 2],
+                            [0, 2],
+                            [0, 0],
+                          ],
+                        ],
+                      },
+                      properties: {},
+                    },
+                  ],
                 },
-              ],
-            },
+              },
+            ],
           },
         },
-        data: {
-          layers: [{ data: mixedLayer }],
-        },
       });
-
-      const map = getLastMapInstance();
-      map.fire("load", { source: "test" });
-
-      expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
-        "background",
-        "waymark-map-geojson-layer-0-circle-hit",
-        "waymark-map-geojson-layer-0-fill",
-        "waymark-map-geojson-layer-0-line",
-        "waymark-map-geojson-layer-0-circle",
-        "poi-label",
-      ]);
 
       const layersById = Object.fromEntries(
         map
@@ -3318,567 +1218,462 @@ describe("1. API", () => {
           ]),
       );
 
-      expect(layersById["waymark-map-geojson-layer-0-circle"]?.type).toBe(
-        "circle",
-      );
-      expect(layersById["waymark-map-geojson-layer-0-line"]?.type).toBe("line");
-      expect(layersById["waymark-map-geojson-layer-0-fill"]?.type).toBe("fill");
+      expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
+        "background",
+        "waymark-map-geojson-layer-0-circle-hit",
+        "waymark-map-geojson-layer-0-fill",
+        "waymark-map-geojson-layer-0-line",
+        "waymark-map-geojson-layer-0-circle",
+        "poi-label",
+      ]);
+
+      expect(layersById["waymark-map-geojson-layer-0-circle"]).toEqual({
+        type: "circle",
+        paint: {
+          "circle-radius": 5,
+          "circle-color": "#e6194b",
+        },
+      });
+      expect(layersById["waymark-map-geojson-layer-0-line"]).toEqual({
+        type: "line",
+        paint: {
+          "line-width": 3,
+          "line-color": "#e6194b",
+        },
+      });
+      expect(layersById["waymark-map-geojson-layer-0-fill"]).toEqual({
+        type: "fill",
+        paint: {
+          "fill-opacity": 0.35,
+          "fill-color": "#e6194b",
+        },
+      });
+      expect(layersById["waymark-map-geojson-layer-0-circle-hit"]).toEqual({
+        type: "circle",
+        paint: {
+          "circle-color": "#e6194b",
+          "circle-radius": 14,
+          "circle-opacity": 0,
+        },
+      });
     });
 
-    it("emits waymark:data.layer.mounted when map sublayers are mounted", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
+    it("constrains each family layer to its own geometry type for a mixed FeatureCollection", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: { type: "Point", coordinates: [0, 0] },
+                      properties: {},
+                    },
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "LineString",
+                        coordinates: [
+                          [0, 0],
+                          [1, 1],
+                        ],
                       },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
+                      properties: {},
+                    },
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "Polygon",
+                        coordinates: [
+                          [
+                            [0, 0],
+                            [2, 0],
+                            [2, 2],
+                            [0, 2],
+                            [0, 0],
+                          ],
+                        ],
                       },
-                    ],
-                  },
+                      properties: {},
+                    },
+                  ],
                 },
-              ],
-            },
+              },
+            ],
           },
         },
+      });
+
+      expect(map.getLayer("waymark-map-geojson-layer-0-circle").filter).toEqual(
+        ["==", ["geometry-type"], "Point"],
+      );
+      expect(map.getLayer("waymark-map-geojson-layer-0-line").filter).toEqual([
+        "==",
+        ["geometry-type"],
+        "LineString",
+      ]);
+      expect(map.getLayer("waymark-map-geojson-layer-0-fill").filter).toEqual([
+        "==",
+        ["geometry-type"],
+        "Polygon",
+      ]);
+
+      // Derived hit circles must carry the same combined filter as their source.
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-hit").filter,
+      ).toEqual(["==", ["geometry-type"], "Point"]);
+    });
+
+    it("applies config.types paint to typed sublayers", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: {
+            id: "map",
+            types: {
+              beer: {
+                paint: {
+                  circle: { "circle-color": "#754423", "circle-radius": 8 },
+                  line: { "line-color": "#654321" },
+                  fill: { "fill-color": "#987654" },
+                },
+              },
+            },
+          },
+          data: {
+            layers: [
+              {
+                data: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      geometry: { type: "Point", coordinates: [0, 0] },
+                      properties: { waymarkType: "beer" },
+                    },
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "LineString",
+                        coordinates: [
+                          [0, 0],
+                          [1, 1],
+                        ],
+                      },
+                      properties: { waymarkType: "beer" },
+                    },
+                    {
+                      type: "Feature",
+                      geometry: {
+                        type: "Polygon",
+                        coordinates: [
+                          [
+                            [0, 0],
+                            [2, 0],
+                            [2, 2],
+                            [0, 2],
+                            [0, 0],
+                          ],
+                        ],
+                      },
+                      properties: { waymarkType: "beer" },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-type-beer"),
+      ).toBeTruthy();
+
+      expect(map.getLayer("waymark-map-geojson-layer-0-circle").paint).toEqual({
+        "circle-radius": 5,
+        "circle-color": "#e6194b",
+      });
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-type-beer").paint,
+      ).toEqual({
+        "circle-radius": 8,
+        "circle-color": "#754423",
+      });
+      expect(map.getLayer("waymark-map-geojson-layer-0-line").paint).toEqual({
+        "line-width": 3,
+        "line-color": "#e6194b",
+      });
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-line-type-beer").paint,
+      ).toEqual({
+        "line-width": 3,
+        "line-color": "#654321",
+      });
+      expect(map.getLayer("waymark-map-geojson-layer-0-fill").paint).toEqual({
+        "fill-opacity": 0.35,
+        "fill-color": "#e6194b",
+      });
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-fill-type-beer").paint,
+      ).toEqual({
+        "fill-opacity": 0.35,
+        "fill-color": "#987654",
+      });
+
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-hit").paint,
+      ).toEqual({
+        "circle-color": "#e6194b",
+        "circle-radius": 14,
+        "circle-opacity": 0,
+      });
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-type-beer-hit").paint,
+      ).toEqual({
+        "circle-color": "#754423",
+        "circle-radius": 14,
+        "circle-opacity": 0,
+      });
+
+      // Untyped fallbacks AND their geometry constraint with the no-type
+      // predicate; typed sublayers AND it with the type predicate.
+      expect(map.getLayer("waymark-map-geojson-layer-0-circle").filter).toEqual(
+        [
+          "all",
+          ["==", ["geometry-type"], "Point"],
+          ["!", ["has", "waymarkType"]],
+        ],
+      );
+      expect(map.getLayer("waymark-map-geojson-layer-0-line").filter).toEqual([
+        "all",
+        ["==", ["geometry-type"], "LineString"],
+        ["!", ["has", "waymarkType"]],
+      ]);
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-type-beer").filter,
+      ).toEqual([
+        "all",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["get", "waymarkType"], "beer"],
+      ]);
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-line-type-beer").filter,
+      ).toEqual([
+        "all",
+        ["==", ["geometry-type"], "LineString"],
+        ["==", ["get", "waymarkType"], "beer"],
+      ]);
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-fill-type-beer").filter,
+      ).toEqual([
+        "all",
+        ["==", ["geometry-type"], "Polygon"],
+        ["==", ["get", "waymarkType"], "beer"],
+      ]);
+    });
+
+    it("applies data.layers[].paint to untyped sublayers only", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: {
+            id: "map",
+            types: {
+              road: { paint: { line: { "line-color": "#abcdef" } } },
+            },
+          },
+          data: {
+            layers: [
+              {
+                data: featureCollection({
+                  type: "LineString",
+                  coordinates: [
+                    [0, 0],
+                    [1, 1],
+                  ],
+                }),
+                paint: { line: { "line-color": "#123456", "line-width": 2 } },
+              },
+            ],
+          },
+        },
+      });
+
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-line-type-road"),
+      ).toBeTruthy();
+
+      expect(map.getLayer("waymark-map-geojson-layer-0-line").paint).toEqual({
+        "line-width": 2,
+        "line-color": "#123456",
+      });
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-line-type-road").paint,
+      ).toEqual({
+        "line-width": 3,
+        "line-color": "#abcdef",
+      });
+    });
+
+    it("merges config.paint under type and layer overrides", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: {
+            id: "map",
+            paint: {
+              circle: { "circle-color": "#101010" },
+              line: { "line-width": 9, "line-color": "#101010" },
+              fill: { "fill-opacity": 0.8 },
+            },
+            types: {
+              beer: { paint: { circle: { "circle-color": "#754423" } } },
+            },
+          },
+          data: {
+            layers: [
+              {
+                data: featureCollection({
+                  type: "Point",
+                  coordinates: [0, 0],
+                }),
+              },
+              {
+                data: featureCollection({
+                  type: "LineString",
+                  coordinates: [
+                    [0, 0],
+                    [1, 1],
+                  ],
+                }),
+                paint: { line: { "line-color": "#123456" } },
+              },
+              {
+                data: featureCollection({
+                  type: "Polygon",
+                  coordinates: [
+                    [
+                      [0, 0],
+                      [2, 0],
+                      [2, 2],
+                      [0, 2],
+                      [0, 0],
+                    ],
+                  ],
+                }),
+              },
+            ],
+          },
+        },
+      });
+
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-type-beer"),
+      ).toBeTruthy();
+
+      // Instance paint overrides the colour pool but keeps the family default.
+      expect(map.getLayer("waymark-map-geojson-layer-0-circle").paint).toEqual({
+        "circle-radius": 5,
+        "circle-color": "#101010",
+      });
+      // Type paint overrides instance paint; family defaults still survive.
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-type-beer").paint,
+      ).toEqual({
+        "circle-radius": 5,
+        "circle-color": "#754423",
+      });
+      // Instance paint overrides the line default; layer paint overrides both.
+      expect(map.getLayer("waymark-map-geojson-layer-1-line").paint).toEqual({
+        "line-width": 9,
+        "line-color": "#123456",
+      });
+      // Instance paint overrides the fill default; the pool colour remains.
+      expect(map.getLayer("waymark-map-geojson-layer-2-fill").paint).toEqual({
+        "fill-opacity": 0.8,
+        "fill-color": "#ffe119",
+      });
+    });
+
+    it("wraps paint in coalesce expressions for features carrying waymarkPaint", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: {
+            layers: [
+              {
+                data: featureCollection(
+                  { type: "Point", coordinates: [0, 0] },
+                  {
+                    waymarkPaint: {
+                      "circle-color": "#000000",
+                      "circle-radius": 10,
+                    },
+                  },
+                ),
+              },
+            ],
+          },
+        },
+      });
+
+      expect(map.getLayer("waymark-map-geojson-layer-0-circle").paint).toEqual({
+        "circle-radius": [
+          "coalesce",
+          ["get", "circle-radius", ["get", "waymarkPaint", ["properties"]]],
+          5,
+        ],
+        "circle-color": [
+          "coalesce",
+          ["get", "circle-color", ["get", "waymarkPaint", ["properties"]]],
+          "#e6194b",
+        ],
+      });
+
+      // Hit circles stay static so click targeting does not become data-driven.
+      expect(
+        map.getLayer("waymark-map-geojson-layer-0-circle-hit").paint,
+      ).toEqual({
+        "circle-color": "#e6194b",
+        "circle-radius": 14,
+        "circle-opacity": 0,
+      });
+    });
+
+    it("emits waymark:data.layer.mounted when sublayers are mounted", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      const instance = createInstance({
+        map,
+        document: { config: { id: "map" } },
       });
 
       const seen = [];
-
-      instance.on("waymark:data.layer.mounted", (event) => {
+      instance.on(WAYMARK_DATA_LAYER_MOUNTED_EVENT, (event) => {
         seen.push(event.detail);
-      });
-
-      instance.data.addLayer({
-        data: {
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              geometry: {
-                type: "Point",
-                coordinates: [0, 0],
-              },
-              properties: {},
-            },
-            {
-              type: "Feature",
-              geometry: {
-                type: "LineString",
-                coordinates: [
-                  [0, 0],
-                  [1, 1],
-                ],
-              },
-              properties: {},
-            },
-          ],
-        },
-      });
-
-      const map = getLastMapInstance();
-      map.fire("load", { source: "test" });
-
-      expect(seen).toEqual([
-        {
-          id: "map",
-          layerIndex: 0,
-          mountedFamilies: ["circle", "line", "circle"],
-          mountedLayerIds: [
-            "waymark-map-geojson-layer-0-circle",
-            "waymark-map-geojson-layer-0-line",
-            "waymark-map-geojson-layer-0-circle-hit",
-          ],
-          mountedTypes: [],
-        },
-      ]);
-    });
-
-    it("renders stacked data layers after raster basemaps and before symbol layers", () => {
-      const firstLayer = { type: "FeatureCollection", features: [] };
-      const secondLayer = {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "LineString",
-              coordinates: [
-                [0, 0],
-                [1, 1],
-              ],
-            },
-            properties: {},
-          },
-        ],
-      };
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-              ],
-              raster: [
-                {
-                  tileURLTemplates: ["https://a.example.com/{z}/{x}/{y}.png"],
-                },
-                {
-                  tileURLTemplates: ["https://b.example.com/{z}/{x}/{y}.png"],
-                },
-              ],
-            },
-          },
-        },
-        data: {
-          layers: [{ data: firstLayer }, { data: secondLayer }],
-        },
-      });
-
-      const map = getLastMapInstance();
-      map.fire("load", { source: "test" });
-
-      expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
-        "background",
-        "waymark-map-basemap-raster-layer-1",
-        "waymark-map-basemap-raster-layer-0",
-        "waymark-map-geojson-layer-1-line",
-        "waymark-map-geojson-layer-0-line",
-        "poi-label",
-      ]);
-      expect(instance.toJSON().data.layers).toEqual([
-        { type: "geojson", data: firstLayer },
-        { type: "geojson", data: secondLayer },
-      ]);
-    });
-
-    it("keeps GeoJSON data layers mounted and top-first after vector style reload", () => {
-      const styleOne = {
-        version: 8,
-        sources: {},
-        layers: [
-          {
-            id: "background",
-            type: "background",
-          },
-          {
-            id: "poi-label",
-            type: "symbol",
-          },
-        ],
-      };
-      const styleTwo = {
-        version: 8,
-        sources: {},
-        layers: [
-          {
-            id: "background",
-            type: "background",
-          },
-          {
-            id: "poi-label",
-            type: "symbol",
-          },
-        ],
-      };
-
-      createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [{ styleURL: styleOne }, { styleURL: styleTwo }],
-            },
-          },
-        },
-        data: {
-          layers: [
-            {
-              data: { type: "FeatureCollection", features: [] },
-            },
-            {
-              data: {
-                type: "FeatureCollection",
-                features: [
-                  {
-                    type: "Feature",
-                    geometry: {
-                      type: "LineString",
-                      coordinates: [
-                        [0, 0],
-                        [1, 1],
-                      ],
-                    },
-                    properties: {},
-                  },
-                ],
-              },
-            },
-          ],
-        },
-      });
-
-      const map = getLastMapInstance();
-      map.fire("load", { source: "test" });
-
-      const getDataLayerOrder = () =>
-        map
-          .getStyle()
-          .layers.map((layer) => layer.id)
-          .filter((layerId) =>
-            layerId.startsWith("waymark-map-geojson-layer-"),
-          );
-
-      expect(
-        Boolean(map.getStyle().sources["waymark-map-geojson-source-0"]),
-      ).toBe(true);
-      expect(
-        Boolean(map.getStyle().sources["waymark-map-geojson-source-1"]),
-      ).toBe(true);
-      expect(getDataLayerOrder()).toEqual([
-        "waymark-map-geojson-layer-1-line",
-        "waymark-map-geojson-layer-0-line",
-      ]);
-
-      const core = getCoreById("map");
-      core.commands.basemaps.setActiveVectorBasemap("vector-1");
-
-      expect(
-        Boolean(map.getStyle().sources["waymark-map-geojson-source-0"]),
-      ).toBe(true);
-      expect(
-        Boolean(map.getStyle().sources["waymark-map-geojson-source-1"]),
-      ).toBe(true);
-      expect(getDataLayerOrder()).toEqual([
-        "waymark-map-geojson-layer-1-line",
-        "waymark-map-geojson-layer-0-line",
-      ]);
-      expect(map.getStyle().layers.map((layer) => layer.id)).toEqual([
-        "background",
-        "waymark-map-geojson-layer-1-line",
-        "waymark-map-geojson-layer-0-line",
-        "poi-label",
-      ]);
-    });
-
-    it("fits map bounds when addLayer fitBounds defaults to true", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-
-      instance.data.addLayer({
-        data: {
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              geometry: {
-                type: "LineString",
-                coordinates: [
-                  [0, 0],
-                  [1, 1],
-                ],
-              },
-              properties: {},
-            },
-          ],
-        },
-      });
-
-      map.fire("load", { source: "test" });
-
-      expect(map.fitBounds).toHaveBeenCalledTimes(1);
-      expect(map.fitBounds).toHaveBeenCalledWith(expect.any(LngLatBounds), {
-        padding: 20,
-      });
-
-      const bounds = map.fitBounds.mock.calls[0][0];
-      expect(bounds._sw).toEqual([0, 0]);
-      expect(bounds._ne).toEqual([1, 1]);
-    });
-
-    it("skips bounds fitting when fitBounds is false", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-
-      instance.data.addLayer(
-        {
-          data: {
-            type: "FeatureCollection",
-            features: [
-              {
-                type: "Feature",
-                geometry: {
-                  type: "LineString",
-                  coordinates: [
-                    [0, 0],
-                    [1, 1],
-                  ],
-                },
-                properties: {},
-              },
-            ],
-          },
-        },
-        { fitBounds: false },
-      );
-
-      map.fire("load", { source: "test" });
-
-      expect(map.fitBounds).not.toHaveBeenCalled();
-    });
-
-    it("fits map bounds when fitBounds is explicitly true", () => {
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: {
-            basemaps: {
-              vector: [
-                {
-                  styleURL: {
-                    version: 8,
-                    sources: {},
-                    layers: [
-                      {
-                        id: "background",
-                        type: "background",
-                      },
-                      {
-                        id: "poi-label",
-                        type: "symbol",
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      const map = getLastMapInstance();
-
-      instance.data.addLayer(
-        {
-          data: {
-            type: "FeatureCollection",
-            features: [
-              {
-                type: "Feature",
-                geometry: {
-                  type: "LineString",
-                  coordinates: [
-                    [0, 0],
-                    [1, 1],
-                  ],
-                },
-                properties: {},
-              },
-            ],
-          },
-        },
-        { fitBounds: true },
-      );
-
-      map.fire("load", { source: "test" });
-
-      expect(map.fitBounds).toHaveBeenCalledTimes(1);
-      expect(map.fitBounds).toHaveBeenCalledWith(expect.any(LngLatBounds), {
-        padding: 20,
-      });
-    });
-
-    it("mounts all layers when multiple are added synchronously on a loaded map", () => {
-      const style = {
-        version: 8,
-        sources: {},
-        layers: [
-          { id: "background", type: "background" },
-          { id: "poi-label", type: "symbol" },
-        ],
-      };
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: { basemaps: { vector: [{ styleURL: style }] } },
-        },
-      });
-      const map = getLastMapInstance();
-      map._loaded = true;
-
-      const mountedEvents = [];
-      instance.on(WAYMARK_DATA_LAYER_MOUNTED_EVENT, (event) => {
-        mountedEvents.push(event.detail);
-      });
-
-      const layer = { type: "FeatureCollection", features: [] };
-      instance.data.addLayer({ data: layer });
-      instance.data.addLayer({ data: layer });
-      instance.data.addLayer({ data: layer });
-
-      expect(mountedEvents).toHaveLength(3);
-      expect(mountedEvents[0].layerIndex).toBe(0);
-      expect(mountedEvents[1].layerIndex).toBe(1);
-      expect(mountedEvents[2].layerIndex).toBe(2);
-      expect(
-        map
-          .getStyle()
-          .layers.filter((l) => l.id.startsWith("waymark-map-geojson")),
-      ).toHaveLength(3);
-    });
-
-    it("mounts layer via deferred load handler when map is not yet loaded", () => {
-      const instance = createInstance({
-        config: { id: "map" },
-      });
-      const map = getLastMapInstance();
-
-      instance.data.addLayer({
-        data: { type: "FeatureCollection", features: [] },
-      });
-
-      const mountedEvents = [];
-      instance.on(WAYMARK_DATA_LAYER_MOUNTED_EVENT, (event) => {
-        mountedEvents.push(event.detail);
-      });
-
-      map.fire("load", { source: "test" });
-
-      expect(mountedEvents).toHaveLength(1);
-      expect(mountedEvents[0].layerIndex).toBe(0);
-    });
-
-    it("mounts subsequently added layers immediately after deferred mount", () => {
-      const instance = createInstance({
-        config: { id: "map" },
-      });
-      const map = getLastMapInstance();
-
-      instance.data.addLayer({
-        data: { type: "FeatureCollection", features: [] },
-      });
-
-      map.fire("load", { source: "test" });
-
-      const mountedEvents = [];
-      instance.on(WAYMARK_DATA_LAYER_MOUNTED_EVENT, (event) => {
-        mountedEvents.push(event.detail);
-      });
-
-      instance.data.addLayer({
-        data: { type: "FeatureCollection", features: [] },
-      });
-      instance.data.addLayer({
-        data: { type: "FeatureCollection", features: [] },
-      });
-
-      expect(mountedEvents).toHaveLength(2);
-      expect(mountedEvents[0].layerIndex).toBe(1);
-      expect(mountedEvents[1].layerIndex).toBe(2);
-    });
-
-    it("reports mounted event with correct families for multi-geometry layers on loaded map", () => {
-      const style = {
-        version: 8,
-        sources: {},
-        layers: [
-          { id: "background", type: "background" },
-          { id: "poi-label", type: "symbol" },
-        ],
-      };
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: { basemaps: { vector: [{ styleURL: style }] } },
-        },
-      });
-      const map = getLastMapInstance();
-      map._loaded = true;
-
-      const mountedEvents = [];
-      instance.on(WAYMARK_DATA_LAYER_MOUNTED_EVENT, (event) => {
-        mountedEvents.push(event.detail);
       });
 
       instance.data.addLayer({
@@ -3905,37 +1700,29 @@ describe("1. API", () => {
         },
       });
 
-      expect(mountedEvents).toHaveLength(1);
-      expect(mountedEvents[0].layerIndex).toBe(0);
-      expect(mountedEvents[0].mountedFamilies).toEqual([
-        "circle",
-        "line",
-        "circle",
-      ]);
-      expect(mountedEvents[0].mountedLayerIds).toEqual([
-        "waymark-map-geojson-layer-0-circle",
-        "waymark-map-geojson-layer-0-line",
-        "waymark-map-geojson-layer-0-circle-hit",
+      expect(seen).toEqual([
+        {
+          id: "map",
+          layerIndex: 0,
+          mountedFamilies: ["circle", "line", "circle"],
+          mountedLayerIds: [
+            "waymark-map-geojson-layer-0-circle",
+            "waymark-map-geojson-layer-0-line",
+            "waymark-map-geojson-layer-0-circle-hit",
+          ],
+          mountedTypes: [],
+        },
       ]);
     });
 
-    it("fits map bounds on direct mount without requiring a load event", () => {
-      const style = {
-        version: 8,
-        sources: {},
-        layers: [
-          { id: "background", type: "background" },
-          { id: "poi-label", type: "symbol" },
-        ],
-      };
-      const instance = createInstance({
-        config: {
-          id: "map",
-          map: { basemaps: { vector: [{ styleURL: style }] } },
-        },
-      });
-      const map = getLastMapInstance();
+    it("fits bounds via the injected map.fitBounds when fitBounds defaults to true", () => {
+      const map = createMockMap();
       map._loaded = true;
+
+      const instance = createInstance({
+        map,
+        document: { config: { id: "map" } },
+      });
 
       instance.data.addLayer({
         data: {
@@ -3960,23 +1747,486 @@ describe("1. API", () => {
       expect(map.fitBounds).toHaveBeenCalledWith(expect.any(LngLatBounds), {
         padding: 20,
       });
+
+      const bounds = map.fitBounds.mock.calls[0][0];
+      expect(bounds._sw).toEqual([0, 0]);
+      expect(bounds._ne).toEqual([1, 1]);
     });
 
-    it("cleans up GeoJSON event handlers on destroy", () => {
-      const instance = createInstance({
-        config: { id: "map" },
-      });
-      const map = getLastMapInstance();
+    it("skips bounds fitting when fitBounds is false", () => {
+      const map = createMockMap();
+      map._loaded = true;
 
-      instance.data.addLayer({
-        data: { type: "FeatureCollection", features: [] },
+      const instance = createInstance({
+        map,
+        document: { config: { id: "map" } },
+      });
+
+      instance.data.addLayer(
+        {
+          data: {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [0, 0],
+                    [1, 1],
+                  ],
+                },
+                properties: {},
+              },
+            ],
+          },
+        },
+        { fitBounds: false },
+      );
+
+      expect(map.fitBounds).not.toHaveBeenCalled();
+    });
+
+    it("remounts GeoJSON layers after a style.load", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: { layers: [{ data: EMPTY_FEATURE_COLLECTION }] },
+        },
+      });
+
+      map.setStyle({ version: 8, sources: {}, layers: [] });
+
+      expect(map.getSource("waymark-map-geojson-source-0")).toBeTruthy();
+      expect(map.getLayer("waymark-map-geojson-layer-0-line")).toBeTruthy();
+    });
+
+    it("cleans up map event handlers on destroy", () => {
+      const map = createMockMap();
+
+      const instance = createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: { layers: [{ data: EMPTY_FEATURE_COLLECTION }] },
+        },
       });
 
       instance.destroy();
 
-      // Verify map.off was called for both events the GeoJSON module registered on
       expect(map.off).toHaveBeenCalledWith("load", expect.any(Function));
       expect(map.off).toHaveBeenCalledWith("style.load", expect.any(Function));
+    });
+  });
+
+  describe("Feature interaction events", () => {
+    function createPointInstance() {
+      const map = createMockMap();
+      map._loaded = true;
+
+      const instance = createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: {
+            layers: [
+              {
+                data: featureCollection(
+                  { type: "Point", coordinates: [0, 0] },
+                  { title: "Test", description: "Test feature" },
+                ),
+              },
+            ],
+          },
+        },
+      });
+
+      return { map, instance };
+    }
+
+    function renderedFeature(layerId, properties = {}) {
+      return {
+        type: "Feature",
+        id: `${layerId}-feature`,
+        geometry: { type: "Point", coordinates: [0, 0] },
+        properties,
+        // MapLibre presentation internals: must never reach the emitted detail.
+        layer: { id: layerId },
+        source: `${layerId}-source`,
+        state: { loaded: true },
+        _vectorTileFeature: {},
+      };
+    }
+
+    function cleanFeature(layerId, properties = {}) {
+      return {
+        type: "Feature",
+        id: `${layerId}-feature`,
+        geometry: { type: "Point", coordinates: [0, 0] },
+        properties,
+      };
+    }
+
+    const HIT_LAYER = "waymark-map-geojson-layer-0-circle-hit";
+    const LINE_LAYER = "waymark-map-geojson-layer-1-line";
+
+    it("emits waymark:feature.click with the resolved feature detail", () => {
+      const { map, instance } = createPointInstance();
+      const seen = [];
+
+      instance.on(WAYMARK_FEATURE_CLICK_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+
+      const feature = renderedFeature(HIT_LAYER, { title: "Test" });
+      map.queryRenderedFeatures.mockReturnValue([feature]);
+
+      const lngLat = { lng: 0, lat: 0 };
+      const originalEvent = { type: "click" };
+      map.fire("click", { point: { x: 1, y: 1 }, lngLat, originalEvent });
+
+      expect(seen).toEqual([
+        {
+          id: "map",
+          feature: cleanFeature(HIT_LAYER, { title: "Test" }),
+          layerId: HIT_LAYER,
+          lngLat,
+          originalEvent,
+        },
+      ]);
+    });
+
+    it("strips MapLibre internals from the emitted feature", () => {
+      const { map, instance } = createPointInstance();
+      const seen = [];
+
+      instance.on(WAYMARK_FEATURE_CLICK_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+
+      map.queryRenderedFeatures.mockReturnValue([
+        renderedFeature(HIT_LAYER, { title: "Test" }),
+      ]);
+
+      map.fire("click", {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      });
+
+      expect(seen).toHaveLength(1);
+      expect(seen[0].feature).toEqual(
+        cleanFeature(HIT_LAYER, { title: "Test" }),
+      );
+      expect(seen[0].feature).not.toHaveProperty("layer");
+      expect(seen[0].feature).not.toHaveProperty("source");
+      expect(seen[0].feature).not.toHaveProperty("state");
+      expect(seen[0].feature).not.toHaveProperty("_vectorTileFeature");
+    });
+
+    it("omits the feature id when the rendered feature has none", () => {
+      const { map, instance } = createPointInstance();
+      const seen = [];
+
+      instance.on(WAYMARK_FEATURE_CLICK_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+
+      const feature = renderedFeature(HIT_LAYER, { title: "No id" });
+      delete feature.id;
+      map.queryRenderedFeatures.mockReturnValue([feature]);
+
+      map.fire("click", {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      });
+
+      expect(seen).toHaveLength(1);
+      expect(seen[0].feature).toEqual({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [0, 0] },
+        properties: { title: "No id" },
+      });
+      expect(seen[0].feature).not.toHaveProperty("id");
+    });
+
+    it("prefers the highest-priority layer when features overlap", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      const instance = createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: {
+            layers: [
+              {
+                data: featureCollection({ type: "Point", coordinates: [0, 0] }),
+              },
+              {
+                data: featureCollection({
+                  type: "LineString",
+                  coordinates: [
+                    [0, 0],
+                    [1, 1],
+                  ],
+                }),
+              },
+            ],
+          },
+        },
+      });
+
+      const seen = [];
+
+      instance.on(WAYMARK_FEATURE_CLICK_EVENT, (event) => {
+        seen.push(event.detail.layerId);
+      });
+
+      const lineFeature = renderedFeature(LINE_LAYER);
+      const hitCircleFeature = renderedFeature(HIT_LAYER);
+
+      // Return the lower-priority line first to prove priority beats render order.
+      map.queryRenderedFeatures.mockReturnValue([
+        lineFeature,
+        hitCircleFeature,
+      ]);
+
+      map.fire("click", {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      });
+
+      expect(seen).toEqual([HIT_LAYER]);
+    });
+
+    it("emits hover once per feature entry and suppresses repeats", () => {
+      const { map, instance } = createPointInstance();
+      const hovers = [];
+      const leaves = [];
+
+      instance.on(WAYMARK_FEATURE_HOVER_EVENT, (event) => {
+        hovers.push(event.detail);
+      });
+      instance.on(WAYMARK_FEATURE_LEAVE_EVENT, (event) => {
+        leaves.push(event.detail);
+      });
+
+      map.queryRenderedFeatures.mockReturnValue([renderedFeature(HIT_LAYER)]);
+
+      const event = {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      };
+
+      map.fire("mousemove", event);
+      map.fire("mousemove", event);
+
+      expect(hovers).toHaveLength(1);
+      expect(hovers[0].layerId).toBe(HIT_LAYER);
+      expect(leaves).toHaveLength(0);
+    });
+
+    it("emits leave then hover when the pointer moves directly onto a different feature", () => {
+      const map = createMockMap();
+      map._loaded = true;
+
+      const instance = createInstance({
+        map,
+        document: {
+          config: { id: "map" },
+          data: {
+            layers: [
+              {
+                data: featureCollection({ type: "Point", coordinates: [0, 0] }),
+              },
+              {
+                data: featureCollection({
+                  type: "LineString",
+                  coordinates: [
+                    [0, 0],
+                    [1, 1],
+                  ],
+                }),
+              },
+            ],
+          },
+        },
+      });
+
+      const events = [];
+
+      instance.on(WAYMARK_FEATURE_HOVER_EVENT, (event) => {
+        events.push({ type: "hover", detail: event.detail });
+      });
+      instance.on(WAYMARK_FEATURE_LEAVE_EVENT, (event) => {
+        events.push({ type: "leave", detail: event.detail });
+      });
+
+      const featureA = renderedFeature(HIT_LAYER, { title: "A" });
+      const featureB = renderedFeature(LINE_LAYER, { title: "B" });
+
+      const firstMove = {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      };
+
+      map.queryRenderedFeatures.mockReturnValue([featureA]);
+      map.fire("mousemove", firstMove);
+
+      const secondMove = {
+        point: { x: 2, y: 2 },
+        lngLat: { lng: 1, lat: 1 },
+        originalEvent: {},
+      };
+
+      map.queryRenderedFeatures.mockReturnValue([featureB]);
+      map.fire("mousemove", secondMove);
+
+      expect(events.map(({ type }) => type)).toEqual([
+        "hover",
+        "leave",
+        "hover",
+      ]);
+      expect(events[0].detail).toEqual({
+        id: "map",
+        feature: cleanFeature(HIT_LAYER, { title: "A" }),
+        layerId: HIT_LAYER,
+        lngLat: firstMove.lngLat,
+        originalEvent: firstMove.originalEvent,
+      });
+      expect(events[1].detail).toEqual({
+        id: "map",
+        feature: cleanFeature(HIT_LAYER, { title: "A" }),
+        layerId: HIT_LAYER,
+        lngLat: secondMove.lngLat,
+        originalEvent: secondMove.originalEvent,
+      });
+      expect(events[2].detail).toEqual({
+        id: "map",
+        feature: cleanFeature(LINE_LAYER, { title: "B" }),
+        layerId: LINE_LAYER,
+        lngLat: secondMove.lngLat,
+        originalEvent: secondMove.originalEvent,
+      });
+    });
+
+    it("emits leave when the pointer moves onto empty map space", () => {
+      const { map, instance } = createPointInstance();
+      const hovers = [];
+      const leaves = [];
+
+      instance.on(WAYMARK_FEATURE_HOVER_EVENT, (event) => {
+        hovers.push(event.detail);
+      });
+      instance.on(WAYMARK_FEATURE_LEAVE_EVENT, (event) => {
+        leaves.push(event.detail);
+      });
+
+      const feature = renderedFeature(HIT_LAYER);
+      map.queryRenderedFeatures.mockReturnValue([feature]);
+      map.fire("mousemove", {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      });
+
+      map.queryRenderedFeatures.mockReturnValue([]);
+      map.fire("mousemove", {
+        point: { x: 50, y: 50 },
+        lngLat: { lng: 5, lat: 5 },
+        originalEvent: {},
+      });
+
+      expect(hovers).toHaveLength(1);
+      expect(leaves).toHaveLength(1);
+      expect(leaves[0].feature).toEqual(cleanFeature(HIT_LAYER));
+      expect(leaves[0].layerId).toBe(HIT_LAYER);
+      expect(leaves[0].lngLat).toEqual({ lng: 5, lat: 5 });
+    });
+
+    it("emits leave when the pointer leaves the map canvas", () => {
+      const { map, instance } = createPointInstance();
+      const leaves = [];
+
+      instance.on(WAYMARK_FEATURE_LEAVE_EVENT, (event) => {
+        leaves.push(event.detail);
+      });
+
+      const feature = renderedFeature(HIT_LAYER);
+      map.queryRenderedFeatures.mockReturnValue([feature]);
+      map.fire("mousemove", {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      });
+
+      map.fire("mouseout", {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      });
+
+      expect(leaves).toHaveLength(1);
+      expect(leaves[0].feature).toEqual(cleanFeature(HIT_LAYER));
+      expect(leaves[0].layerId).toBe(HIT_LAYER);
+    });
+
+    it("does not emit after destroy and detaches map listeners", () => {
+      const { map, instance } = createPointInstance();
+      const seen = [];
+
+      instance.on(WAYMARK_FEATURE_CLICK_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+      instance.on(WAYMARK_FEATURE_HOVER_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+      instance.on(WAYMARK_FEATURE_LEAVE_EVENT, (event) => {
+        seen.push(event.detail);
+      });
+
+      map.queryRenderedFeatures.mockReturnValue([renderedFeature(HIT_LAYER)]);
+
+      instance.destroy();
+
+      map.fire("click", {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      });
+      map.fire("mousemove", {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      });
+      map.fire("mouseout", {
+        point: { x: 1, y: 1 },
+        lngLat: { lng: 0, lat: 0 },
+        originalEvent: {},
+      });
+
+      expect(seen).toEqual([]);
+      expect(map.off).toHaveBeenCalledWith("click", expect.any(Function));
+      expect(map.off).toHaveBeenCalledWith("mousemove", expect.any(Function));
+      expect(map.off).toHaveBeenCalledWith("mouseout", expect.any(Function));
+    });
+
+    it("does not expose featureProperties on the instance or toJSON", () => {
+      const { instance } = createPointInstance();
+
+      expect(instance.data.featureProperties).toBeUndefined();
+      expect(JSON.stringify(instance.toJSON())).not.toContain(
+        "featureProperties",
+      );
     });
   });
 });

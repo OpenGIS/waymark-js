@@ -34,13 +34,9 @@ function renderList(items) {
 
 const expectedBlocks = {
   signature: `\`${contract.signature}\``,
-  defaults: [
-    `- \`map.options.attributionControl\`: \`${contract.defaults.attributionControl}\``,
-    `- \`map.basemaps.vector[0].styleURL\` (resolved as config baseline only when no basemap entries exist): \`${contract.defaults.defaultBasemapVectorStyleURL}\``,
-  ].join("\n"),
   "lifecycle-events": renderList(contract.lifecycleEvents),
-  "forwarded-map-events": renderList(contract.forwardedMapEvents),
   "data-layer-events": renderList(contract.dataLayerEvents),
+  "feature-events": renderList(contract.featureEvents),
 };
 
 const errors = [];

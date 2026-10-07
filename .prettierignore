@@ -4,6 +4,3 @@ coverage/
 test-results/
 playwright-report/
 .vite/
-
-# Generated icon bundle (regenerate with: npm run icons:build)
-src/icons/

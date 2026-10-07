@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import prettier from "prettier";
-import { defaultBasemapVector, defaultConfig } from "../src/config/defaults.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const OUTPUT = path.join(ROOT, "docs", ".generated", "api-contract.json");
@@ -26,28 +25,20 @@ function parseEventConstants(source) {
 const constants = parseEventConstants(instanceEventsSource);
 
 const contract = {
-  signature: "createInstance(instanceDocument?)",
-  defaults: {
-    attributionControl: defaultConfig.map.options.attributionControl,
-    defaultBasemapVectorStyleURL: defaultBasemapVector.styleURL,
-  },
+  signature: "createInstance({ map, document? })",
   lifecycleEvents: [
     constants.WAYMARK_INSTANCE_CREATED_EVENT,
-    constants.WAYMARK_INSTANCE_RECREATED_EVENT,
     constants.WAYMARK_INSTANCE_DESTROYED_EVENT,
-  ],
-  forwardedMapEvents: [
-    constants.WAYMARK_MAP_LOAD_EVENT,
-    constants.WAYMARK_MAP_MOVEEND_EVENT,
-    constants.WAYMARK_MAP_ZOOMEND_EVENT,
-    constants.WAYMARK_MAP_ROTATEEND_EVENT,
-    constants.WAYMARK_MAP_PITCHEND_EVENT,
-    constants.WAYMARK_MAP_ERROR_EVENT,
   ],
   dataLayerEvents: [
     constants.WAYMARK_DATA_LAYER_ADDED_EVENT,
     constants.WAYMARK_DATA_LAYER_MOUNTED_EVENT,
     constants.WAYMARK_DATA_LAYER_ERROR_EVENT,
+  ],
+  featureEvents: [
+    constants.WAYMARK_FEATURE_CLICK_EVENT,
+    constants.WAYMARK_FEATURE_HOVER_EVENT,
+    constants.WAYMARK_FEATURE_LEAVE_EVENT,
   ],
 };
 

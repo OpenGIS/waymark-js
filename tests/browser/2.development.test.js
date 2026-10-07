@@ -1,542 +1,401 @@
 import { expect, test } from "@playwright/test";
 import { screenshot } from "./helpers/screenshot.js";
 
-test.describe("2. Development smoke", () => {
-  test("dev page creates both demo instances and canvases", async ({
-    page,
-  }) => {
-    await page.goto("/");
+async function collectConsoleErrors(page) {
+  const errors = [];
 
-    await expect(page.locator("#dev-instance-mode")).toBeVisible();
-    await expect(page.locator("#dev-instance-mode-two")).toBeVisible();
-    await expect(page.locator("#map")).toBeVisible();
-    await expect(page.locator("#map-two")).toBeVisible();
-    await expect(page.locator("#map canvas")).toBeVisible();
-    await expect(page.locator("#map-two canvas")).toBeVisible();
-
-    await expect(
-      page.locator('#map [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(0);
-    await expect(page.locator('#map [data-waymark-modal="true"]')).toHaveCount(
-      0,
-    );
-    await expect(
-      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-modal="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator(
-        '#map [data-waymark-controls-position="bottomLeft"] [data-waymark-control="basemaps-toggle"]',
-      ),
-    ).toHaveCount(1);
-    await expect(
-      page.locator(
-        '#map-two [data-waymark-controls-position="bottomLeft"] [data-waymark-control="basemaps-toggle"]',
-      ),
-    ).toHaveCount(1);
-
-    const basemapConfig = await page.evaluate(() => ({
-      map: window.waymarkInstances?.map?.toJSON().config.map.basemaps,
-      mapTwo:
-        window.waymarkInstances?.["map-two"]?.toJSON().config.map.basemaps,
-      mapKeys: Object.keys(
-        window.waymarkInstances?.map?.toJSON().config.map.basemaps,
-      ),
-    }));
-
-    await expect
-      .poll(
-        async () => {
-          return page.evaluate(() => ({
-            map: window.waymarkInstances?.map?.toJSON().data.layers.length,
-            mapTwo:
-              window.waymarkInstances?.["map-two"]?.toJSON().data.layers.length,
-          }));
-        },
-        { timeout: 15_000 },
-      )
-      .toEqual({
-        map: 3,
-        mapTwo: 1,
-      });
-
-    expect(basemapConfig).toEqual({
-      map: {
-        vector: expect.arrayContaining([
-          expect.objectContaining({
-            styleURL:
-              "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
-          }),
-        ]),
-      },
-      mapTwo: {
-        raster: expect.any(Array),
-      },
-      mapKeys: ["vector"],
-    });
-
-    await screenshot(page, "dev-two-instances");
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      errors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    errors.push(error.message);
   });
 
-  test("dev page dropdowns change instance modes independently", async ({
-    page,
-  }) => {
-    await page.goto("/");
+  return errors;
+}
 
-    const mapModeSelect = page.locator("#dev-instance-mode");
-    const mapTwoModeSelect = page.locator("#dev-instance-mode-two");
-
-    await expect(mapModeSelect).toHaveValue("view");
-    await expect(mapTwoModeSelect).toHaveValue("debug");
-
-    await expect(
-      page.locator('#map [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-
-    const modes = await page.evaluate(() => ({
-      map:
-        window.waymarkInstances?.map?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.map?.toJSON().config.ui.mode,
-      mapTwo:
-        window.waymarkInstances?.["map-two"]?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.["map-two"]?.toJSON().config.ui.mode,
-    }));
-
-    expect(modes).toEqual({
-      map: "view",
-      mapTwo: "debug",
-    });
-
-    await mapModeSelect.selectOption("debug");
-    await expect(mapModeSelect).toHaveValue("debug");
-    await expect(
-      page.locator('#map [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(1);
-
-    const afterMapDebug = await page.evaluate(() => ({
-      map:
-        window.waymarkInstances?.map?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.map?.toJSON().config.ui.mode,
-      mapTwo:
-        window.waymarkInstances?.["map-two"]?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.["map-two"]?.toJSON().config.ui.mode,
-    }));
-
-    expect(afterMapDebug).toEqual({
-      map: "debug",
-      mapTwo: "debug",
-    });
-
-    await mapTwoModeSelect.selectOption("view");
-    await expect(mapTwoModeSelect).toHaveValue("view");
-    await expect(
-      page.locator('#map [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-
-    const afterMapTwoView = await page.evaluate(() => ({
-      map:
-        window.waymarkInstances?.map?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.map?.toJSON().config.ui.mode,
-      mapTwo:
-        window.waymarkInstances?.["map-two"]?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.["map-two"]?.toJSON().config.ui.mode,
-    }));
-
-    expect(afterMapTwoView).toEqual({
-      map: "debug",
-      mapTwo: "view",
-    });
-
-    await mapModeSelect.selectOption("view");
-    await expect(mapModeSelect).toHaveValue("view");
-    await expect(
-      page.locator('#map [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-
-    const afterMapView = await page.evaluate(() => ({
-      map:
-        window.waymarkInstances?.map?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.map?.toJSON().config.ui.mode,
-      mapTwo:
-        window.waymarkInstances?.["map-two"]?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.["map-two"]?.toJSON().config.ui.mode,
-    }));
-
-    expect(afterMapView).toEqual({
-      map: "view",
-      mapTwo: "view",
-    });
-
-    await mapTwoModeSelect.selectOption("debug");
-    await expect(mapTwoModeSelect).toHaveValue("debug");
-    await expect(
-      page.locator('#map [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-control="debug-output-toggle"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-control="basemaps-toggle"]'),
-    ).toHaveCount(1);
-
-    const finalModes = await page.evaluate(() => ({
-      map:
-        window.waymarkInstances?.map?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.map?.toJSON().config.ui.mode,
-      mapTwo:
-        window.waymarkInstances?.["map-two"]?.toJSON().state.ui?.mode ??
-        window.waymarkInstances?.["map-two"]?.toJSON().config.ui.mode,
-    }));
-
-    expect(finalModes).toEqual({
-      map: "view",
-      mapTwo: "debug",
-    });
-
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(1);
-  });
-
-  test("dev globals remain available for manual debugging", async ({
-    page,
-  }) => {
-    await page.goto("/");
-
-    await expect
-      .poll(async () =>
-        page.evaluate(() => ({
-          hasFactory: typeof window.createWaymarkInstance === "function",
-          hasInstanceOne:
-            typeof window.waymarkInstances?.map?.ui?.setMode === "function",
-          hasInstanceTwo:
-            typeof window.waymarkInstances?.["map-two"]?.ui?.setMode ===
-            "function",
-        })),
-      )
-      .toEqual({
-        hasFactory: true,
-        hasInstanceOne: true,
-        hasInstanceTwo: true,
-      });
-  });
-
-  test("debug output toggle remains clickable above debug panel content", async ({
-    page,
-  }) => {
-    await page.goto("/");
-
-    const debugOutputToggle = page.locator(
-      '#map-two [data-waymark-control="debug-output-toggle"]',
-    );
-    const debugPanel = page.locator(
-      '#map-two [data-waymark-debug-panel="true"]',
-    );
-
-    await expect(debugOutputToggle).toBeVisible();
-    await expect(debugPanel).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-modal="true"]'),
-    ).toHaveCount(1);
-
-    await debugOutputToggle.click();
-    await expect(debugPanel).toHaveCount(0);
-    await expect(
-      page.locator('#map-two [data-waymark-modal="true"]'),
-    ).toHaveCount(0);
-
-    await debugOutputToggle.click();
-    await expect(debugPanel).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-modal="true"]'),
-    ).toHaveCount(1);
-
-    await screenshot(page, "dev-debug-panel");
-  });
-
-  test("shared modal routes between debug and basemaps content", async ({
-    page,
-  }) => {
-    await page.goto("/");
-
-    const debugOutputToggle = page.locator(
-      '#map-two [data-waymark-control="debug-output-toggle"]',
-    );
-    const basemapsToggle = page.locator(
-      '#map-two [data-waymark-control="basemaps-toggle"]',
-    );
-
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-panel="basemaps"]'),
-    ).toHaveCount(0);
-
-    await basemapsToggle.click();
-    await expect(
-      page.locator('#map-two [data-waymark-modal="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#map-two [data-waymark-panel="basemaps"]'),
-    ).toHaveCount(1);
-
-    await debugOutputToggle.click();
-    await expect(
-      page.locator('#map-two [data-waymark-debug-panel="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map-two [data-waymark-panel="basemaps"]'),
-    ).toHaveCount(0);
-  });
-
-  test("basemaps panel renders vectors and applies raster opacity/reorder live", async ({
-    page,
-  }) => {
-    await page.goto("/");
-
-    await page.locator('#map [data-waymark-control="basemaps-toggle"]').click();
-
-    await expect(
-      page.locator('#map [data-waymark-panel="basemaps"] h3'),
-    ).toHaveText(["Raster", "Vector"]);
-
-    await expect(
-      page.locator('#map [data-waymark-basemaps-vector-item="true"]'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#map [data-waymark-basemaps-vector-item="true"]').first(),
-    ).toContainText("Open GIS Outdoors");
-    await expect(
-      page.locator('#map [data-waymark-vector-radio="vector-0"]'),
-    ).toBeChecked();
-
-    await page
-      .locator('#map-two [data-waymark-control="basemaps-toggle"]')
-      .click();
-
-    await page
-      .locator('#map-two [data-waymark-raster-opacity-input="raster-1"]')
-      .evaluate((input) => {
-        input.value = "0.8";
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      });
-
-    await expect
-      .poll(async () =>
-        page.evaluate(
-          () =>
-            window.waymarkInstances?.["map-two"]?.toJSON().state.map?.basemaps
-              ?.raster?.[1]?.opacity,
-        ),
-      )
-      .toBe(0.8);
-
-    await page
-      .locator('#map-two [data-waymark-raster-item="raster-0"]')
-      .dragTo(page.locator('#map-two [data-waymark-raster-item="raster-1"]'));
-
-    await expect
-      .poll(async () =>
-        page.evaluate(() =>
-          window.waymarkInstances?.["map-two"]
-            ?.toJSON()
-            .state.map?.basemaps?.raster?.map((basemap) => basemap.title),
-        ),
-      )
-      .toEqual(["OpenTopoMap raster overlay", "OpenStreetMap raster"]);
-
-    await screenshot(page, "dev-basemaps-panel");
-  });
-
-  test("dev GeoJSON upload adds a new data layer and fits bounds", async ({
-    page,
-  }) => {
-    await page.goto("/");
-
-    const uploadInput = page.locator("#map-geojson-upload");
-    await expect(uploadInput).toBeHidden();
-    await expect(
-      page.locator('button:has-text("Upload GeoJSON")').first(),
-    ).toBeVisible();
-
-    const geoJSON = {
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "Point",
-            coordinates: [10.75, 59.95],
-          },
-        },
-      ],
-    };
-
-    await uploadInput.setInputFiles({
-      name: "oslo.geojson",
-      mimeType: "application/geo+json",
-      buffer: Buffer.from(JSON.stringify(geoJSON)),
-    });
-
-    await expect
-      .poll(async () =>
+async function waitForLayerCount(page, expected) {
+  await expect
+    .poll(
+      async () =>
         page.evaluate(
           () => window.waymarkInstances?.map?.toJSON().data.layers.length,
         ),
-      )
-      .toBe(4);
+      { timeout: 15_000 },
+    )
+    .toBe(expected);
+}
+
+test.describe("2. Development smoke", () => {
+  test("dev page renders the map, controls and initial layers", async ({
+    page,
+  }) => {
+    const consoleErrors = await collectConsoleErrors(page);
+
+    await page.goto("/");
+
+    await expect(page.locator("#dev-toolbar")).toBeVisible();
+    await expect(page.locator("#dev-add-layer")).toBeVisible();
+    await expect(page.locator("#dev-fit-bounds")).toBeVisible();
+    await expect(page.locator("#dev-toggle-beer")).toBeVisible();
+    await expect(page.locator("#map")).toBeVisible();
+    await expect(page.locator("#map canvas")).toBeVisible();
+
+    await waitForLayerCount(page, 4);
+    await page.waitForTimeout(2_000);
+
+    await screenshot(page, "dev-page");
+
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test("add layer control adds a GeoJSON layer and fits bounds", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    await waitForLayerCount(page, 4);
+
+    await page.locator("#dev-add-layer").click();
+
+    await waitForLayerCount(page, 5);
 
     await expect
       .poll(
         async () =>
           page.evaluate(() => {
-            const options =
-              window.waymarkInstances?.map?.toJSON().state.map?.options;
+            const map = window.waymarkMaps?.map;
+            if (!map) {
+              return null;
+            }
 
-            return options ?? null;
+            const center = map.getCenter();
+            return [
+              Number(center.lng.toFixed(4)),
+              Number(center.lat.toFixed(4)),
+            ];
           }),
-        { timeout: 30000 },
+        { timeout: 15_000 },
       )
-      .toEqual(
-        expect.objectContaining({
-          center: [expect.closeTo(10.75, 5), expect.closeTo(59.95, 5)],
-        }),
-      );
+      .toEqual([-127.998, 50.661]);
 
-    await screenshot(page, "dev-geojson-uploaded");
+    await screenshot(page, "dev-layer-added");
   });
 
-  test("debug checkboxes toggle console logging with [waymark:debug] prefix", async ({
+  test("clicking a marker opens the consumer-side popup", async ({ page }) => {
+    await page.goto("/");
+
+    await waitForLayerCount(page, 4);
+
+    const point = await page.evaluate(async () => {
+      const map = window.waymarkMaps?.map;
+
+      if (!map) {
+        return null;
+      }
+
+      if (!map.loaded()) {
+        await new Promise((resolve) => map.once("load", resolve));
+      }
+
+      const coords = [-128.009734, 50.653923];
+
+      await new Promise((resolve) => {
+        const startedAt = Date.now();
+        const check = () => {
+          const waymarkLayerIds = (map.getStyle()?.layers ?? [])
+            .map((layer) => layer.id)
+            .filter((id) => id.startsWith("waymark-map-geojson-layer-"));
+          const at = map.project(coords);
+          const hit = map.queryRenderedFeatures(at, {
+            layers: waymarkLayerIds,
+          });
+          const hasMarker = hit.some(
+            (feature) => feature.properties?.title === "The Scarlet Ibis",
+          );
+
+          if (hasMarker || Date.now() - startedAt > 10_000) {
+            resolve();
+            return;
+          }
+
+          setTimeout(check, 50);
+        };
+
+        check();
+      });
+
+      const projected = map.project(coords);
+      return { x: projected.x, y: projected.y };
+    });
+
+    const box = await page.locator("#map canvas").boundingBox();
+    await page.mouse.click(box.x + point.x, box.y + point.y);
+
+    const popup = page.locator(".maplibregl-popup");
+
+    // The property inspector renders the title plus key/value rows for the
+    // remaining properties, and an image when the feature has one.
+    await expect(popup).toContainText("The Scarlet Ibis");
+    await expect(popup).toContainText("waymarkType");
+    await expect(popup).toContainText(
+      "Good food and drink, especially after a long ride!",
+    );
+
+    const image = popup.locator(".dev-popup__image");
+    await expect(image).toHaveCount(1);
+    await expect(image).toHaveAttribute(
+      "src",
+      "https://www.ogis.org/waymark-js/assets/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
+    );
+
+    // The image URL properties collapse into the image; they must never render
+    // as raw URL text rows.
+    await expect(popup).not.toContainText("ogis.org");
+
+    // The (remote) image must actually load, not just appear.
+    await expect
+      .poll(async () => image.evaluate((img) => img.naturalWidth), {
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(0);
+
+    await screenshot(page, "dev-popup");
+  });
+
+  test("clicking a track line anchors the popup at the click location", async ({
     page,
   }) => {
     await page.goto("/");
 
-    // Checkboxes exist for both instances
-    await expect(page.locator("#map-debug")).toBeVisible();
-    await expect(page.locator("#map-two-debug")).toBeVisible();
+    await waitForLayerCount(page, 4);
 
-    // #map starts with debug enabled (config.debug: true), #map-two starts without
-    await expect(page.locator("#map-debug")).toBeChecked();
-    await expect(page.locator("#map-two-debug")).not.toBeChecked();
+    const target = await page.evaluate(async () => {
+      const map = window.waymarkMaps?.map;
 
-    // Collect console messages
-    const debugMessages = [];
-
-    page.on("console", (msg) => {
-      if (msg.text().includes("[waymark:debug]")) {
-        debugMessages.push(msg.text());
+      if (!map) {
+        return null;
       }
+
+      // A vertex on the "Port Hardy to Cape Scott" track, near the initial
+      // centre at zoom 15.
+      const coords = [-128.01297, 50.655647];
+      const projected = map.project(coords);
+      const lineLayerIds = (map.getStyle()?.layers ?? [])
+        .map((layer) => layer.id)
+        .filter(
+          (id) =>
+            id.startsWith("waymark-map-geojson-layer-") &&
+            map.getLayer(id)?.type === "line",
+        );
+
+      await new Promise((resolve) => {
+        const startedAt = Date.now();
+        const check = () => {
+          const hit = map.queryRenderedFeatures(projected, {
+            layers: lineLayerIds,
+          });
+
+          if (hit.length > 0 || Date.now() - startedAt > 10_000) {
+            resolve();
+            return;
+          }
+
+          setTimeout(check, 50);
+        };
+
+        check();
+      });
+
+      return { x: projected.x, y: projected.y };
     });
 
-    // Enable debug on #map
-    await page.locator("#map-debug").check();
-    await expect(page.locator("#map-debug")).toBeChecked();
+    const box = await page.locator("#map canvas").boundingBox();
+    await page.mouse.click(box.x + target.x, box.y + target.y);
 
-    // Trigger an event by clicking the basemaps toggle
-    await page.locator('#map [data-waymark-control="basemaps-toggle"]').click();
+    const popup = page.locator(".maplibregl-popup");
+    await expect(popup).toContainText("Port Hardy to Cape Scott");
+    await expect(popup).toContainText("direction");
+    await expect(popup).toContainText("waymarkType");
 
-    // Wait for console messages to propagate
-    await expect.poll(() => debugMessages.length).toBeGreaterThanOrEqual(1);
-
-    // All messages should reference the correct instance ID
-    for (const msg of debugMessages) {
-      expect(msg).toMatch(/^\[waymark:debug\] map /);
-    }
-
-    // Enable debug on #map-two and verify it also logs
-    await page.locator("#map-two-debug").check();
-    await expect(page.locator("#map-two-debug")).toBeChecked();
-
-    const mapTwoCountBefore = debugMessages.filter((m) =>
-      m.includes("map-two"),
-    ).length;
-
-    // Click basemaps toggle on #map-two to trigger events
-    await page
-      .locator('#map-two [data-waymark-control="basemaps-toggle"]')
-      .click();
+    // This line carries only `image_large_url`: the popup must still render a
+    // loaded image (the reported bug) and never a raw URL text row.
+    const image = popup.locator(".dev-popup__image");
+    await expect(image).toHaveCount(1);
+    await expect(image).toHaveAttribute(
+      "src",
+      "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15b3.jpg",
+    );
+    await expect(popup).not.toContainText("ogis.org");
 
     await expect
-      .poll(() => debugMessages.filter((m) => m.includes("map-two")).length)
-      .toBeGreaterThan(mapTwoCountBefore);
+      .poll(async () => image.evaluate((img) => img.naturalWidth), {
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(0);
+
+    // The popup is anchored on the click location, not the geometry's first
+    // vertex: its container transform carries the projected anchor point.
+    const anchored = await page.evaluate(({ x, y }) => {
+      const element = document.querySelector(".maplibregl-popup");
+
+      if (!element) {
+        return null;
+      }
+
+      const match = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(
+        element.style.transform,
+      );
+
+      if (!match) {
+        return null;
+      }
+
+      return { tx: Number(match[1]), ty: Number(match[2]), x, y };
+    }, target);
+
+    expect(anchored).not.toBeNull();
+    expect(Math.abs(anchored.tx - anchored.x)).toBeLessThan(2);
+    expect(Math.abs(anchored.ty - anchored.y)).toBeLessThan(2);
+
+    await screenshot(page, "dev-popup-line");
+  });
+
+  test("clicking a shape opens the popup with its properties", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    await waitForLayerCount(page, 4);
+
+    const target = await page.evaluate(async () => {
+      const map = window.waymarkMaps?.map;
+
+      if (!map) {
+        return null;
+      }
+
+      if (!map.loaded()) {
+        await new Promise((resolve) => map.once("load", resolve));
+      }
+
+      // Centre of the "Cape Scott trail area" polygon — clear of the track
+      // lines and markers, so a click here hits only the fill layer.
+      const coords = [-128.016, 50.6505];
+      map.jumpTo({ center: coords, zoom: 15 });
+
+      await new Promise((resolve) => map.once("idle", resolve));
+
+      await new Promise((resolve) => {
+        const startedAt = Date.now();
+        const check = () => {
+          const fillLayerIds = (map.getStyle()?.layers ?? [])
+            .map((layer) => layer.id)
+            .filter((id) => id.endsWith("-fill-type-area"));
+          const at = map.project(coords);
+          const hit = map.queryRenderedFeatures(at, { layers: fillLayerIds });
+
+          if (hit.length > 0 || Date.now() - startedAt > 10_000) {
+            resolve();
+            return;
+          }
+
+          setTimeout(check, 50);
+        };
+
+        check();
+      });
+
+      const projected = map.project(coords);
+      return { x: projected.x, y: projected.y };
+    });
+
+    const box = await page.locator("#map canvas").boundingBox();
+    await page.mouse.click(box.x + target.x, box.y + target.y);
+
+    const popup = page.locator(".maplibregl-popup");
+    await expect(popup).toContainText("Cape Scott trail area");
+    await expect(popup).toContainText(
+      "Coastal hiking area between San Josef Bay and Cape Scott.",
+    );
+    await expect(popup).toContainText("waymarkType");
+
+    // The shape carries only `image_medium_url`; the fallback must render it
+    // as a loaded image and never as a raw URL text row.
+    const image = popup.locator(".dev-popup__image");
+    await expect(image).toHaveCount(1);
+    await expect(image).toHaveAttribute(
+      "src",
+      "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
+    );
+    await expect(popup).not.toContainText("ogis.org");
+
+    await expect
+      .poll(async () => image.evaluate((img) => img.naturalWidth), {
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(0);
+
+    // The popup is anchored on the click location, not the geometry's first
+    // vertex: its container transform carries the projected anchor point.
+    const anchored = await page.evaluate(({ x, y }) => {
+      const element = document.querySelector(".maplibregl-popup");
+
+      if (!element) {
+        return null;
+      }
+
+      const match = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(
+        element.style.transform,
+      );
+
+      if (!match) {
+        return null;
+      }
+
+      return { tx: Number(match[1]), ty: Number(match[2]), x, y };
+    }, target);
+
+    expect(anchored).not.toBeNull();
+    expect(Math.abs(anchored.tx - anchored.x)).toBeLessThan(2);
+    expect(Math.abs(anchored.ty - anchored.y)).toBeLessThan(2);
+  });
+
+  test("type visibility control hides and restores a type", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    await waitForLayerCount(page, 4);
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() =>
+          window.waymarkInstances?.map?.types.getVisibility("beer"),
+        ),
+      )
+      .toBe(true);
+
+    await page.locator("#dev-toggle-beer").click();
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() =>
+          window.waymarkInstances?.map?.types.getVisibility("beer"),
+        ),
+      )
+      .toBe(false);
+
+    await page.locator("#dev-toggle-beer").click();
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() =>
+          window.waymarkInstances?.map?.types.getVisibility("beer"),
+        ),
+      )
+      .toBe(true);
   });
 });

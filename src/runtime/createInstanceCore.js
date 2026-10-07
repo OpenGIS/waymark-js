@@ -1,32 +1,24 @@
 import { resolveConfig } from "../config/resolveConfig.js";
 import { createGeoJSONModule } from "../geojson/createGeoJSONModule.js";
-import { createMap } from "../map/createMap.js";
-import { createRasterBasemapModule } from "../map/createRasterBasemapModule.js";
-import { getLoadedStyleAttribution } from "../map/styleAttribution.js";
-import { createAppShell } from "../ui/createAppShell.js";
-import { PANEL_IDS } from "../ui/controls/internalControls.js";
 import {
   normaliseDataLayer,
-  normaliseMode,
   serialiseInstanceDocument,
 } from "../document/instanceDocument.js";
 import { isValidTypeKey } from "../utils/typeUtils.js";
 import { createInstanceState } from "./state/createInstanceState.js";
-import { deleteCoreById, getCoreById, setCoreById } from "./runtimeRegistry.js";
+import {
+  deleteCoreByMap,
+  getCoreByMap,
+  setCoreByMap,
+} from "./runtimeRegistry.js";
 import {
   createInstanceEvents,
-  forwardMapEventsToInstanceContainer,
   WAYMARK_ALL_EVENTS,
   WAYMARK_INSTANCE_CREATED_EVENT,
   WAYMARK_INSTANCE_DESTROYED_EVENT,
-  WAYMARK_INSTANCE_RECREATED_EVENT,
   WAYMARK_DATA_LAYER_ADDED_EVENT,
   WAYMARK_DATA_LAYER_MOUNTED_EVENT,
   WAYMARK_DATA_LAYER_ERROR_EVENT,
-  WAYMARK_MAP_BASEMAPS_CHANGED_EVENT,
-  WAYMARK_UI_MODE_CHANGED_EVENT,
-  WAYMARK_STATE_TYPES_CHANGED_EVENT,
-  WAYMARK_STATE_TYPES_VISIBILITY_CHANGED_EVENT,
 } from "./createInstanceEvents.js";
 
 /**
@@ -42,44 +34,13 @@ import {
  */
 
 /**
- * @typedef {object} WaymarkMapCameraOptions
- * @property {[number, number]} center
- * @property {number} zoom
- * @property {number} bearing
- * @property {number} pitch
- */
-
-/**
- * @typedef {object} WaymarkRuntimeVectorBasemap
- * @property {string} basemapId
- * @property {string | object} styleURL
- * @property {string} [title]
- * @property {string} [attributionHTML]
- * @property {number} [maxZoom]
- * @property {number} [opacity]
- */
-
-/**
- * @typedef {object} WaymarkRuntimeRasterBasemap
- * @property {string} basemapId
- * @property {string[]} tileURLTemplates
- * @property {string} [title]
- * @property {string} [attributionHTML]
- * @property {number} [tileSize]
- * @property {number} [minZoom]
- * @property {number} [maxZoom]
- * @property {number} [opacity]
- */
-
-/**
  * @typedef {object} WaymarkInstancePublicApi
  * @property {string} id
  * @property {() => WaymarkInstanceDocument} toJSON
  * @property {{ addLayer: (layer: { type?: 'geojson', data: object }, options?: { fitBounds?: boolean }) => void, fitBounds: (options?: { padding?: number }) => void }} data
- * @property {{ setMode: (mode: 'view' | 'debug') => void }} ui
  * @property {{ setEnabled: (enabled: boolean) => void }} debug
  * @property {{
- *   setVisibility: (typeKey: string, visible: boolean) => { previous: boolean, next: boolean },
+ *   setVisibility: (typeKey: string, visible: boolean) => { previous: boolean, next: boolean } | null,
  *   getVisibility: (typeKey: string) => boolean,
  *   getAll: () => Record<string, { title: string, visible: boolean }>,
  *   resetVisibility: () => void
@@ -94,102 +55,24 @@ import {
  * @typedef {object} WaymarkInstanceCore
  * @property {string} id
  * @property {WaymarkMap} map
- * @property {WaymarkResolvedConfig} config
+ * @property {WaymarkResolvedConfig & { paint?: unknown, types?: unknown }} config
  * @property {ReturnType<typeof createInstanceState>} runtimeState
- * @property {{ map: { options: WaymarkMapCameraOptions, basemaps: { vector: import('../document/instanceDocument.js').WaymarkVectorBasemap[], raster: import('../document/instanceDocument.js').WaymarkRasterBasemap[] } }, ui: { mode: 'view' | 'debug' }, debug: boolean }} baseline
- * @property {WaymarkInstancePublicApi} publicApi
- * @property {{ container: HTMLElement, emit: (type: string, detail: import('./createInstanceEvents.js').WaymarkInstanceLifecycleEventDetail | import('./createInstanceEvents.js').WaymarkInstanceMapEventDetail | import('./createInstanceEvents.js').WaymarkInstanceModuleEventDetail | import('./createInstanceEvents.js').WaymarkBasemapsChangedEventDetail | import('./createInstanceEvents.js').WaymarkStateChangedEventDetail | import('./createInstanceEvents.js').WaymarkDataLayerAddedEventDetail | import('./createInstanceEvents.js').WaymarkDataLayerMountedEventDetail | import('./createInstanceEvents.js').WaymarkDataLayerErrorEventDetail) => void, on: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void, off: (type: string, handler: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean) => void, once: (type: string, handler: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean) => void }} events
- * @property {{ toJSON: () => WaymarkInstanceDocument }} instanceDocument
- * @property {Set<string>} runtimeVectorAttributionIds
- * @property {{ appShell: { app: import('vue').App, mountElement: HTMLElement, refresh: () => void, destroy: () => void } | null, geoJSON: { map: WaymarkMap, layers: { sourceId: string, layerId: string, type: 'geojson', data: object }[], addLayer: (layer: { type: 'geojson', data: object }, options?: { fitBounds?: boolean }) => { sourceId: string, layerId: string, type: 'geojson', data: object }, destroy: () => void }, rasterBasemaps: { setRasterOpacity: (basemapId: string, opacity: number) => void, reorderRasterBasemaps: (orderedBasemapIds: string[]) => void, destroy: () => void }, debug: { destroy: () => void }, mapEvents: { destroy: () => void }, stateSync: { destroy: () => void }, basemapStateSync: { destroy: () => void }, styleLoad: { destroy: () => void } }} modules
- * @property {{ basemaps: { setRasterOpacity: (basemapId: string, opacity: number) => void, reorderRasterBasemaps: (orderedBasemapIds: string[]) => void, setActiveVectorBasemap: (basemapId: string) => void }, ui: { toggleDebugOutputPanel: () => void, toggleBasemapsPanel: () => void } }} commands
+ * @property {{ debug: boolean, types: Record<string, unknown> | null }} baseline
+ * @property {WaymarkInstancePublicApi | null} publicApi
+ * @property {{ container: HTMLElement, emit: (type: string, detail: object) => void, on: Function, off: Function, once: Function }} events
+ * @property {{ toJSON: () => WaymarkInstanceDocument } | null} instanceDocument
+ * @property {{ geoJSON: { layers: Array<{ sourceId: string, layerId: string, type: 'geojson', data: object }>, addLayer: Function, setTypeVisibility: Function, fitBoundsToAll: Function, featureInteraction: object, destroy: Function }, debug: { destroy: Function } }} modules
+ * @property {{ types: { setVisibility: Function, resetVisibility: Function } }} commands
  * @property {{ phase: 'ready' | 'destroyed', destroy: () => void }} lifecycle
  */
 
-const MAP_END_EVENTS = ["load", "moveend", "zoomend", "rotateend", "pitchend"];
-const CAMERA_OPTION_KEYS = ["center", "zoom", "bearing", "pitch"];
-
 /**
- * Ensure a map container exists and return its ID.
- *
- * @param {string} [id]
- * @returns {string}
- */
-export function ensureContainer(id) {
-  if (id) {
-    if (!document.getElementById(id)) {
-      throw new Error(`Waymark container "${id}" was not found.`);
-    }
-
-    return id;
-  }
-
-  const generatedId = createRandomContainerId();
-  const container = document.createElement("div");
-  container.id = generatedId;
-  document.body.appendChild(container);
-
-  return generatedId;
-}
-
-/**
- * Generate a random container ID for a Waymark instance.
+ * Generate a random namespacing token for a Waymark instance.
  *
  * @returns {string}
  */
-function createRandomContainerId() {
+function createRandomToken() {
   return `waymark-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-/**
- * @param {WaymarkMap} map
- * @returns {WaymarkMapCameraOptions}
- */
-function readMapCameraState(map) {
-  const center = map.getCenter();
-
-  return {
-    center: [center.lng, center.lat],
-    zoom: map.getZoom(),
-    bearing: map.getBearing(),
-    pitch: map.getPitch(),
-  };
-}
-
-/**
- * @param {WaymarkMapCameraOptions['center']} center
- */
-function cloneCenter(center) {
-  return [center[0], center[1]];
-}
-
-/**
- * @param {import('../document/instanceDocument.js').WaymarkRasterBasemap[]} rasterBasemaps
- */
-function cloneRasterBasemaps(rasterBasemaps) {
-  return rasterBasemaps.map((rasterBasemap) => ({
-    ...rasterBasemap,
-    tileURLTemplates: [...rasterBasemap.tileURLTemplates],
-  }));
-}
-
-/**
- * @param {import('../document/instanceDocument.js').WaymarkVectorBasemap[]} vectorBasemaps
- */
-function cloneVectorBasemaps(vectorBasemaps) {
-  return vectorBasemaps.map((vectorBasemap) => ({
-    ...vectorBasemap,
-  }));
-}
-
-/**
- * @param {{ raster: import('../document/instanceDocument.js').WaymarkRasterBasemap[], vector: import('../document/instanceDocument.js').WaymarkVectorBasemap[] }} basemaps
- */
-function cloneBasemapConfig(basemaps) {
-  return {
-    raster: cloneRasterBasemaps(basemaps.raster),
-    vector: cloneVectorBasemaps(basemaps.vector),
-  };
 }
 
 /**
@@ -197,301 +80,6 @@ function cloneBasemapConfig(basemaps) {
  */
 function createLifecycleDetail(id) {
   return { id };
-}
-
-/**
- * @param {string} id
- * @param {string} module
- * @param {string} event
- * @param {unknown} previous
- * @param {unknown} next
- * @param {string} source
- */
-function createModuleEventDetail(id, module, event, previous, next, source) {
-  return {
-    id,
-    module,
-    event,
-    previous,
-    next,
-    source,
-  };
-}
-
-/**
- * @param {number} index
- */
-function createRuntimeRasterBasemapId(index) {
-  return `raster-${index}`;
-}
-
-/**
- * @param {number} index
- */
-function createRuntimeVectorBasemapId(index) {
-  return `vector-${index}`;
-}
-
-/**
- * @param {import('../document/instanceDocument.js').WaymarkVectorBasemap[]} vectorBasemaps
- * @returns {WaymarkRuntimeVectorBasemap[]}
- */
-function createRuntimeVectorBasemaps(vectorBasemaps) {
-  return vectorBasemaps.map((vectorBasemap, index) => ({
-    basemapId: createRuntimeVectorBasemapId(index),
-    ...vectorBasemap,
-  }));
-}
-
-/**
- * @param {import('../document/instanceDocument.js').WaymarkRasterBasemap[]} rasterBasemaps
- * @returns {WaymarkRuntimeRasterBasemap[]}
- */
-function createRuntimeRasterBasemaps(rasterBasemaps) {
-  return rasterBasemaps.map((rasterBasemap, index) => ({
-    basemapId: createRuntimeRasterBasemapId(index),
-    ...rasterBasemap,
-  }));
-}
-
-/**
- * @param {WaymarkRuntimeRasterBasemap[]} rasterBasemaps
- */
-function serialiseRuntimeRasterBasemaps(rasterBasemaps) {
-  return rasterBasemaps.map(({ basemapId: _basemapId, ...rasterBasemap }) => {
-    return {
-      ...rasterBasemap,
-      tileURLTemplates: [...rasterBasemap.tileURLTemplates],
-    };
-  });
-}
-
-/**
- * @param {WaymarkRuntimeVectorBasemap[]} vectorBasemaps
- * @param {Set<string>} [injectedAttributionIds]
- */
-function serialiseRuntimeVectorBasemaps(
-  vectorBasemaps,
-  injectedAttributionIds,
-) {
-  return vectorBasemaps.map(({ basemapId: _basemapId, ...vectorBasemap }) => {
-    if (injectedAttributionIds?.has(_basemapId)) {
-      delete vectorBasemap.attributionHTML;
-    }
-
-    return {
-      ...vectorBasemap,
-    };
-  });
-}
-
-/**
- * @param {WaymarkRuntimeVectorBasemap[]} vectorBasemaps
- */
-function snapshotRuntimeVectorBasemaps(vectorBasemaps) {
-  return vectorBasemaps.map((vectorBasemap) => ({
-    ...vectorBasemap,
-  }));
-}
-
-/**
- * @param {WaymarkRuntimeRasterBasemap[]} rasterBasemaps
- */
-function snapshotRuntimeRasterBasemaps(rasterBasemaps) {
-  return rasterBasemaps.map((rasterBasemap) => ({
-    ...rasterBasemap,
-    tileURLTemplates: [...rasterBasemap.tileURLTemplates],
-  }));
-}
-
-/**
- * @param {WaymarkInstanceCore} core
- */
-function createBasemapSnapshot(core) {
-  const basemaps = core.runtimeState.getSnapshot().map.basemaps;
-
-  return {
-    vector: snapshotRuntimeVectorBasemaps(basemaps.vector),
-    raster: snapshotRuntimeRasterBasemaps(basemaps.raster),
-  };
-}
-
-/**
- * @param {WaymarkInstanceCore} core
- * @param {import('./createInstanceEvents.js').WaymarkBasemapsMutationType} mutation
- * @param {{ basemapIds: string[], opacity?: Record<string, number>, orderedBasemapIds?: string[] }} changed
- */
-function emitCoreBasemapsChanged(core, mutation, changed) {
-  core.events.emit(WAYMARK_MAP_BASEMAPS_CHANGED_EVENT, {
-    id: core.id,
-    mutation,
-    changed,
-    basemaps: createBasemapSnapshot(core),
-  });
-}
-
-/**
- * @param {WaymarkInstanceCore} core
- * @param {string | null} panelId
- * @param {unknown} panelContext
- * @param {string} source
- */
-function setCorePanelState(core, panelId, panelContext, source) {
-  core.runtimeState.dispatch(
-    "ui.activePanel.set",
-    {
-      activePanel: panelId,
-    },
-    source,
-  );
-
-  core.runtimeState.dispatch(
-    "ui.panelContext.set",
-    {
-      panelContext,
-    },
-    source,
-  );
-}
-
-/**
- * @param {WaymarkInstanceCore} core
- */
-function openCoreBasemapsPanel(core) {
-  if (core.lifecycle.phase === "destroyed") {
-    return;
-  }
-
-  setCorePanelState(
-    core,
-    PANEL_IDS.basemaps,
-    {
-      source: "internal:basemaps-control",
-    },
-    "runtime:ui.openBasemapsPanel",
-  );
-}
-
-/**
- * @param {WaymarkInstanceCore} core
- */
-function closeCoreBasemapsPanel(core) {
-  if (core.lifecycle.phase === "destroyed") {
-    return;
-  }
-
-  if (core.runtimeState.getSnapshot().ui.activePanel !== PANEL_IDS.basemaps) {
-    return;
-  }
-
-  setCorePanelState(core, null, null, "runtime:ui.closeBasemapsPanel");
-}
-
-/**
- * @param {WaymarkInstanceCore} core
- */
-function toggleCoreBasemapsPanel(core) {
-  if (core.lifecycle.phase === "destroyed") {
-    return;
-  }
-
-  if (core.runtimeState.getSnapshot().ui.activePanel === PANEL_IDS.basemaps) {
-    closeCoreBasemapsPanel(core);
-    return;
-  }
-
-  openCoreBasemapsPanel(core);
-}
-
-/**
- * @param {WaymarkInstanceCore} core
- */
-function toggleCoreDebugOutputPanel(core) {
-  if (core.lifecycle.phase === "destroyed") {
-    return;
-  }
-
-  if (core.runtimeState.getSnapshot().ui.mode !== "debug") {
-    return;
-  }
-
-  if (
-    core.runtimeState.getSnapshot().ui.activePanel === PANEL_IDS.debugOutput
-  ) {
-    setCorePanelState(core, null, null, "runtime:ui.toggleDebugOutputPanel");
-    return;
-  }
-
-  setCorePanelState(
-    core,
-    PANEL_IDS.debugOutput,
-    {
-      source: "internal:debug-control",
-    },
-    "runtime:ui.toggleDebugOutputPanel",
-  );
-}
-
-/**
- * @param {WaymarkInstanceCore} core
- * @param {'view' | 'debug'} mode
- * @param {string} [source='core:lifecycle']
- */
-function setCoreMode(core, mode, source = "core:lifecycle") {
-  if (core.lifecycle.phase === "destroyed") {
-    return;
-  }
-
-  const nextMode = normaliseMode(mode);
-  const previousMode = core.runtimeState.getSnapshot().ui.mode;
-
-  if (previousMode === nextMode) {
-    return;
-  }
-
-  core.runtimeState.dispatch(
-    "ui.mode.set",
-    {
-      mode: nextMode,
-    },
-    source,
-  );
-
-  const runtimeSnapshot = core.runtimeState.getSnapshot();
-
-  if (
-    nextMode !== "debug" &&
-    runtimeSnapshot.ui.activePanel === PANEL_IDS.debugOutput
-  ) {
-    setCorePanelState(core, null, null, `${source}:mode-exit-debug`);
-  }
-
-  if (
-    previousMode !== "debug" &&
-    nextMode === "debug" &&
-    runtimeSnapshot.ui.activePanel === null
-  ) {
-    setCorePanelState(
-      core,
-      PANEL_IDS.debugOutput,
-      {
-        source: "internal:mode-default",
-      },
-      `${source}:mode-default-panel`,
-    );
-  }
-
-  core.events.emit(
-    WAYMARK_UI_MODE_CHANGED_EVENT,
-    createModuleEventDetail(
-      core.id,
-      "ui",
-      "mode.changed",
-      previousMode,
-      nextMode,
-      source,
-    ),
-  );
 }
 
 /**
@@ -525,10 +113,6 @@ function addCoreDataLayer(core, layer, options) {
   try {
     core.modules.geoJSON.addLayer(normalisedLayer, options);
 
-    if (core.modules.appShell) {
-      core.modules.appShell.refresh();
-    }
-
     core.events.emit(WAYMARK_DATA_LAYER_ADDED_EVENT, {
       id: core.id,
       layer: normalisedLayer,
@@ -551,301 +135,6 @@ function addCoreDataLayer(core, layer, options) {
 
 /**
  * @param {WaymarkInstanceCore} core
- * @param {string} command
- * @param {unknown} payload
- * @param {string} source
- */
-function dispatchBasemapCommand(core, command, payload, source) {
-  if (core.lifecycle.phase === "destroyed") {
-    return;
-  }
-
-  core.runtimeState.dispatch(command, payload, source);
-}
-
-/**
- * @param {{
- *   core: WaymarkInstanceCore,
- *   map: WaymarkMap,
- * }} options
- */
-function createBasemapStateSyncModule(options) {
-  const { core, map } = options;
-  const unsubscribe = core.runtimeState.subscribe((detail) => {
-    if (detail.scope !== "map.basemaps") {
-      return;
-    }
-
-    if (core.lifecycle.phase === "destroyed") {
-      return;
-    }
-
-    const basemaps = detail.snapshot?.map?.basemaps;
-
-    if (!basemaps || typeof basemaps !== "object") {
-      return;
-    }
-
-    if (detail.command === "map.basemaps.raster.opacity.set") {
-      const basemapId = detail.meta?.changed?.basemapIds?.[0];
-      const opacity = detail.meta?.changed?.opacity?.[basemapId];
-
-      if (typeof basemapId === "string" && typeof opacity === "number") {
-        core.modules.rasterBasemaps.setRasterOpacity(basemapId, opacity);
-      }
-    }
-
-    if (detail.command === "map.basemaps.raster.reorder") {
-      const orderedBasemapIds = detail.meta?.changed?.orderedBasemapIds;
-
-      if (Array.isArray(orderedBasemapIds)) {
-        core.modules.rasterBasemaps.reorderRasterBasemaps(orderedBasemapIds);
-      }
-    }
-
-    if (
-      detail.command === "map.basemaps.vector.active.set" &&
-      typeof map.setStyle === "function"
-    ) {
-      const activeVectorBasemap = basemaps.vector[0];
-
-      if (activeVectorBasemap?.styleURL !== undefined) {
-        map.setStyle(activeVectorBasemap.styleURL);
-      }
-    }
-
-    if (detail.meta?.mutation && detail.meta?.changed) {
-      emitCoreBasemapsChanged(core, detail.meta.mutation, detail.meta.changed);
-    }
-  });
-
-  return {
-    destroy() {
-      unsubscribe();
-    },
-  };
-}
-
-/**
- * @param {{
- *   core: WaymarkInstanceCore,
- *   map: WaymarkMap,
- * }} options
- */
-function createStateSyncModule(options) {
-  const { core, map } = options;
-  const listeners = [];
-
-  for (const mapEvent of MAP_END_EVENTS) {
-    const handler = () => {
-      core.runtimeState.dispatch(
-        "map.camera.set",
-        readMapCameraState(map),
-        `runtime:map.${mapEvent}`,
-      );
-    };
-    map.on(mapEvent, handler);
-    listeners.push([mapEvent, handler]);
-  }
-
-  return {
-    destroy() {
-      for (const [mapEvent, handler] of listeners) {
-        map.off(mapEvent, handler);
-      }
-    },
-  };
-}
-
-/**
- * @param {{
- *   core: WaymarkInstanceCore,
- *   map: WaymarkMap,
- * }} options
- */
-function createStyleLoadAttributionModule(options) {
-  const { core, map } = options;
-
-  const handler = () => {
-    if (core.lifecycle.phase === "destroyed") {
-      return;
-    }
-
-    const activeVectorBasemap =
-      core.runtimeState.getSnapshot().map.basemaps.vector[0];
-
-    if (
-      !activeVectorBasemap ||
-      typeof activeVectorBasemap.basemapId !== "string"
-    ) {
-      return;
-    }
-
-    const { basemapId } = activeVectorBasemap;
-
-    if (
-      typeof activeVectorBasemap.attributionHTML === "string" &&
-      activeVectorBasemap.attributionHTML.trim() !== ""
-    ) {
-      return;
-    }
-
-    const attribution = getLoadedStyleAttribution(map);
-
-    if (typeof attribution !== "string" || attribution.trim() === "") {
-      return;
-    }
-
-    core.runtimeState.dispatch(
-      "map.basemaps.vector.attribution.set",
-      {
-        basemapId,
-        attributionHTML: attribution,
-      },
-      "runtime:map.style.load",
-    );
-    core.runtimeVectorAttributionIds.add(basemapId);
-  };
-
-  map.on("style.load", handler);
-
-  return {
-    destroy() {
-      map.off("style.load", handler);
-    },
-  };
-}
-
-/**
- * @param {import('../document/instanceDocument.js').WaymarkInstanceDocumentStateMapOptions | undefined} mapOptions
- */
-function toMapCameraOverrides(mapOptions) {
-  const overrides = {};
-
-  const source = mapOptions ?? {};
-
-  for (const key of CAMERA_OPTION_KEYS) {
-    if (Object.hasOwn(source, key)) {
-      overrides[key] = source[key];
-    }
-  }
-
-  return overrides;
-}
-
-/**
- * @param {{ vector: import('../document/instanceDocument.js').WaymarkVectorBasemap[], raster: import('../document/instanceDocument.js').WaymarkRasterBasemap[] }} basemaps
- */
-function serialiseBasemapsForConfig(basemaps) {
-  const serialised = {};
-
-  if (basemaps.raster.length > 0) {
-    serialised.raster = cloneRasterBasemaps(basemaps.raster);
-  }
-
-  if (basemaps.vector.length > 0) {
-    serialised.vector = cloneVectorBasemaps(basemaps.vector);
-  }
-
-  return serialised;
-}
-
-/**
- * @param {unknown} value
- */
-function isEqualSerializable(value, otherValue) {
-  return JSON.stringify(value) === JSON.stringify(otherValue);
-}
-
-/**
- * @param {WaymarkMapCameraOptions} baseline
- * @param {WaymarkMapCameraOptions} current
- */
-function createMapOptionsDelta(baseline, current) {
-  const delta = {};
-
-  for (const key of CAMERA_OPTION_KEYS) {
-    if (!isEqualSerializable(current[key], baseline[key])) {
-      delta[key] = key === "center" ? cloneCenter(current[key]) : current[key];
-    }
-  }
-
-  return delta;
-}
-
-/**
- * @param {WaymarkInstanceCore} core
- * @param {{ map: { basemaps: { vector: WaymarkRuntimeVectorBasemap[], raster: WaymarkRuntimeRasterBasemap[] } } }} runtimeStateSnapshot
- */
-function createMapBasemapStateDelta(core, runtimeStateSnapshot) {
-  const runtimeBasemaps = runtimeStateSnapshot.map.basemaps;
-  const current = {
-    raster: serialiseRuntimeRasterBasemaps(runtimeBasemaps.raster),
-    vector: serialiseRuntimeVectorBasemaps(
-      runtimeBasemaps.vector,
-      core.runtimeVectorAttributionIds,
-    ),
-  };
-
-  const baseline = core.baseline.map.basemaps;
-  const delta = {};
-
-  if (!isEqualSerializable(current.raster, baseline.raster)) {
-    delta.raster = current.raster;
-  }
-
-  if (!isEqualSerializable(current.vector, baseline.vector)) {
-    delta.vector = current.vector;
-  }
-
-  return delta;
-}
-
-/**
- * @param {WaymarkResolvedConfig} resolvedConfig
- * @param {WaymarkMapCameraOptions} initialCameraState
- */
-function createBaselineMapOptions(resolvedConfig, initialCameraState) {
-  const overrides = toMapCameraOverrides(resolvedConfig.map.options);
-
-  return {
-    center: Array.isArray(overrides.center)
-      ? [overrides.center[0], overrides.center[1]]
-      : cloneCenter(initialCameraState.center),
-    zoom:
-      typeof overrides.zoom === "number"
-        ? overrides.zoom
-        : initialCameraState.zoom,
-    bearing:
-      typeof overrides.bearing === "number"
-        ? overrides.bearing
-        : initialCameraState.bearing,
-    pitch:
-      typeof overrides.pitch === "number"
-        ? overrides.pitch
-        : initialCameraState.pitch,
-  };
-}
-
-/**
- * @param {WaymarkResolvedConfig} resolvedConfig
- * @param {WaymarkInstanceDocument} instanceDocument
- */
-function createInitialBasemapConfig(resolvedConfig, instanceDocument) {
-  const stateBasemaps = instanceDocument.state.map?.basemaps;
-
-  return {
-    raster: Array.isArray(stateBasemaps?.raster)
-      ? cloneRasterBasemaps(stateBasemaps.raster)
-      : cloneRasterBasemaps(resolvedConfig.map.basemaps.raster),
-    vector: Array.isArray(stateBasemaps?.vector)
-      ? cloneVectorBasemaps(stateBasemaps.vector)
-      : cloneVectorBasemaps(resolvedConfig.map.basemaps.vector),
-  };
-}
-
-/**
- * @param {WaymarkInstanceCore} core
  */
 function destroyCore(core) {
   if (core.lifecycle.phase === "destroyed") {
@@ -859,21 +148,11 @@ function destroyCore(core) {
   );
 
   core.modules.geoJSON.destroy();
-  core.modules.rasterBasemaps.destroy();
   core.modules.debug.destroy();
-  core.modules.mapEvents.destroy();
-  core.modules.stateSync.destroy();
-  core.modules.basemapStateSync.destroy();
-  core.modules.styleLoad.destroy();
 
-  if (core.modules.appShell) {
-    core.modules.appShell.destroy();
-    core.modules.appShell.app.unmount();
-    core.modules.appShell.mountElement.remove();
-  }
-
-  core.map.remove();
-  deleteCoreById(core.id);
+  // The consumer owns the map: never call map.remove() and never touch the
+  // container. We only release Waymark-owned registry state.
+  deleteCoreByMap(core.map);
 }
 
 /**
@@ -932,71 +211,32 @@ function createDebugModule(core, initialEnabled) {
 }
 
 /**
+ * @param {WaymarkMap} map
  * @param {WaymarkInstanceDocument} instanceDocument
  * @returns {{ publicApi: WaymarkInstancePublicApi, core: WaymarkInstanceCore }}
  */
-export function createInstanceCore(instanceDocument) {
-  const containerId = ensureContainer(instanceDocument.config.id);
-  const existingCore = getCoreById(containerId);
-
-  if (existingCore) {
-    existingCore.events.emit(WAYMARK_INSTANCE_RECREATED_EVENT, {
-      id: existingCore.id,
-    });
-    existingCore.lifecycle.destroy();
+export function createInstanceCore(map, instanceDocument) {
+  if (getCoreByMap(map)) {
+    throw new Error(
+      "This map already has a Waymark instance. Call destroy() on the existing instance before creating another.",
+    );
   }
 
-  // Add container class to DOM element
-  document.getElementById(containerId).classList.add("waymark-instance");
-
-  const { id: _containerIdFromConfig, ...configOverrides } =
-    instanceDocument.config;
-  const resolvedConfig = resolveConfig(configOverrides);
-  const initialMapOptions = {
-    ...resolvedConfig.map.options,
-    ...toMapCameraOverrides(instanceDocument.state.map?.options),
-  };
-
-  const initialBasemapConfig = createInitialBasemapConfig(
-    resolvedConfig,
-    instanceDocument,
-  );
-  const initialRuntimeBasemaps = {
-    vector: createRuntimeVectorBasemaps(initialBasemapConfig.vector),
-    raster: createRuntimeRasterBasemaps(initialBasemapConfig.raster),
-  };
-  const initialMode = normaliseMode(
-    instanceDocument.state.ui?.mode ?? resolvedConfig.ui.mode,
-  );
-  const initialDebug = instanceDocument.state.debug ?? resolvedConfig.debug;
-
-  const events = createInstanceEvents(containerId);
-  const map = createMap(containerId, {
-    ...resolvedConfig,
-    map: {
-      ...resolvedConfig.map,
-      options: initialMapOptions,
-      basemaps: initialBasemapConfig,
-    },
-    ui: {
-      ...resolvedConfig.ui,
-      mode: initialMode,
-    },
-  });
-  /** @type {WaymarkInstanceCore | null} */
-  let core = null;
-  const rasterBasemapModule = createRasterBasemapModule(
-    map,
-    containerId,
-    initialRuntimeBasemaps.raster,
-  );
+  const token = instanceDocument.config.id ?? createRandomToken();
+  const resolvedConfig = resolveConfig(instanceDocument.config);
   const configTypes = instanceDocument.config.types ?? null;
   const configPaint = instanceDocument.config.paint ?? null;
   const stateTypes = instanceDocument.state.types ?? null;
+  const initialDebug = instanceDocument.state.debug ?? resolvedConfig.debug;
+
+  const events = createInstanceEvents(map.getContainer());
+
+  /** @type {WaymarkInstanceCore | null} */
+  let core = null;
 
   const geoJSONModule = createGeoJSONModule(
     map,
-    containerId,
+    token,
     instanceDocument.data.layers,
     {
       onLayerMounted: ({
@@ -1006,7 +246,7 @@ export function createInstanceCore(instanceDocument) {
         mountedTypes,
       }) => {
         events.emit(WAYMARK_DATA_LAYER_MOUNTED_EVENT, {
-          id: containerId,
+          id: token,
           layerIndex,
           mountedFamilies,
           mountedLayerIds,
@@ -1025,111 +265,95 @@ export function createInstanceCore(instanceDocument) {
       },
       types: configTypes ?? undefined,
       instancePaint: configPaint ?? undefined,
+      onFeatureEvent: (type, detail) => {
+        events.emit(type, detail);
+      },
     },
   );
-  const initialMapCameraState = readMapCameraState(map);
-  const baselineMapOptions = createBaselineMapOptions(
-    resolvedConfig,
-    initialMapCameraState,
-  );
+
   const runtimeState = createInstanceState({
-    id: containerId,
+    id: token,
     events,
     initialState: {
-      map: {
-        camera: initialMapCameraState,
-        basemaps: {
-          vector: snapshotRuntimeVectorBasemaps(initialRuntimeBasemaps.vector),
-          raster: snapshotRuntimeRasterBasemaps(initialRuntimeBasemaps.raster),
-        },
-      },
-      ui: {
-        mode: initialMode,
-        activePanel: initialMode === "debug" ? PANEL_IDS.debugOutput : null,
-        panelContext:
-          initialMode === "debug"
-            ? {
-                source: "internal:mode-default",
-              }
-            : null,
-      },
       debug: initialDebug,
       ...(stateTypes && Object.keys(stateTypes).length > 0
         ? { types: structuredClone(stateTypes) }
         : {}),
     },
   });
-  const appShell = createAppShell(containerId, {
-    events,
-    getInstanceDocument: () => core?.instanceDocument?.toJSON() ?? null,
-    getRuntimeStateSnapshot: () => runtimeState.getSnapshot(),
-    subscribeRuntimeState: (listener) => runtimeState.subscribe(listener),
-    onSetRasterOpacity: (basemapId, opacity) => {
-      core?.commands.basemaps.setRasterOpacity(basemapId, opacity);
-    },
-    onReorderRasterBasemaps: (orderedBasemapIds) => {
-      core?.commands.basemaps.reorderRasterBasemaps(orderedBasemapIds);
-    },
-    onSetActiveVectorBasemap: (basemapId) => {
-      core?.commands.basemaps.setActiveVectorBasemap(basemapId);
-    },
-    onToggleDebugOutputPanel: () => {
-      core?.commands.ui.toggleDebugOutputPanel();
-    },
-    onToggleBasemapsPanel: () => {
-      core?.commands.ui.toggleBasemapsPanel();
-    },
-  });
 
   core = {
-    id: containerId,
+    id: token,
     map,
-    config: resolvedConfig,
+    config: {
+      ...resolvedConfig,
+      ...(configPaint ? { paint: configPaint } : {}),
+      ...(configTypes ? { types: configTypes } : {}),
+    },
     runtimeState,
     baseline: {
-      map: {
-        options: baselineMapOptions,
-        basemaps: cloneBasemapConfig(resolvedConfig.map.basemaps),
-      },
-      ui: {
-        mode: resolvedConfig.ui.mode,
-      },
       debug: resolvedConfig.debug,
       types: configTypes ? structuredClone(configTypes) : null,
     },
     publicApi: null,
     events,
     instanceDocument: null,
-    runtimeVectorAttributionIds: new Set(),
     modules: {
-      appShell,
       geoJSON: geoJSONModule,
-      rasterBasemaps: rasterBasemapModule,
       debug: {
-        destroy() {},
-      },
-      mapEvents: {
-        destroy() {},
-      },
-      stateSync: {
-        destroy() {},
-      },
-      basemapStateSync: {
-        destroy() {},
-      },
-      styleLoad: {
         destroy() {},
       },
     },
     commands: {
-      basemaps: {
-        setRasterOpacity: () => {},
-        reorderRasterBasemaps: () => {},
-        setActiveVectorBasemap: () => {},
-      },
-      ui: {
-        toggleDebugOutputPanel: () => {},
-        toggleBasemapsPanel: () => {},
+      types: {
+        setVisibility(typeKey, visible) {
+          if (core.lifecycle.phase === "destroyed") {
+            return null;
+          }
+
+          if (!configTypes || !configTypes[typeKey]) {
+            return null;
+          }
+
+          const before =
+            core.runtimeState.getSnapshot().types[typeKey]?.visible ?? true;
+
+          const changed = core.runtimeState.dispatch(
+            "types.visibility.set",
+            { typeKey, visible },
+            "runtime:types.setVisibility",
+          );
+
+          if (changed) {
+            // Apply to map sublayers
+            core.modules.geoJSON.setTypeVisibility(typeKey, visible);
+          }
+
+          return { previous: before, next: visible };
+        },
+        resetVisibility() {
+          if (core.lifecycle.phase === "destroyed") {
+            return;
+          }
+
+          const snapshot = core.runtimeState.getSnapshot();
+          const hiddenTypes = Object.keys(snapshot.types);
+
+          if (hiddenTypes.length === 0) {
+            return;
+          }
+
+          core.runtimeState.dispatch(
+            "types.visibility.reset",
+            {},
+            "runtime:types.resetVisibility",
+          );
+
+          // Show all hidden types
+          for (const typeKey of hiddenTypes) {
+            core.modules.geoJSON.setTypeVisibility(typeKey, true);
+          }
+        },
       },
     },
     lifecycle: {
@@ -1138,111 +362,7 @@ export function createInstanceCore(instanceDocument) {
     },
   };
 
-  core.modules.stateSync = createStateSyncModule({
-    core,
-    map: core.map,
-  });
-  core.modules.basemapStateSync = createBasemapStateSyncModule({
-    core,
-    map: core.map,
-  });
   core.modules.debug = createDebugModule(core, initialDebug);
-  core.modules.mapEvents = forwardMapEventsToInstanceContainer({
-    id: containerId,
-    map: core.map,
-    events: core.events,
-  });
-  core.modules.styleLoad = createStyleLoadAttributionModule({
-    core,
-    map: core.map,
-  });
-  core.commands.basemaps.setRasterOpacity = (basemapId, opacity) => {
-    dispatchBasemapCommand(
-      core,
-      "map.basemaps.raster.opacity.set",
-      {
-        basemapId,
-        opacity,
-      },
-      "runtime:basemaps.setRasterOpacity",
-    );
-  };
-  core.commands.basemaps.reorderRasterBasemaps = (orderedBasemapIds) => {
-    dispatchBasemapCommand(
-      core,
-      "map.basemaps.raster.reorder",
-      {
-        orderedBasemapIds,
-      },
-      "runtime:basemaps.reorderRasterBasemaps",
-    );
-  };
-  core.commands.basemaps.setActiveVectorBasemap = (basemapId) => {
-    dispatchBasemapCommand(
-      core,
-      "map.basemaps.vector.active.set",
-      {
-        basemapId,
-      },
-      "runtime:basemaps.setActiveVectorBasemap",
-    );
-  };
-  core.commands.ui.toggleDebugOutputPanel = () => {
-    toggleCoreDebugOutputPanel(core);
-  };
-  core.commands.ui.toggleBasemapsPanel = () => {
-    toggleCoreBasemapsPanel(core);
-  };
-  core.commands.types = {
-    setVisibility(typeKey, visible) {
-      if (core.lifecycle.phase === "destroyed") {
-        return null;
-      }
-
-      if (!configTypes || !configTypes[typeKey]) {
-        return null;
-      }
-
-      const before =
-        core.runtimeState.getSnapshot().types[typeKey]?.visible ?? true;
-
-      const changed = core.runtimeState.dispatch(
-        "types.visibility.set",
-        { typeKey, visible },
-        "runtime:types.setVisibility",
-      );
-
-      if (changed) {
-        // Apply to map sublayers
-        core.modules.geoJSON.setTypeVisibility(typeKey, visible);
-      }
-
-      return { previous: before, next: visible };
-    },
-    resetVisibility() {
-      if (core.lifecycle.phase === "destroyed") {
-        return;
-      }
-
-      const snapshot = core.runtimeState.getSnapshot();
-      const hiddenTypes = Object.keys(snapshot.types);
-
-      if (hiddenTypes.length === 0) {
-        return;
-      }
-
-      core.runtimeState.dispatch(
-        "types.visibility.reset",
-        {},
-        "runtime:types.resetVisibility",
-      );
-
-      // Show all hidden types
-      for (const typeKey of hiddenTypes) {
-        core.modules.geoJSON.setTypeVisibility(typeKey, true);
-      }
-    },
-  };
 
   // Subscribe to type visibility state changes to apply to map
   runtimeState.subscribe((detail) => {
@@ -1267,34 +387,9 @@ export function createInstanceCore(instanceDocument) {
   core.instanceDocument = {
     toJSON: () => {
       const runtimeStateSnapshot = core.runtimeState.getSnapshot();
-      const mapOptionsDelta = createMapOptionsDelta(
-        core.baseline.map.options,
-        runtimeStateSnapshot.map.camera,
-      );
-      const basemapDelta = createMapBasemapStateDelta(
-        core,
-        runtimeStateSnapshot,
-      );
 
       const serialisedConfig = {
         id: core.id,
-        map: {
-          options: {
-            ...core.config.map.options,
-          },
-          ...(() => {
-            const serialisedBasemaps = serialiseBasemapsForConfig(
-              core.baseline.map.basemaps,
-            );
-
-            return Object.keys(serialisedBasemaps).length > 0
-              ? { basemaps: serialisedBasemaps }
-              : {};
-          })(),
-        },
-        ui: {
-          mode: core.baseline.ui.mode,
-        },
         debug: core.baseline.debug,
       };
 
@@ -1308,32 +403,12 @@ export function createInstanceCore(instanceDocument) {
         serialisedConfig.types = core.config.types;
       }
 
-      const serialisedState = {
-        ...(() => {
-          const mapState = {
-            ...(Object.keys(mapOptionsDelta).length > 0
-              ? { options: mapOptionsDelta }
-              : {}),
-            ...(Object.keys(basemapDelta).length > 0
-              ? { basemaps: basemapDelta }
-              : {}),
-          };
+      /** @type {Record<string, unknown>} */
+      const serialisedState = {};
 
-          return Object.keys(mapState).length > 0 ? { map: mapState } : {};
-        })(),
-        ...(runtimeStateSnapshot.ui.mode !== core.baseline.ui.mode
-          ? {
-              ui: {
-                mode: runtimeStateSnapshot.ui.mode,
-              },
-            }
-          : {}),
-        ...(runtimeStateSnapshot.debug !== core.baseline.debug
-          ? {
-              debug: runtimeStateSnapshot.debug,
-            }
-          : {}),
-      };
+      if (runtimeStateSnapshot.debug !== core.baseline.debug) {
+        serialisedState.debug = runtimeStateSnapshot.debug;
+      }
 
       // Include state.types delta (only non-visible types)
       const typesDelta = runtimeStateSnapshot.types;
@@ -1362,36 +437,12 @@ export function createInstanceCore(instanceDocument) {
     },
   };
 
-  if (core.modules.appShell) {
-    core.modules.appShell.refresh();
-  }
-
   core.publicApi = {
-    id: containerId,
+    id: token,
     toJSON: () => core.instanceDocument.toJSON(),
     data: {
       addLayer: (layer, options) => addCoreDataLayer(core, layer, options),
       fitBounds: (options) => core.modules.geoJSON.fitBoundsToAll(options),
-      featureProperties: {
-        setEnabled: (enabled) => {
-          core.modules.geoJSON.featureProperties.setEnabled(enabled);
-        },
-        addWhitelistKeys: (keys) => {
-          core.modules.geoJSON.featureProperties.addWhitelistKeys(keys);
-        },
-        getWhitelist: () => {
-          return core.modules.geoJSON.featureProperties.getWhitelist();
-        },
-        isEnabled: () => {
-          return core.modules.geoJSON.featureProperties.isEnabled();
-        },
-        showPopup: (feature) => {
-          core.modules.geoJSON.featureProperties.showPopup(feature);
-        },
-      },
-    },
-    ui: {
-      setMode: (mode) => setCoreMode(core, mode, "public:ui.setMode"),
     },
     debug: {
       setEnabled: (enabled) => {
@@ -1449,7 +500,7 @@ export function createInstanceCore(instanceDocument) {
     },
   };
 
-  setCoreById(containerId, core);
+  setCoreByMap(map, core);
   core.events.emit(
     WAYMARK_INSTANCE_CREATED_EVENT,
     createLifecycleDetail(core.id),

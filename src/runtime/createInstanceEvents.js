@@ -1,40 +1,15 @@
 export const WAYMARK_INSTANCE_CREATED_EVENT = "waymark:instance.created";
-export const WAYMARK_INSTANCE_RECREATED_EVENT = "waymark:instance.recreated";
 export const WAYMARK_INSTANCE_DESTROYED_EVENT = "waymark:instance.destroyed";
-export const WAYMARK_MAP_LOAD_EVENT = "waymark:map.load";
-export const WAYMARK_MAP_MOVEEND_EVENT = "waymark:map.moveend";
-export const WAYMARK_MAP_ZOOMEND_EVENT = "waymark:map.zoomend";
-export const WAYMARK_MAP_ROTATEEND_EVENT = "waymark:map.rotateend";
-export const WAYMARK_MAP_PITCHEND_EVENT = "waymark:map.pitchend";
-export const WAYMARK_MAP_ERROR_EVENT = "waymark:map.error";
 export const WAYMARK_DATA_LAYER_ADDED_EVENT = "waymark:data.layer.added";
 export const WAYMARK_DATA_LAYER_MOUNTED_EVENT = "waymark:data.layer.mounted";
 export const WAYMARK_DATA_LAYER_ERROR_EVENT = "waymark:data.layer.error";
-export const WAYMARK_UI_MODE_CHANGED_EVENT = "waymark:ui.mode.changed";
-export const WAYMARK_MAP_BASEMAPS_CHANGED_EVENT =
-  "waymark:map.basemaps.changed";
 export const WAYMARK_STATE_CHANGED_EVENT = "waymark:state.changed";
-export const WAYMARK_STATE_UI_MODE_CHANGED_EVENT =
-  "waymark:state.ui.mode.changed";
-export const WAYMARK_STATE_UI_PANEL_CHANGED_EVENT =
-  "waymark:state.ui.panel.changed";
-export const WAYMARK_STATE_MAP_CAMERA_CHANGED_EVENT =
-  "waymark:state.map.camera.changed";
-export const WAYMARK_STATE_MAP_BASEMAPS_CHANGED_EVENT =
-  "waymark:state.map.basemaps.changed";
 export const WAYMARK_STATE_DEBUG_CHANGED_EVENT = "waymark:state.debug.changed";
-export const WAYMARK_STATE_TYPES_CHANGED_EVENT = "waymark:state.types.changed";
 export const WAYMARK_STATE_TYPES_VISIBILITY_CHANGED_EVENT =
   "waymark:state.types.visibility.changed";
-
-export const FORWARDED_MAP_EVENTS = [
-  ["load", WAYMARK_MAP_LOAD_EVENT],
-  ["moveend", WAYMARK_MAP_MOVEEND_EVENT],
-  ["zoomend", WAYMARK_MAP_ZOOMEND_EVENT],
-  ["rotateend", WAYMARK_MAP_ROTATEEND_EVENT],
-  ["pitchend", WAYMARK_MAP_PITCHEND_EVENT],
-  ["error", WAYMARK_MAP_ERROR_EVENT],
-];
+export const WAYMARK_FEATURE_CLICK_EVENT = "waymark:feature.click";
+export const WAYMARK_FEATURE_HOVER_EVENT = "waymark:feature.hover";
+export const WAYMARK_FEATURE_LEAVE_EVENT = "waymark:feature.leave";
 
 /**
  * Complete list of all Waymark event types.
@@ -42,27 +17,16 @@ export const FORWARDED_MAP_EVENTS = [
  */
 export const WAYMARK_ALL_EVENTS = [
   WAYMARK_INSTANCE_CREATED_EVENT,
-  WAYMARK_INSTANCE_RECREATED_EVENT,
   WAYMARK_INSTANCE_DESTROYED_EVENT,
-  WAYMARK_MAP_LOAD_EVENT,
-  WAYMARK_MAP_MOVEEND_EVENT,
-  WAYMARK_MAP_ZOOMEND_EVENT,
-  WAYMARK_MAP_ROTATEEND_EVENT,
-  WAYMARK_MAP_PITCHEND_EVENT,
-  WAYMARK_MAP_ERROR_EVENT,
   WAYMARK_DATA_LAYER_ADDED_EVENT,
   WAYMARK_DATA_LAYER_MOUNTED_EVENT,
   WAYMARK_DATA_LAYER_ERROR_EVENT,
-  WAYMARK_UI_MODE_CHANGED_EVENT,
-  WAYMARK_MAP_BASEMAPS_CHANGED_EVENT,
   WAYMARK_STATE_CHANGED_EVENT,
-  WAYMARK_STATE_UI_MODE_CHANGED_EVENT,
-  WAYMARK_STATE_UI_PANEL_CHANGED_EVENT,
-  WAYMARK_STATE_MAP_CAMERA_CHANGED_EVENT,
-  WAYMARK_STATE_MAP_BASEMAPS_CHANGED_EVENT,
   WAYMARK_STATE_DEBUG_CHANGED_EVENT,
-  WAYMARK_STATE_TYPES_CHANGED_EVENT,
   WAYMARK_STATE_TYPES_VISIBILITY_CHANGED_EVENT,
+  WAYMARK_FEATURE_CLICK_EVENT,
+  WAYMARK_FEATURE_HOVER_EVENT,
+  WAYMARK_FEATURE_LEAVE_EVENT,
 ];
 
 /**
@@ -70,66 +34,15 @@ export const WAYMARK_ALL_EVENTS = [
  */
 
 /**
- * @typedef {{ id: string, mapEvent: string, originalEvent: unknown }} WaymarkInstanceMapEventDetail
- */
-
-/**
  * @typedef {{ id: string, layer: { type: 'geojson', data: object } }} WaymarkDataLayerAddedEventDetail
  */
 
 /**
- * @typedef {{ id: string, layerIndex: number, mountedFamilies: Array<'circle' | 'line' | 'fill' | 'symbol'>, mountedLayerIds: string[] }} WaymarkDataLayerMountedEventDetail
+ * @typedef {{ id: string, layerIndex: number, mountedFamilies: Array<'circle' | 'line' | 'fill' | 'symbol'>, mountedLayerIds: string[], mountedTypes: string[] }} WaymarkDataLayerMountedEventDetail
  */
 
 /**
  * @typedef {{ id: string, stage: 'validation' | 'runtime', message: string }} WaymarkDataLayerErrorEventDetail
- */
-
-/**
- * @typedef {'opacity_changed' | 'reordered' | 'vector_changed'} WaymarkBasemapsMutationType
- */
-
-/**
- * @typedef {{
- *   id: string,
- *   mutation: WaymarkBasemapsMutationType,
- *   changed: {
- *     basemapIds: string[],
- *     opacity?: Record<string, number>,
- *     orderedBasemapIds?: string[],
- *   },
- *   basemaps: {
- *     vector: Array<{
- *       basemapId: string,
- *       styleURL: string | object,
- *       title?: string,
- *       attributionHTML?: string,
- *       maxZoom?: number,
- *       opacity?: number,
- *     }>,
- *     raster: Array<{
- *       basemapId: string,
- *       tileURLTemplates: string[],
- *       title?: string,
- *       attributionHTML?: string,
- *       tileSize?: number,
- *       minZoom?: number,
- *       maxZoom?: number,
- *       opacity?: number,
- *     }>,
- *   },
- * }} WaymarkBasemapsChangedEventDetail
- */
-
-/**
- * @typedef {{
- *   id: string,
- *   module: string,
- *   event: string,
- *   previous: unknown,
- *   next: unknown,
- *   source: string,
- * }} WaymarkInstanceModuleEventDetail
  */
 
 /**
@@ -140,33 +53,10 @@ export const WAYMARK_ALL_EVENTS = [
  *   previous: unknown,
  *   next: unknown,
  *   meta?: {
- *     mutation?: string,
- *     changed?: {
- *       basemapIds?: string[],
- *       opacity?: Record<string, number>,
- *       orderedBasemapIds?: string[],
- *     },
  *     typeKey?: string,
  *   },
  *   source: string,
  *   snapshot: {
- *     map: {
- *       camera: {
- *         center: [number, number],
- *         zoom: number,
- *         bearing: number,
- *         pitch: number,
- *       },
- *       basemaps: {
- *         vector: unknown[],
- *         raster: unknown[],
- *       },
- *     },
- *     ui: {
- *       mode: 'view' | 'debug',
- *       activePanel: string | null,
- *       panelContext: unknown,
- *     },
  *     debug: boolean,
  *     types: Record<string, { visible: boolean }>,
  *   },
@@ -174,17 +64,19 @@ export const WAYMARK_ALL_EVENTS = [
  */
 
 /**
- * @param {string} containerId
+ * `feature` is a plain GeoJSON Feature (`{ type, id?, geometry, properties }`)
+ * with MapLibre presentation internals (`layer`, `source`, `state`,
+ * `_vectorTileFeature`, ...) stripped. `id` is present only when the rendered
+ * feature carried one.
+ *
+ * @typedef {{
+ *   id: string,
+ *   feature: import('geojson').Feature,
+ *   layerId: string,
+ *   lngLat: import('maplibre-gl').LngLat | null,
+ *   originalEvent: Event | null,
+ * }} WaymarkFeatureEventDetail
  */
-function resolveContainer(containerId) {
-  const container = document.getElementById(containerId);
-
-  if (!container) {
-    throw new Error(`Waymark container "${containerId}" was not found.`);
-  }
-
-  return container;
-}
 
 /**
  * @param {AddEventListenerOptions | boolean | undefined} options
@@ -204,16 +96,16 @@ function buildOnceOptions(options) {
 }
 
 /**
- * @param {string} containerId
+ * Bind the instance event API to a DOM element (typically `map.getContainer()`).
+ *
+ * @param {HTMLElement} container
  */
-export function createInstanceEvents(containerId) {
-  const container = resolveContainer(containerId);
-
+export function createInstanceEvents(container) {
   return {
     container,
     /**
      * @param {string} type
-     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkInstanceMapEventDetail | WaymarkInstanceModuleEventDetail | WaymarkBasemapsChangedEventDetail | WaymarkStateChangedEventDetail | WaymarkDataLayerAddedEventDetail | WaymarkDataLayerMountedEventDetail | WaymarkDataLayerErrorEventDetail} detail
+     * @param {WaymarkInstanceLifecycleEventDetail | WaymarkStateChangedEventDetail | WaymarkDataLayerAddedEventDetail | WaymarkDataLayerMountedEventDetail | WaymarkDataLayerErrorEventDetail | WaymarkFeatureEventDetail} detail
      */
     emit(type, detail) {
       container.dispatchEvent(
@@ -245,39 +137,6 @@ export function createInstanceEvents(containerId) {
      */
     once(type, handler, options) {
       container.addEventListener(type, handler, buildOnceOptions(options));
-    },
-  };
-}
-
-/**
- * @param {{
- *   id: string,
- *   map: import('maplibre-gl').Map,
- *   events: ReturnType<typeof createInstanceEvents>,
- * }} options
- */
-export function forwardMapEventsToInstanceContainer(options) {
-  const { id, map, events } = options;
-  const listeners = [];
-
-  for (const [mapEvent, waymarkEvent] of FORWARDED_MAP_EVENTS) {
-    const handler = (originalEvent) => {
-      events.emit(waymarkEvent, {
-        id,
-        mapEvent,
-        originalEvent,
-      });
-    };
-
-    map.on(mapEvent, handler);
-    listeners.push([mapEvent, handler]);
-  }
-
-  return {
-    destroy() {
-      for (const [mapEvent, handler] of listeners) {
-        map.off(mapEvent, handler);
-      }
     },
   };
 }

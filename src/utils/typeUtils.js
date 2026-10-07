@@ -13,15 +13,3 @@ export function isValidTypeKey(key) {
     /^[a-z0-9]+(-[a-z0-9]+)*$/.test(key)
   );
 }
-
-/**
- * Sanitise a string for use in a type sublayer ID.
- * This is a belt-and-braces safety transform for sublayer ID generation,
- * even though type keys are validated at config time.
- *
- * @param {unknown} key
- * @returns {string}
- */
-export function sanitiseTypeKey(key) {
-  return String(key).replace(/[^a-zA-Z0-9_-]/g, "-");
-}

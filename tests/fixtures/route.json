@@ -1,0 +1,53 @@
+{
+  "config": {
+    "id": "map",
+    "debug": true,
+    "paint": {
+      "circle": { "circle-radius": 6 },
+      "line": { "line-width": 3 }
+    },
+    "types": {
+      "beer": {
+        "title": "Beer",
+        "paint": { "circle": { "circle-color": "#754423" } }
+      },
+      "food": {
+        "title": "Food",
+        "paint": { "circle": { "circle-color": "#da3d20" } }
+      },
+      "alert": {
+        "title": "Alert",
+        "paint": {
+          "circle": {
+            "circle-color": "#da3d20",
+            "circle-radius": 8,
+            "circle-stroke-color": "#c0392b",
+            "circle-stroke-width": 2
+          }
+        }
+      },
+      "camp": {
+        "title": "Camp",
+        "paint": { "circle": { "circle-color": "#a43233" } }
+      },
+      "photo": {
+        "title": "Photo",
+        "icon": "photo-marker",
+        "iconSize": 0.5,
+        "paint": { "circle": { "circle-color": "#70af00" } }
+      },
+      "information": {
+        "title": "Information",
+        "paint": { "circle": { "circle-color": "#0069a5" } }
+      },
+      "green": {
+        "title": "Route",
+        "paint": { "line": { "line-color": "#27ae60", "line-width": 4 } }
+      },
+      "area": {
+        "title": "Area",
+        "paint": { "fill": { "fill-color": "#2f855a" } }
+      }
+    }
+  }
+}

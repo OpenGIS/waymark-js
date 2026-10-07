@@ -21,23 +21,33 @@
     <div id="map" class="map"></div>
 
     <script type="module">
+      import { Map } from "maplibre-gl";
+      import "maplibre-gl/dist/maplibre-gl.css";
       import { createInstance } from "../src/entry.js";
-      import { getCoreById } from "../src/runtime/runtimeRegistry.js";
+      import { getCoreByMap } from "../src/runtime/runtimeRegistry.js";
 
       window.waymarkFixture = {
         createInstance,
-        getRuntimeCore(id) {
-          return getCoreById(id) ?? null;
-        },
-        getRuntimeMap(id) {
-          return getCoreById(id)?.map ?? null;
-        },
         createContainer(id) {
           const container = document.createElement("div");
           container.id = id;
           container.className = "map";
           document.body.appendChild(container);
           return container;
+        },
+        makeMap({ id = "map", style, ...options } = {}) {
+          const container =
+            document.getElementById(id) ??
+            window.waymarkFixture.createContainer(id);
+
+          return new Map({
+            container,
+            style: style ?? { version: 8, sources: {}, layers: [] },
+            ...options,
+          });
+        },
+        getRuntimeCore(map) {
+          return getCoreByMap(map) ?? null;
         },
       };
     </script>
