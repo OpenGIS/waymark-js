@@ -3,7 +3,8 @@
   "type": "module",
   "scripts": {
     "dev": "nuxt dev",
-    "generate": "nuxt generate"
+    "generate": "nuxt generate",
+    "screenshot": "node scripts/screenshot.mjs"
   },
   "dependencies": {
     "@nuxt/content": "2.9.0",
@@ -15,6 +16,7 @@
   },
   "devDependencies": {
     "less": "^4.2.0",
+    "playwright-core": "^1.62.1",
     "prettier": "^3.2.5"
   }
 }
