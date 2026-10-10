@@ -5,11 +5,11 @@
 ## API
 
 - [API reference](1.api.md): `createInstance({ map, document? })`, config/paint/types, the returned instance shape, events, and serialisation.
-- [Data contract](6.data.md): GeoJSON layer input, validation, mounting, and runtime additions.
+- [Data contract](5.data.md): GeoJSON layer input, validation, mounting, and runtime additions.
 - [Map boundary](4.map.md): what Waymark does and does not do with the consumer's map.
 
 ## Optional
 
 - [Instances](3.instances.md): internal orchestration boundaries and baseline-vs-delta serialisation semantics.
 - [Development](2.development.md): contributor workflow, testing strategy, and doc sync protocol.
-- [Documentation index](README.md): full docs reading order and scope.
+- [Waymark JS Docs](README.md): full docs reading order and scope.

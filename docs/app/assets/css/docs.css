@@ -1,0 +1,104 @@
+/*
+ * Docs-specific layout.
+ *
+ * The branding stylesheet gives banded sections 2.5rem of vertical padding; a
+ * single flat docs page sits directly in <main>, so match that rhythm at the
+ * top edge. Uses body-prefixed specificity to win over the branding base rule.
+ *
+ * The pager is rendered as a sibling of <main> (so the server-rendered docs
+ * content keeps <main>'s direct-child typography rules), so <main> drops its
+ * own 3rem bottom padding and the pager's 2rem top margin provides the gap —
+ * the same content-to-pager rhythm the previous generator used.
+ */
+body main {
+  padding-top: 2.5rem;
+  padding-bottom: 0;
+}
+
+/*
+ * Re-apply the content column to the pager so it lines up with the page body
+ * above it.
+ */
+body .doc-pager {
+  max-width: var(--ogis-content-width);
+  margin: 2rem auto 0;
+  padding-inline: 1rem;
+}
+
+/*
+ * Header band lockup: the Waymark mark alone, centred in the band, with a
+ * "JS" wordmark set in the branding accent green that glows at the mark's
+ * bottom-right corner. The mark takes the band's white via the branding
+ * `.brand-mark` rule; the "JS" carries legibility with its own green glow
+ * rather than a background chip.
+ */
+body .site-brand.waymark-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  place-self: center;
+  margin: 0;
+  line-height: 1;
+}
+
+body .waymark-mark__logo {
+  filter: drop-shadow(0 0 7px rgba(255, 255, 255, 0.42))
+    drop-shadow(0 0 16px rgba(13, 215, 13, 0.32));
+}
+
+body .waymark-mark__js {
+  position: absolute;
+  right: -15px;
+  bottom: -3px;
+  padding: 0.08em 0.3em 0.14em;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--ogis-brand-accent);
+  text-shadow:
+    0 0 7px #0dd70d,
+    0 0 16px rgba(13, 215, 13, 0.6);
+}
+
+/*
+ * Header band attribution: the hosted background-map module loads the Waymark
+ * JS v1 viewer, which prefixes the Leaflet control with a self-referential
+ * "Waymark" credit linking back to this very project. That link is noise on
+ * this site, so hide it and its trailing separator span here. The Leaflet and
+ * OpenStreetMap credits are left in place, as OpenStreetMap's licensing
+ * requires the OSM attribution to remain.
+ *
+ * Scoped to the header band's map. CSS rather than JS because Leaflet rewrites
+ * the control's innerHTML on every update, whereas a stylesheet rule survives.
+ */
+body
+  .site-header
+  .background-map
+  .leaflet-control-attribution
+  a[href*="waymark-js"],
+body
+  .site-header
+  .background-map
+  .leaflet-control-attribution
+  a[href*="waymark-js"]
+  + span {
+  display: none;
+}
+
+/*
+ * Homepage hero: the page heading, styled by the branding h1 rules. The extra
+ * bottom margin spaces it from the page body.
+ */
+body .docs-hero {
+  margin-bottom: 1.25rem;
+}
+
+/*
+ * The hero replaces the rendered <h1>, so the page body's paragraphs are no
+ * longer <main>'s direct children; re-apply the branding content measure.
+ */
+body .docs-home-body > :is(p, ul, ol) {
+  max-width: 88ch;
+}

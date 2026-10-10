@@ -249,10 +249,13 @@ export function createFeatureInteractionModule(map, options) {
    *
    * When multiple layers overlap at the cursor position, the layer with the
    * highest priority wins. Priority values:
-   *   3 — icon symbol layers
    *   2 — invisible hit circles behind icons and points
    *   1 — regular circle layers (tracking points)
    *   0 — line and fill layers
+   *
+   * Icon symbol layers are never observed: they carry `_skipObserve` and are
+   * skipped at mount time, so icon clicks resolve through the companion hit
+   * circle (priority 2) instead.
    *
    * @param {string} layerId
    * @param {number} [priority=0]

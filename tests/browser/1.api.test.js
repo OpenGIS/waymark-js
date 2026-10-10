@@ -1068,7 +1068,7 @@ test.describe("1. API", () => {
 
       expect(mounted.rendered).toBeGreaterThanOrEqual(1);
       await expect(page.locator("#map canvas")).toBeVisible();
-      await screenshot(page, "api-quick-start");
+      await screenshot(page, "api-quick-start", "#map");
     });
 
     test("api-geojson-families — circle, line, fill layers", async ({
@@ -1169,7 +1169,7 @@ test.describe("1. API", () => {
       expect(evidence.zoom).toBeCloseTo(HOLBERG_CLOSEUP.zoom, 1);
 
       await expect(page.locator("#map canvas")).toBeVisible();
-      await screenshot(page, "api-geojson-families");
+      await screenshot(page, "api-geojson-families", "#map");
     });
 
     test("api-geojson-mixed — mixed FeatureCollection", async ({ page }) => {
@@ -1316,7 +1316,7 @@ test.describe("1. API", () => {
       ).toBe(true);
 
       await expect(page.locator("#map canvas")).toBeVisible();
-      await screenshot(page, "api-geojson-mixed");
+      await screenshot(page, "api-geojson-mixed", "#map");
     });
   });
 

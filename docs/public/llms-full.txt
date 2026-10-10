@@ -1,0 +1,1589 @@
+# API
+
+> Consumer API reference for `createInstance({ map, document? })`.
+
+## Quick start
+
+The consumer creates and owns the MapLibre map, then injects it into Waymark:
+
+```js
+import { Map } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { createInstance } from "waymark-js";
+
+const map = new Map({
+  container: "map",
+  style: "https://tiles.openfreemap.org/styles/bright",
+  center: [-128.0097, 50.6539],
+  zoom: 13,
+});
+
+const instance = createInstance({
+  map,
+  document: {
+    config: { id: "map" },
+    data: {
+      layers: [
+        {
+          data: {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                properties: { title: "The Scarlet Ibis" },
+                geometry: { type: "Point", coordinates: [-128.0097, 50.6539] },
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+});
+
+instance.on("waymark:data.layer.mounted", (event) => {
+  console.log("Layer mounted", event.detail);
+});
+
+console.log(instance.toJSON());
+```
+
+MapLibre GL JS is a peer dependency: install and bundle `maplibre-gl` yourself, and import its stylesheet (`maplibre-gl/dist/maplibre-gl.css`). Waymark keeps `maplibre-gl` external at build time and ships no CSS or worker code, so the consumer's bundler resolves MapLibre — and its worker — from the consumer's own installation. When you are finished, call `instance.destroy()` to remove Waymark-owned layers and listeners; the map itself remains the consumer's to remove.
+
+![Quick start — an injected map with a GeoJSON layer rendered](../screenshots/api-quick-start.png)
+
+## Factory signature
+
+`createInstance({ map, document? })`
+| Parameter | Type | Required | Behaviour |
+| ---------- | -------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `map` | MapLibre `Map`-compatible object | Yes | Consumer-owned map. Waymark validates the method contract and throws a `TypeError` when it fails. See [Map injection](#map-injection). |
+| `document` | `object` | No | Canonical serialisable InstanceDocument with strict top-level keys: `config`, `state`, `data`. Unknown top-level keys are ignored. |
+
+Waymark guarantees strict round-trip serialisation for canonical documents. Each map takes one runtime, so round-trip uses a second map:
+
+```js
+const first = createInstance({ map: mapA, document: instanceDocument });
+const second = createInstance({ map: mapB, document: first.toJSON() });
+
+second.toJSON(); // strict match for serialisable fields
+```
+
+Canonical InstanceDocument shape:
+
+```js
+{
+  config: {
+    id?: string,
+    paint?: {
+      circle?: {
+        "circle-color"?: string,
+        "circle-radius"?: number,
+        "circle-opacity"?: number
+      },
+      line?: {
+        "line-color"?: string,
+        "line-width"?: number,
+        "line-opacity"?: number
+      },
+      fill?: {
+        "fill-color"?: string,
+        "fill-opacity"?: number
+      }
+    },
+    types?: Record<string, {
+      title?: string,
+      icon?: string,
+      iconSize?: number,
+      paint: {
+        circle?: object,
+        line?: object,
+        fill?: object
+      }
+    }>,
+    debug?: boolean
+  },
+  state: {
+    types?: Record<string, { visible?: boolean }>,
+    debug?: boolean
+  },
+  data: {
+    layers: Array<{
+      type?: "geojson",
+      data: object,
+      paint?: {
+        circle?: object,
+        line?: object,
+        fill?: object
+      }
+    }>
+  }
+}
+```
+
+`data.layers[]` input accepts `{ type?: "geojson", data }`. `type` defaults to `"geojson"`, and serialised output normalises each layer to `{ type: "geojson", data }`.
+
+`data` must use one of these RFC7946-aligned GeoJSON shapes:
+
+- `FeatureCollection` with `features` array
+- `Feature` with `geometry` key (`object` or `null`)
+- Geometry object with `type` in `Point`, `MultiPoint`, `LineString`, `MultiLineString`, `Polygon`, `MultiPolygon`, or `GeometryCollection`
+
+Waymark validates essential geometry semantics at the data-layer boundary:
+
+- positions must be arrays with at least two finite numbers (`longitude`, `latitude`)
+- `LineString` must contain at least two positions
+- `LinearRing` must contain at least four positions and be closed (first and last positions equivalent)
+- `Polygon` must contain at least one valid ring
+- `MultiPoint`/`MultiLineString`/`MultiPolygon` must contain only valid per-member geometries
+- `GeometryCollection` validates recursively through nested geometries
+
+## Map injection
+
+`map` is required. The consumer creates and owns the MapLibre `Map` — including its container, style, basemaps, camera and attribution — and injects it into Waymark. Waymark mounts its GeoJSON overlay onto that map and mounts nothing else.
+
+Waymark duck-types the injected value against this method contract:
+
+`getContainer`, `on`, `off`, `addSource`, `addLayer`, `getStyle`, `fitBounds`
+
+Validation errors are thrown as `TypeError` and name what is missing:
+
+- No map, or a non-object value: `createInstance({ map }) requires a MapLibre-compatible map instance; received undefined.`
+- Missing methods: `createInstance({ map }) requires a MapLibre-compatible map instance. Missing method(s): getContainer, on, off, addSource, addLayer, getStyle, fitBounds.`
+
+Each map owns exactly one Waymark runtime:
+
+- The runtime registry is a `WeakMap` keyed by the injected map.
+- A second `createInstance(...)` call with the same map throws `This map already has a Waymark instance. Call destroy() on the existing instance before creating another.`
+- Call `destroy()` before creating a replacement instance for the same map.
+
+`instanceDocument.config.id` is an optional namespacing id, not a DOM container id. It names event payloads and Waymark source/layer IDs, and it does not need to exist in the DOM. When omitted, Waymark generates one (`waymark-<token>`).
+
+`createInstance(...)` is a browser-runtime API: it requires DOM access because the map does. In SSR applications, construct the map on the client only, then inject it.
+
+Waymark never reads map-related config. `config.map`, `state.map`, basemap configuration, map options and camera state are not part of the instance document — configure them on the map itself. Unknown config keys are dropped during normalisation.
+
+## Config defaults and merge behaviour
+
+Waymark resolves runtime config from `src/config/defaults.js` (`defaultConfig`), overridden by `instanceDocument.config`:
+
+- Base: `src/config/defaults.js` (`defaultConfig`)
+- Override: `instanceDocument.config`
+- Unknown config keys are dropped during normalisation
+- `debug`: `false`
+- `paint`: omitted by default (no instance-wide paint overrides); passed through as authored when provided
+- `types`: omitted by default (no type-based rendering); passed through as authored when provided
+
+### Debug logging
+
+When `config.debug` is `true`, Waymark logs every emitted Waymark event to the browser console with a `[waymark:debug]` prefix:
+
+```js
+[waymark:debug] map waymark:instance.created
+[waymark:debug] map waymark:data.layer.mounted
+```
+
+Debug can be controlled at runtime via the public API:
+
+```js
+instance.debug.setEnabled(true); // start console logging
+instance.debug.setEnabled(false); // stop console logging
+```
+
+Debug logging is console-only; there is no debug UI panel or separate public debug payload contract.
+
+`config.debug` is a baseline toggle. Runtime changes are serialised as `state.debug` delta when they diverge from the config baseline.
+
+## Returned instance shape
+
+`createInstance(...)` returns:
+
+```js
+{
+  id: string, // namespacing id, not a container id
+  toJSON: () => InstanceDocument,
+  data: {
+    addLayer: (
+      layer: { type?: "geojson", data: object, paint?: object },
+      options?: { fitBounds?: boolean }
+    ) => void,
+    fitBounds: (options?: { padding?: number }) => void
+  },
+  types: {
+    setVisibility: (typeKey: string, visible: boolean) => { previous: boolean, next: boolean } | null,
+    getVisibility: (typeKey: string) => boolean,
+    getAll: () => Record<string, { title: string, visible: boolean }>,
+    resetVisibility: () => void
+  },
+  debug: {
+    setEnabled: (enabled: boolean) => void
+  },
+  destroy: () => void,
+  on: (type, handler, options?) => void,
+  off: (type, handler, options?) => void,
+  once: (type, handler, options?) => void
+}
+```
+
+`id` is the instance's namespacing identifier (`config.id` when provided, otherwise a generated `waymark-<token>`). It names event payloads and Waymark source/layer IDs; it does not need to match a DOM container id. The public API has no `ui` namespace, and no basemap or camera API — the injected map owns those.
+
+`toJSON()` is the only public serialisation API.
+
+## Instance reuse and destroy semantics
+
+- Reuse is map-first, via a `WeakMap`-backed registry keyed by the injected map.
+- Each map has one Waymark runtime. Calling `createInstance(...)` again with the same map throws `This map already has a Waymark instance. Call destroy() on the existing instance before creating another.`
+- There is no ID-based recreate path; `waymark:instance.recreated` is no longer emitted.
+- `destroy()` is idempotent and safe to call more than once.
+- `destroy()` removes only Waymark-owned layers/sources, detaches Waymark's map listeners (`load`, `style.load`, feature interaction `click`/`mousemove`/`mouseout`), removes its registry entry, and never calls `map.remove()` or touches the map container.
+- After `destroy()`, the same map can be passed to a fresh `createInstance(...)` call.
+
+## Instance event API
+
+Events are dispatched as `CustomEvent`s from the injected map's container (`map.getContainer()`), so consumers can also listen on that element directly.
+
+`on(...)`, `off(...)`, and `once(...)` follow browser `EventTarget` semantics because handlers are attached to the container element.
+
+- Use `on(type, handler, options?)`
+- Use `off(type, handler, options?)`
+- Use `once(type, handler, options?)`
+
+Lifecycle events:
+
+- `waymark:instance.created`
+- `waymark:instance.destroyed`
+  Lifecycle event payload shape:
+
+```js
+{
+  id: string;
+}
+```
+
+Waymark no longer forwards `waymark:map.*` events. Listen to the injected map directly for `load`, `moveend`, camera, style and error events.
+
+Data-layer runtime events:
+
+- `waymark:data.layer.added`
+- `waymark:data.layer.mounted`
+- `waymark:data.layer.error`
+  Data-layer mounted payload shape (`waymark:data.layer.mounted`):
+
+```js
+{
+  id: string,
+  layerIndex: number,
+  mountedFamilies: Array<"circle" | "line" | "fill" | "symbol">,
+  mountedLayerIds: string[],
+  mountedTypes: string[]
+}
+```
+
+Data-layer added payload shape (`waymark:data.layer.added`):
+
+```js
+{
+  id: string,
+  layer: { type: "geojson", data: object, paint?: object }
+}
+```
+
+Data-layer error payload shape (`waymark:data.layer.error`):
+
+```js
+{
+  id: string,
+  stage: "validation" | "runtime",
+  message: string
+}
+```
+
+Canonical runtime state events:
+
+- `waymark:state.changed`
+- `waymark:state.debug.changed`
+- `waymark:state.types.visibility.changed`
+
+No-op runtime dispatches emit no state events. Camera and basemap state events (`waymark:state.map.*`) are gone — the injected map owns camera and style.
+
+Feature interaction events:
+
+- `waymark:feature.click`
+- `waymark:feature.hover`
+- `waymark:feature.leave`
+  See [Feature interaction events](#feature-interaction-events) for detail shape, hover/leave semantics and click priority.
+
+State event payload shape:
+
+```js
+{
+  id: string,
+  command: "types.visibility.set" | "types.visibility.reset" | "debug.set",
+  scope: "types.visibility" | "debug",
+  previous: unknown,
+  next: unknown,
+  meta?: { typeKey?: string },
+  source: string,
+  snapshot: {
+    types: Record<string, { visible: boolean }>,
+    debug: boolean
+  }
+}
+```
+
+## Feature interaction events
+
+Waymark observes pointer interaction with its own mounted layers and emits feature events. Presentation is consumer-owned: Waymark does not create popups, mutate the cursor, move the camera, or whitelist feature properties.
+
+Events:
+
+- `waymark:feature.click` — a click resolved to a rendered Waymark feature.
+- `waymark:feature.hover` — the pointer entered a rendered Waymark feature.
+- `waymark:feature.leave` — the pointer left the hovered feature.
+
+Detail shape:
+
+```js
+{
+  id: string,              // instance namespacing id
+  feature: GeoJSON Feature, // { type, id?, geometry, properties }
+  layerId: string,         // MapLibre layer that produced the hit
+  lngLat: LngLat | null,   // pointer event lngLat
+  originalEvent: Event | null
+}
+```
+
+`feature` is a plain GeoJSON Feature — `{ type: "Feature", id?, geometry, properties }` — with MapLibre presentation internals (`layer`, `source`, `state`, `_vectorTileFeature`, ...) stripped. `id` is included only when the rendered feature carried one.
+
+Hover and leave semantics:
+
+- `hover` fires on entry only. While the pointer stays over the same rendered feature, Waymark suppresses repeats. Feature identity is the MapLibre `layerId` plus the feature `id`; when the feature has no `id`, Waymark falls back to a geometry/properties signature.
+- `leave` fires when the pointer moves onto empty map space, onto a different feature (the previous feature emits `leave`, then the new feature emits `hover`), or off the map canvas.
+- The `leave` detail carries the previously hovered `feature` and `layerId`, paired with the current pointer event's `lngLat` and `originalEvent`.
+- Listeners detach on `destroy()`; no feature events are emitted after destroy.
+
+![Consumer-owned popup on a marker click](../screenshots/dev-popup.png)
+
+![Consumer-owned popup anchored at a line click](../screenshots/dev-popup-line.png)
+
+Overlapping hits resolve by per-layer priority: the highest-priority observed layer wins, and ties keep MapLibre render order. See [Click priority](#click-priority) for the layer priority table. The `layerId` on each event is the MapLibre layer that produced the hit — an invisible hit-circle, a regular circle, or a line/fill layer. Icon symbol layers are visual only and are not queried; an icon click resolves through its companion hit circle.
+
+##### Hit-circle layers
+
+Every point family gets a companion invisible hit-circle layer for reliable pointer targeting. When a feature renders as a MapLibre `circle` or icon `symbol` layer, an invisible circle (radius 14, `circle-opacity: 0`) carrying the same `waymarkType` filter is mounted as its own layer.
+
+- **Icon types**: the hit circle is `{baseLayerId}-circle-hit-{typeKey}`, coloured with the type's `circle-color`
+- **Regular circles**: the untyped hit circle is `{baseLayerId}-{family}-hit`; typed circle sublayers get `{baseLayerId}-{family}-type-{typeKey}-hit`
+
+These hit-circles are invisible to the user but detectable by `queryRenderedFeatures`, ensuring clicks near point features are captured reliably even when the visual marker or icon is small. The feature interaction module queries hit-circles at a higher priority than visible circle layers.
+
+##### Click priority
+
+When multiple observed layers overlap at the cursor position, the layer with the highest numeric priority wins when resolving the clicked feature:
+
+| Priority | Layer type                  |
+| -------- | --------------------------- |
+| 2        | Invisible hit-circle layers |
+| 1        | Regular circle layers       |
+| 0        | Line and fill layers        |
+
+Symbol icon layers are never queried — MapLibre symbol hit areas cover only the icon's opaque pixels — so clicking an icon resolves through its companion invisible hit circle (priority 2). This ensures hit circles are preferred over visible circle layers, which in turn are preferred over line and fill layers. The priority system is internal feature-interaction layer knowledge and is not exposed in the public API beyond the `layerId` carried on feature event details.
+
+## InstanceDocument shape
+
+`instance.toJSON()` returns a canonical serialisable InstanceDocument object:
+
+```js
+{
+  config: {
+    id: string,
+    paint?: {
+      circle?: object,
+      line?: object,
+      fill?: object
+    },
+    types?: Record<string, {
+      title?: string,
+      icon?: string,
+      iconSize?: number,
+      paint: {
+        circle?: object,
+        line?: object,
+        fill?: object
+      }
+    }>,
+    debug: boolean
+  },
+  state: {
+    types?: Record<string, { visible?: boolean }>,
+    debug?: boolean
+  },
+  data: {
+    layers: Array<{
+      type: "geojson",
+      data: object,
+      paint?: {
+        circle?: object,
+        line?: object,
+        fill?: object
+      }
+    }>
+  }
+}
+```
+
+`config` carries only authored/default Waymark config. There is no `config.map` or `state.map` slice: style, basemaps and camera belong to the consumer's map and are never serialised by Waymark.
+
+`state` is persistence delta only. Unchanged/default branches are omitted.
+
+- `state.types` appears only when type visibility diverges from default (`"visible"`); hidden types only.
+- `state.debug` appears only when runtime debug state diverges from config baseline.
+
+`instance.toJSON()` is intentionally strict and serialisable so that `createInstance({ map, document: instance.toJSON() })` can be reused as canonical input.
+
+`toJSON()` keeps `config` stable to authored/default intent.
+
+Runtime-enriched metadata (for example GeoJSON source/layer IDs and lifecycle phase) is intentionally excluded from `toJSON()`.
+
+Internal orchestration boundaries are documented in [`docs/3.instances.md`](3.instances.md).
+
+## Initial GeoJSON overlay
+
+Waymark supports data layers from both:
+
+- initial document input (`instanceDocument.data.layers[]`)
+- runtime additions (`instance.data.addLayer(layer, { fitBounds?: boolean })`)
+
+Canonical layer input shape:
+
+```js
+{ type?: "geojson", data: <GeoJSON> }
+```
+
+Current support is `geojson` only. If `type` is omitted, Waymark defaults it to `"geojson"`.
+
+### Mounting and remounting
+
+- If the injected map is already loaded (`map.loaded()`), initial layers mount immediately and synchronously. Waymark performs no asynchronous asset loading before mounting.
+- If the map is not yet loaded, Waymark waits for the map's `load` event and mounts then.
+- Waymark listens for `style.load` and remounts every Waymark-owned source and sublayer after a consumer style swap (for example `map.setStyle(...)`), so the overlay survives style changes.
+- `destroy()` removes only Waymark-owned layers and sources (top-first) and detaches these listeners. It never removes the map or touches its container.
+
+`instance.data.addLayer(...)` emits:
+
+- `waymark:data.layer.added` on success
+- `waymark:data.layer.mounted` when MapLibre sublayers for the logical layer are mounted (initial load, runtime add, and style remount)
+- `waymark:data.layer.error` on failure (`stage` is `validation` or `runtime`)
+
+Invalid runtime additions throw after emitting `waymark:data.layer.error`.
+
+`instance.data.fitBounds({ padding?: number })` fits the injected map viewport to encompass all currently loaded data layers. It computes the combined bounding box from every layer's GeoJSON and calls `map.fitBounds()`. `padding` defaults to `20`.
+
+- Multiple GeoJSON layers are supported.
+- Data-layer stack order is top-first: `layers[0]` is visually on top.
+- Data layers are inserted below the first `symbol` layer already present in the map style; when the style has no symbol layer they are appended.
+- Geometry families are rendered by layer type:
+  - `Point` and `MultiPoint` → `circle`
+  - `LineString` and `MultiLineString` → `line`
+  - `Polygon` and `MultiPolygon` → `fill`
+- Each family sublayer is gated by its own geometry-type filter (`["==", ["geometry-type"], "Point" | "LineString" | "Polygon"]`), so a mixed FeatureCollection renders each family only for its own geometries — circles no longer appear at line/polygon vertices, and fills no longer close line bands. Type filters are ANDed with this gate via `["all", ...]`.
+
+![Geometry families — circle, line and fill sublayers](../screenshots/api-geojson-families.png)
+
+- A single logical data layer may mount multiple MapLibre sublayers when the GeoJSON contains mixed families.
+
+![Mixed families from a single data layer](../screenshots/api-geojson-mixed.png)
+
+- Each data layer is assigned a colour from a 20-colour pool, cycling per-layer index. Pool colours are used as the default when no `config.paint`, `layer.paint`, or config.types-based paint is provided.
+- Each sublayer may also participate in type-based rendering when `config.types` are defined and GeoJSON features include a `waymarkType` property. See [Paint & Types](#paint--types) for the full merge semantics.
+
+### Paint & Types
+
+Waymark supports per-layer paint overrides and type-based visual rendering through `config.paint`, per-layer `paint`, and `config.types`.
+
+#### `config.paint` (instance-wide paint defaults)
+
+`config.paint` provides instance-wide paint overrides scoped by geometry family:
+
+```js
+{
+  paint: {
+    circle?: {
+      "circle-color"?: string,
+      "circle-radius"?: number,
+      "circle-opacity"?: number
+    },
+    line?: {
+      "line-color"?: string,
+      "line-width"?: number,
+      "line-opacity"?: number
+    },
+    fill?: {
+      "fill-color"?: string,
+      "fill-opacity"?: number
+    }
+  }
+}
+```
+
+Values in `config.paint` override the pool-assigned colour but sit below per-layer and per-type paint in the merge hierarchy.
+
+#### Per-layer `paint`
+
+Each data layer can supply its own family-scoped paint:
+
+```js
+{
+  data: { ... },
+  paint: {
+    circle?: { "circle-color"?: string, ... },
+    line?: { "line-color"?: string, ... },
+    fill?: { "fill-color"?: string, ... }
+  }
+}
+```
+
+Per-layer paint overrides both the pool colour and `config.paint` for that layer's sublayers.
+
+#### `config.types` (type-based rendering)
+
+`config.types` enables data-driven visual rendering keyed by feature property values. When types are defined, features with a matching `waymarkType` property get dedicated sublayers with type-specific paint:
+
+```js
+{
+  types: {
+    "<typeKey>": {
+      title?: string,
+      icon?: string,
+      iconSize?: number,
+      paint: {
+        circle?: { "circle-color"?: string, ... },
+        line?: { "line-color"?: string, ... },
+        fill?: { "fill-color"?: string, ... }
+      }
+    }
+  }
+}
+```
+
+`title` is an optional non-empty string label for the type. It is validated, preserved in `toJSON().config.types`, and returned by [`instance.types.getAll()`](#instancetypes-runtime-api), falling back to the type key when omitted.
+
+Every type definition requires a `paint` block with at least one family (`circle`, `line`, or `fill`).
+
+Type keys must be non-empty and match `/^[a-z0-9]+(-[a-z0-9]+)*$/` (1-64 characters, lowercase a-z, digits 0-9, and hyphens only — no leading or trailing hyphens). For each defined type, Waymark creates per-family sublayers filtered by the type key, ANDed with the family's geometry-type gate: `["all", ["==", ["geometry-type"], "<family geometry type>"], ["==", ["get", "waymarkType"], "<typeKey>"]]`.
+
+##### `icon` property
+
+`config.types[typeKey].icon` (optional non-empty string) is a **name hook**: it names a map image that the consumer must register with `map.addImage(typeDef.icon, image)`. Waymark never bundles, loads, or registers icon images — it only writes the name into the sublayer's `icon-image` layout.
+
+When `icon` is set and the type's paint includes a truthy `circle-color` (for example `paint: { circle: { "circle-color": "#754423" } }`), point features of that type render as:
+
+- a `symbol` sublayer (`{baseLayerId}-symbol-type-{typeKey}`) with `layout`: `icon-image` set to the `icon` value, `icon-size` set to `iconSize ?? 1.5`, `icon-allow-overlap: true`, `icon-ignore-placement: true`; paint `{ "icon-opacity": 1 }`
+- an invisible hit circle (`{baseLayerId}-circle-hit-{typeKey}`, radius 14, `circle-opacity: 0`, painted with the type's `circle-color`) for reliable pointer targeting — MapLibre symbol hit areas cover only the icon's opaque pixels
+
+Register the image before the layer mounts (or as soon as it becomes available); until then MapLibre logs a missing-image warning and draws no icon. Waymark emits `"symbol"` in the `mountedFamilies` payload for these layers.
+
+If `icon` is set but the type's `paint.circle` has no truthy `circle-color`, the type does not take the symbol branch: it renders as the normal typed circle sublayer when `paint.circle` exists, or is skipped for point features.
+
+##### `iconSize` property
+
+`config.types[typeKey].iconSize` (optional positive number) sets the `icon-size` layout value for the icon symbol sublayer. Defaults to `1.5` when omitted. For example, `iconSize: 1` renders the consumer-registered image at its native size.
+
+`iconSize` has no effect unless the type takes the symbol branch — see [`icon` property](#icon-property).
+
+##### Type rendering plan
+
+When types are defined, the render plan for each data layer produces:
+
+1. An **untyped fallback** sublayer per geometry family, filtered to features without `waymarkType` (the family geometry-type gate plus `["!", ["has", "waymarkType"]]`), using pool colour merged with `config.paint` and `layer.paint`.
+2. A **per-type sublayer** for each type that provides a matching family-scoped paint (including icon symbol types), filtered by the `waymarkType` key ANDed with the family geometry-type gate.
+
+Type paint sits above pool colour, `config.paint`, and `layers[].paint` in the merge hierarchy for typed sublayers.
+
+When a type has an `icon` property and a truthy `circle-color`, its point family renders as an icon `symbol` sublayer (with its own invisible hit circle) instead of a visible typed circle. The symbol sublayer's paint uses `icon-opacity` only — the consumer-registered image supplies the visuals, and the type's `circle-color` colours the companion hit circle.
+
+#### Paint merge order (highest to lowest priority)
+
+1. Per-feature `waymarkPaint` — visible circle/line/fill sublayers only; see [Per-feature `waymarkPaint`](#per-feature-waymarkpaint)
+2. Type paint (`config.types[typeKey].paint[family]`) — icon symbol layers instead carry `{ "icon-opacity": 1 }`
+3. Layer paint (`layer.paint[family]`)
+4. Instance paint (`config.paint[family]`)
+5. Pool colour + family defaults (radius, width, opacity)
+
+#### Per-feature `waymarkPaint`
+
+Any GeoJSON feature can override its resolved paint with a `waymarkPaint` property. When a layer contains a feature carrying the property that matches a sublayer's type filter — a matching `waymarkType`, or its absence for the untyped fallback (any feature, when the layer has no types) — Waymark wraps every resolved paint property of that sublayer as a coalesce expression:
+
+```js
+[
+  "coalesce",
+  ["get", "<prop>", ["get", "waymarkPaint", ["properties"]]],
+  "<resolved value>",
+];
+```
+
+```js
+{
+  type: "Feature",
+  properties: {
+    title: "The Scarlet Ibis",
+    waymarkPaint: { "circle-color": "#000000", "circle-radius": 10 }
+  },
+  geometry: { type: "Point", coordinates: [-128.0097, 50.6539] }
+}
+```
+
+The feature's value wins when present; otherwise the resolved default applies. `waymarkPaint` keys are MapLibre paint property names for the feature's family (`circle-color`, `line-width`, `fill-opacity`, and so on). Hit circles and icon symbol layers stay static — per-feature paint affects visible circle/line/fill sublayers only. `waymarkPaint` is an ordinary feature property: it is not stripped by feature interaction normalisation and round-trips through `toJSON()`.
+
+#### `instance.types` runtime API
+
+```
+instance.types.setVisibility(typeKey, visible: boolean)  → { previous: boolean, next: boolean } | null
+instance.types.getVisibility(typeKey)                    → boolean
+instance.types.getAll()                                  → Record<string, { title: string, visible: boolean }>
+instance.types.resetVisibility()
+```
+
+- `setVisibility(boolean)` hides or shows every layer owned by a type — typed family sublayers, icon symbol layers, and their hit circles — by setting MapLibre's `visibility` layout property to `"none"` or `"visible"`. Returns `{ previous, next }` on success, `null` if destroyed or type key unknown.
+- `getVisibility` returns `true` (visible) or `false` (hidden). Returns `true` for unknown keys.
+- `getAll` returns a map keyed by type key; each entry carries the type's `title` (falling back to the type key when omitted) and its current `visible` boolean. Paint, icon, and icon-size details are not included.
+- `resetVisibility` restores all types to visible (no return value).
+
+Type visibility produces `waymark:state.types.visibility.changed` (alongside `waymark:state.changed`) state events.
+
+#### Paint serialisation
+
+- `config.paint` and `config.types` are serialised in `toJSON().config` as authored.
+- `state.types` appears in `toJSON()` only when type visibility diverges from default (any type set to `false`). It contains only the visibility delta:
+
+```js
+{
+  types: {
+    "<typeKey>": { visible: false }
+  }
+}
+```
+
+- Per-layer `paint` is serialised alongside each layer in `toJSON().data.layers[].paint`.
+
+```js
+const map = new Map({
+  container: "map",
+  style: "https://tiles.openfreemap.org/styles/bright",
+});
+
+const instance = createInstance({
+  map,
+  document: {
+    config: {
+      id: "map",
+    },
+    data: {
+      layers: [
+        {
+          data: {
+            type: "FeatureCollection",
+            features: [],
+          },
+        },
+      ],
+    },
+  },
+});
+
+instance.data.addLayer({
+  data: {
+    type: "FeatureCollection",
+    features: [],
+  },
+});
+```
+
+GeoJSON source/layer IDs are instance-scoped to avoid collisions:
+
+- source: `waymark-{id}-geojson-source-{index}`
+- sublayer: `waymark-{id}-geojson-layer-{index}-{family}`
+
+The `{id}` token is the instance's namespacing id, with characters outside `[a-zA-Z0-9_-]` replaced by `-`.
+
+For the full data contract (validation, serialisation, runtime mounting, and dev example usage), see [`docs/5.data.md`](5.data.md).
+
+---
+
+# Data
+
+> Canonical data-layer and GeoJSON contract for Waymark instances.
+
+## Canonical layer shape
+
+Waymark uses this canonical input shape for each entry in `data.layers` and for `instance.data.addLayer(...)`:
+
+```js
+{ type?: "geojson", data: <GeoJSON>, paint?: { ... } }
+```
+
+- `type` defaults to `"geojson"`.
+- Only `geojson` is currently supported.
+- `paint` is optional family-scoped paint overrides for this layer. See [Paint & Types](#paint--types) below.
+- Unknown keys on a layer are rejected.
+
+`data` must satisfy one of these minimal GeoJSON shapes:
+
+- `FeatureCollection` with `features` array
+- `Feature` with `geometry` key (`object` or `null`)
+- Geometry object with `type` in `Point`, `MultiPoint`, `LineString`, `MultiLineString`, `Polygon`, `MultiPolygon`, or `GeometryCollection`
+- `GeometryCollection` additionally requires a `geometries` array (nested geometries follow the same geometry-type rule)
+
+Validation is strict on essential geometry semantics (RFC7946-focused, non-topology-heavy):
+
+- position arrays require at least two finite numbers (`longitude`, `latitude`)
+- `LineString` requires at least two positions
+- `LinearRing` requires at least four positions and must be closed (first and last positions equivalent)
+- `Polygon` requires a non-empty ring list and each ring must be a valid `LinearRing`
+- `MultiPoint`, `MultiLineString`, and `MultiPolygon` require valid per-member coordinate structures
+- `GeometryCollection` validation is recursive
+
+## Public API for adding data
+
+Runtime additions are done through:
+
+```js
+instance.data.addLayer(layer, { fitBounds?: boolean });
+```
+
+`fitBounds` defaults to `true`. When `true`, the injected map viewport is fitted to the layer's bounding box with `padding: 20` after the GeoJSON sublayers are mounted. This option is runtime-only and is not persisted in `instance.toJSON()`.
+
+To fit the viewport to **all** currently loaded data layers combined, use:
+
+```js
+instance.data.fitBounds({ padding: 20 });
+```
+
+This iterates all loaded layers, computes the combined bounding box across every layer's GeoJSON, and calls `map.fitBounds()`. `padding` defaults to `20`. Useful when adding multiple layers in a batch where no single layer should drive the viewport.
+
+Runtime emits minimal data events:
+
+- `waymark:data.layer.added` on successful layer add
+- `waymark:data.layer.mounted` when MapLibre sublayers for a logical data layer are mounted
+- `waymark:data.layer.error` on failure with `{ id, stage: "validation" | "runtime", message }`
+
+Invalid `instance.data.addLayer(...)` calls emit `waymark:data.layer.error` and then throw the same error.
+
+Example:
+
+```js
+instance.data.addLayer({
+  data: {
+    type: "FeatureCollection",
+    features: [],
+  },
+});
+```
+
+`toJSON()` serialises layers as explicit canonical objects:
+
+```js
+{
+  data: {
+    layers: [
+      {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      },
+    ],
+  },
+}
+```
+
+## Initial layers and runtime behaviour
+
+- Initial layers can be provided in `createInstance({ map, document: { data: { layers: [...] } } })`.
+- If the injected map is already loaded, initial layers mount immediately; otherwise Waymark waits for the map's `load` event and mounts then.
+- Runtime-added and initial layers share the same ordering semantics: top-first (`layers[0]` visually on top).
+- Layers are inserted below the first `symbol` layer already present in the map style; when the style has no symbol layer they are appended.
+- Layers are re-mounted after a consumer style swap (`style.load`), for example `map.setStyle(...)`.
+- `destroy()` removes only Waymark-owned layers and sources.
+- A single logical layer may mount multiple MapLibre sublayers when its GeoJSON mixes geometry families.
+
+Geometry families resolve to MapLibre layer types automatically:
+
+- `Point` / `MultiPoint` → `circle`
+- `LineString` / `MultiLineString` → `line`
+- `Polygon` / `MultiPolygon` → `fill`
+
+Every family sublayer is gated by a geometry-type filter so it renders only its own geometry: `["==", ["geometry-type"], "Point" | "LineString" | "Polygon"]`. MapLibre normalises `Multi*` geometries to these base types for `["geometry-type"]`, so one equality per family covers every variant it owns. Without the gate, a mixed FeatureCollection would draw circles at every line and polygon vertex and render fills as closed bands; with it, each family renders only its own geometry. Type filters are combined with the geometry gate as `["all", <geometry filter>, ["==", ["get", "waymarkType"], "<typeKey>"]]`.
+
+## Instance-scoped IDs
+
+GeoJSON source and layer IDs are instance-scoped and index-based to avoid collisions:
+
+- source: `waymark-{id}-geojson-source-{index}`
+- sublayer: `waymark-{id}-geojson-layer-{index}-{family}`
+
+Additional sublayer ID patterns for type-based rendering:
+
+- typed sublayer: `waymark-{id}-geojson-layer-{index}-{family}-type-{typeKey}`
+- symbol sublayer: `waymark-{id}-geojson-layer-{index}-symbol-type-{typeKey}`
+- hit-circle layer: `waymark-{id}-geojson-layer-{index}-{family}-hit`
+- icon-type hit-circle: `waymark-{id}-geojson-layer-{index}-circle-hit-{typeKey}`
+
+## Paint & Types
+
+Waymark supports per-layer paint overrides and type-based visual rendering. Each geometry family has a default colour key:
+
+- `circle` → `circle-color`
+- `line` → `line-color`
+- `fill` → `fill-color`
+
+Each data layer is assigned a colour from a 20-entry pool, cycling by layer index. These pool colours are the baseline when no other paint source provides a colour value.
+
+### Paint merge order (highest to lowest)
+
+1. Per-feature `waymarkPaint` — visible circle/line/fill sublayers only; see [Per-feature `waymarkPaint`](#per-feature-waymarkpaint)
+2. Type paint (`config.types[typeKey].paint[family]`)
+3. Layer paint (`layer.paint[family]`)
+4. Instance paint (`config.paint[family]`)
+5. Pool colour + family defaults (`circle-radius: 5`, `line-width: 3`, `fill-opacity: 0.35`)
+
+### Per-feature `waymarkPaint`
+
+A GeoJSON feature can override its resolved paint with a `waymarkPaint` property. When a feature carrying the property matches a sublayer's type filter — a matching `waymarkType`, or its absence for the untyped fallback (any feature, when the layer has no types) — Waymark wraps every resolved paint property of that sublayer as a coalesce expression:
+
+```js
+[
+  "coalesce",
+  ["get", "<prop>", ["get", "waymarkPaint", ["properties"]]],
+  "<resolved value>",
+];
+```
+
+```js
+{
+  type: "Feature",
+  properties: {
+    waymarkType: "beer",
+    waymarkPaint: { "circle-color": "#000000", "circle-radius": 10 }
+  },
+  geometry: { type: "Point", coordinates: [0, 0] }
+}
+```
+
+The feature's value wins when present; otherwise the resolved default applies. `waymarkPaint` keys are MapLibre paint property names for the feature's family. Hit circles and icon symbol layers stay static, so per-feature paint affects visible circle/line/fill sublayers only. `waymarkPaint` is an ordinary feature property and round-trips through `toJSON()`. See [Per-feature `waymarkPaint`](1.api.md#per-feature-waymarkpaint) in the API docs.
+
+### Type-based rendering
+
+When `config.types` is defined, each data layer's render plan splits into:
+
+1. **Untyped fallback** — features without `waymarkType`, using pool + `config.paint` + `layer.paint`. The filter is the family's geometry-type equality ANDed with `["!", ["has", "waymarkType"]]`.
+2. **Per-type sublayers** — one per defined type with a matching family-scoped paint, filtered by the `waymarkType` feature property ANDed with the family geometry-type equality.
+
+When a type has an `icon` property and a truthy `circle-color` in `paint.circle` (see [API docs](1.api.md#icon-property)), its point family renders as a MapLibre `symbol` sublayer plus an invisible hit circle, instead of a visible `circle` layer. `icon` is a name hook: the consumer registers the image with `map.addImage(icon, image)`, and Waymark uses the name as `icon-image` with `iconSize` (default `1.5`). Waymark never loads or registers images itself. The `mountedFamilies` payload includes `"symbol"` for such layers.
+
+Each point family (regular circle or icon symbol) also has a companion invisible hit-circle layer (radius 14, `circle-opacity: 0`) for reliable pointer targeting. See [Hit-circle layers](1.api.md#hit-circle-layers) and [Click priority](1.api.md#click-priority) in the API docs for layer ID naming and priority.
+
+Type visibility can be controlled at runtime via `instance.types.setVisibility(key, boolean)`. Toggling a type hides or restores every layer owned by it — typed family sublayers, icon symbol layers, and their hit circles.
+
+The `waymarkType` feature property is used as a string match against `config.types` keys. Type keys must match `/^[a-z0-9]+(-[a-z0-9]+)*$/` (1-64 characters, lowercase a-z, digits 0-9, and hyphens only — no leading or trailing hyphens).
+
+### `paint` key per data layer
+
+```js
+{
+  data: { type: "FeatureCollection", features: [...] },
+  paint: {
+    circle: { "circle-color": "#ff0000", "circle-radius": 8 },
+    line: { "line-color": "#00ff00", "line-width": 2 },
+    fill: { "fill-color": "#0000ff", "fill-opacity": 0.2 }
+  }
+}
+```
+
+`paint` is serialised alongside the layer in `toJSON().data.layers[]`.
+
+### `config.types` example
+
+```js
+createInstance({
+  map,
+  document: {
+    config: {
+      id: "map",
+      types: {
+        road: {
+          title: "Road",
+          paint: {
+            line: { "line-color": "#e6194b", "line-width": 4 },
+          },
+        },
+        park: {
+          title: "Park",
+          paint: {
+            fill: { "fill-color": "#3cb44b", "fill-opacity": 0.5 },
+          },
+        },
+      },
+    },
+    data: {
+      layers: [
+        {
+          data: {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                properties: { waymarkType: "road" },
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [0, 0],
+                    [1, 1],
+                  ],
+                },
+              },
+              {
+                type: "Feature",
+                properties: { waymarkType: "park" },
+                geometry: {
+                  type: "Polygon",
+                  coordinates: [
+                    [
+                      [0, 0],
+                      [1, 0],
+                      [1, 1],
+                      [0, 1],
+                      [0, 0],
+                    ],
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+});
+```
+
+### `waymark:data.layer.mounted` extended payload
+
+When types are involved, the mounted event includes the resolved type keys:
+
+```js
+{
+  id: string,
+  layerIndex: number,
+  mountedFamilies: ["line", "fill"],
+  mountedLayerIds: [
+    "waymark-map-geojson-layer-0-line-type-road",
+    "waymark-map-geojson-layer-0-fill-type-park"
+  ],
+  mountedTypes: ["road", "park"]
+}
+```
+
+## Feature interaction events
+
+Waymark owns the layer knowledge needed to resolve what the pointer is over — hit-circle layers, per-layer priority, and the mapping from a rendered feature back to its MapLibre layer. Presentation is consumer-owned: popups, tooltips, cursor styling, and property filtering all live in the consumer.
+
+Feature events are dispatched on the instance container:
+
+- `waymark:feature.click` — a click resolved to a rendered Waymark feature.
+- `waymark:feature.hover` — the pointer entered a rendered Waymark feature (once per entry).
+- `waymark:feature.leave` — the pointer left the hovered feature.
+
+Detail shape (all three events):
+
+```js
+{
+  id: string,              // instance namespacing id
+  feature: GeoJSON Feature, // { type, id?, geometry, properties }
+  layerId: string,         // MapLibre layer that produced the hit
+  lngLat: LngLat | null,   // pointer event lngLat
+  originalEvent: Event | null
+}
+```
+
+`feature` is a plain GeoJSON Feature — `{ type: "Feature", id?, geometry, properties }` — with MapLibre presentation internals (`layer`, `source`, `state`, `_vectorTileFeature`, ...) stripped. `id` is included only when the rendered feature carried one.
+
+Hover fires on entry only; feature identity is `layerId` plus feature `id`, with a geometry/properties fallback for features without an `id`. Leave fires when the pointer moves to empty space, onto a different feature (leave then hover), or off the canvas; its `feature` and `layerId` describe the feature that was left, while `lngLat` and `originalEvent` come from the current pointer event. After a consumer `style.load`, Waymark clears its observed-layer tracking and hover state; map-level pointer handlers survive and re-observe layers as they remount. Listeners detach on `destroy()`; no feature events fire after destroy.
+
+Waymark does not open popups, set the cursor, move the camera, or whitelist properties. The dev playground (`dev/dev.js`) shows the recommended consumer-owned popup and cursor pattern:
+
+```js
+import { Popup } from "maplibre-gl";
+
+// Point features anchor on their coordinate; other geometries on the click.
+function resolvePopupLngLat(feature, lngLat) {
+  const geometry = feature?.geometry;
+
+  if (geometry?.type === "Point" && Array.isArray(geometry.coordinates)) {
+    return geometry.coordinates;
+  }
+
+  return lngLat;
+}
+
+let activePopup = null;
+
+instance.on("waymark:feature.click", (event) => {
+  const { feature, lngLat } = event.detail;
+
+  if (activePopup) {
+    activePopup.remove();
+    activePopup = null;
+  }
+
+  const anchor = resolvePopupLngLat(feature, lngLat);
+
+  if (!anchor) {
+    return;
+  }
+
+  activePopup = new Popup({ focusAfterOpen: false })
+    .setLngLat(anchor)
+    // The dev harness renders a title, a single image (first present of
+    // image_thumbnail_url → image_medium_url → image_large_url), and the
+    // remaining property rows.
+    .setDOMContent(buildPopupContent(feature))
+    .addTo(map);
+});
+
+instance.on("waymark:feature.hover", () => {
+  map.getCanvas().style.cursor = "pointer";
+});
+
+instance.on("waymark:feature.leave", () => {
+  map.getCanvas().style.cursor = "";
+});
+```
+
+`lngLat` is the pointer event position, so non-Point features anchor where the feature was clicked; Point features can anchor on `feature.geometry.coordinates` instead. `feature` is a plain GeoJSON Feature, so `feature.properties` is available for consumer-side presentation decisions. The dev harness's `buildPopupContent(feature)` renders a title heading, at most one image whose URL is the first present of `image_thumbnail_url` → `image_medium_url` → `image_large_url`, and the remaining properties as key/value rows; all three `image_*_url` keys are omitted from the rows whenever an image is displayed.
+
+### Click priority
+
+When multiple observed layers overlap at the pointer, the highest-priority layer wins; ties keep MapLibre render order. Priority (highest first): invisible hit-circles (2), regular circles (1), lines and fills (0). Symbol icon layers are never queried — MapLibre symbols only hit-test their opaque pixels — so an icon click resolves through its companion hit circle instead. See [Click priority](1.api.md#click-priority) in the API docs for the full table and layer ID naming.
+
+Implementation references:
+
+- [`src/entry.js`](../src/entry.js)
+- [`src/document/instanceDocument.js`](../src/document/instanceDocument.js)
+- [`src/runtime/runtimeRegistry.js`](../src/runtime/runtimeRegistry.js)
+- [`src/geojson/createGeoJSONModule.js`](../src/geojson/createGeoJSONModule.js)
+- [`src/geojson/createFeatureInteractionModule.js`](../src/geojson/createFeatureInteractionModule.js)
+- [`src/runtime/createInstanceCore.js`](../src/runtime/createInstanceCore.js)
+- [`src/utils/typeUtils.js`](../src/utils/typeUtils.js)
+- [`dev/dev.js`](../dev/dev.js)
+
+## Dev example reference
+
+The dev playground (`dev/dev.js`) creates its own MapLibre map on the `#map` container (OpenFreeMap Bright style, initial centre on Holberg), registers an inline `photo-marker` PNG via `map.loadImage` + `map.addImage` before injecting the map, then calls `createInstance({ map, document })`. It loads one initial InstanceDocument from `/route.json` plus four GeoJSON layers (`track-north-island.geojson`, `track-port-hardy-cape-scott.geojson`, `markers.json`, `shapes.json`) from `/geojson/`. Those files live under `tests/fixtures/` — the single source of truth for the dev harness and the browser tests, served by pointing `vite.config.dev.js`'s `publicDir` at that directory. The route config gives every type a `title` (including the `area` fill type) and maps `photo` to the `photo-marker` icon; the GeoJSON fixtures carry `waymarkType` only (the legacy duplicated `type` property has been removed). `shapes.json` adds a single `area`-typed Polygon that carries only `image_medium_url`, exercising the popup fallback. The big route line is `track-port-hardy-cape-scott`, and Holberg (the pub "The Scarlet Ibis") is the demo-closeup anchor. Its toolbar controls call `instance.data.addLayer(...)`, `instance.data.fitBounds()`, `instance.types.setVisibility(...)`, and `instance.debug.setEnabled(...)`.
+
+Adding a layer calls:
+
+```js
+instance.data.addLayer({ data: samplePoint }, { fitBounds: true });
+```
+
+`samplePoint` is `tests/fixtures/geojson/sample-point.geojson`, carrying `waymarkType: "beer"` so the added layer also responds to the type-visibility control. The fixture point sits at `[-127.998, 50.661]`; the add-layer browser test asserts that centre after `fitBounds`.
+
+The instance and map are also exposed as globals for manual console testing:
+
+```js
+window.waymarkInstance; // the instance
+window.waymarkInstances; // registry keyed by dev map key
+window.waymarkInstances.map; // the #map instance
+window.waymarkMaps; // registry keyed by dev map key
+window.waymarkMaps.map; // the MapLibre map
+window.createWaymarkInstance; // the createInstance factory
+```
+
+---
+
+# Map
+
+> Map injection boundaries for the consumer-owned MapLibre map.
+
+## Responsibilities
+
+Waymark no longer creates or owns a map. The consumer constructs the MapLibre `Map` — container, style, basemaps, camera and attribution — and injects it into `createInstance({ map, document? })`.
+
+Waymark's map-facing responsibilities are:
+
+- validate the injected map against the required method contract
+- bind instance events to `map.getContainer()`
+- mount the `data.layers[]` GeoJSON overlay onto the injected map
+- keep Waymark-owned sources and sublayers mounted across consumer `style.load` cycles
+- resolve pointer hits over Waymark-owned layers into `waymark:feature.*` interaction events (popups and cursor styling stay consumer-owned)
+- remove Waymark-owned sources/layers and detach Waymark map listeners on `destroy()`
+
+Explicitly not Waymark's responsibility:
+
+- map or container creation
+- bundling or serving MapLibre GL JS and its worker — the consumer installs MapLibre as a peer dependency and bundles both themselves
+- providing MapLibre CSS — the consumer imports `maplibre-gl/dist/maplibre-gl.css`
+- basemap configuration and raster/vector switching
+- camera capture or sync (no `state.map.*` output)
+- map style and attribution
+- forwarded `waymark:map.*` events
+
+## Input and output boundaries
+
+- **Input map**: consumer-owned MapLibre `Map`, duck-typed against `getContainer`, `on`, `off`, `addSource`, `addLayer`, `getStyle`, `fitBounds`. Invalid input throws a `TypeError` naming the missing methods.
+- **Input document**: `{ config, state, data }` only. There is no `config.map` or `state.map` slice; unknown config keys are dropped during normalisation.
+- **Output document**: `toJSON()` returns `{ config, state, data }`. No camera or basemap slices are serialised.
+- **Output overlay metadata**: GeoJSON source/sublayer IDs are runtime metadata only and are not included in `toJSON()`.
+
+One runtime exists per map: the registry is a `WeakMap` keyed by the injected map. A second `createInstance(...)` call with the same map throws until the existing instance is destroyed.
+
+## Runtime behaviour
+
+- Waymark validates the injected map in `src/entry.js`, normalises the document, then wires the runtime in `src/runtime/createInstanceCore.js`.
+- If the injected map is already loaded (`map.loaded()`), initial layers mount immediately (synchronously in the common path). If not, Waymark waits for the map's `load` event and mounts then.
+- Waymark subscribes to `style.load`; after a consumer style swap it resets its mounted marker, clears feature-interaction layer tracking and hover state, and remounts all Waymark-owned sources and sublayers.
+- GeoJSON layers are inserted below the first `symbol` layer already present in the map style; when the style has no symbol layer they are appended.
+- Instance events are dispatched on `map.getContainer()`. Lifecycle, data-layer and state events are documented in [`docs/1.api.md`](1.api.md).
+- Camera and basemaps are the consumer's. Waymark does not observe map camera events, manage styles, or emit basemap/camera events.
+- `instance.data.addLayer(..., { fitBounds })` and `instance.data.fitBounds(...)` call `map.fitBounds()` on the injected map. See [`docs/5.data.md`](5.data.md) for option semantics.
+- `destroy()` removes Waymark-owned layers (reverse render-plan order) and sources, detaches Waymark's `load`/`style.load` listeners and the feature interaction `click`/`mousemove`/`mouseout` handlers, and deletes its registry entry. It never calls `map.remove()` and never touches the container.
+- GeoJSON source/sublayer IDs are instance-scoped to avoid collisions:
+
+- source: `waymark-{id}-geojson-source-{index}`
+- sublayer: `waymark-{id}-geojson-layer-{index}-{family}`
+- typed sublayer: `waymark-{id}-geojson-layer-{index}-{family}-type-{typeKey}`
+- symbol sublayer: `waymark-{id}-geojson-layer-{index}-symbol-type-{typeKey}`
+- hit-circle: `waymark-{id}-geojson-layer-{index}-{family}-hit`
+- icon-type hit-circle: `waymark-{id}-geojson-layer-{index}-circle-hit-{typeKey}`
+
+For public injection validation, config defaults and event payload contracts, treat [`docs/1.api.md`](1.api.md) as the source of truth.
+
+## Internal files
+
+- `src/entry.js` (factory entry, map duck-type validation)
+- `src/runtime/createInstanceCore.js` (runtime wiring, public API, destroy flow)
+- `src/runtime/runtimeRegistry.js` (`WeakMap` map → core registry)
+- `src/runtime/createInstanceEvents.js` (container event bus; no map-event forwarding)
+- `src/runtime/state/createInstanceState.js` (debug/type-visibility runtime state)
+- `src/geojson/createGeoJSONModule.js` (overlay mount, style remount, owned-layer cleanup)
+- `src/geojson/createFeatureInteractionModule.js` (feature click/hover/leave resolution and emission)
+- `src/config/resolveConfig.js` (runtime config resolution)
+
+`src/map/**` has been removed entirely — no map creation, container creation, style/basemap ownership, or camera sync remains in the library.
+
+## Related API sections
+
+- [Map injection](1.api.md#map-injection)
+- [Instance reuse and destroy semantics](1.api.md#instance-reuse-and-destroy-semantics)
+- [Instance event API](1.api.md#instance-event-api)
+- [InstanceDocument shape](1.api.md#instancedocument-shape)
+- [Initial GeoJSON overlay](1.api.md#initial-geojson-overlay)
+- [Data](5.data.md)
+
+---
+
+# Instances
+
+> Internal instance anatomy and orchestration boundaries.
+
+## Anatomy at a glance
+
+`createInstance({ map, document? })` first validates the consumer-injected map, then normalises input via `normaliseInstanceDocument(...)`, then delegates the resulting canonical InstanceDocument to `createInstanceCore(map, ...)`, which assembles one runtime core for one injected map.
+
+Key components:
+
+| Component                                  | Responsibility                                                                                                                                                                    |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/entry.js`                             | Factory entry: map duck-type validation, document normalisation, deep-clone, runtime creation.                                                                                    |
+| `src/document/instanceDocument.js`         | Canonical InstanceDocument shape, normalisation, serialisation, and validation.                                                                                                   |
+| `src/runtime/createInstanceCore.js`        | Runtime core orchestration, lifecycle, public API assembly, registry behaviour, destroy flow.                                                                                     |
+| `src/runtime/runtimeRegistry.js`           | Internal `WeakMap` runtime storage keyed by the consumer map (`get/set/delete`).                                                                                                  |
+| `src/runtime/createInstanceEvents.js`      | Container event bus (`on/off/once/emit`); events are dispatched on `map.getContainer()`.                                                                                          |
+| `src/runtime/state/createInstanceState.js` | Canonical runtime-state store (`getSnapshot`, `dispatch`, `subscribe`) and scoped/global state-event emission.                                                                    |
+| `src/config/resolveConfig.js`              | Runtime config resolution (debug) over `defaultConfig`.                                                                                                                           |
+| `src/geojson/*`                            | GeoJSON overlay internals — type-based render plans (`createGeoJSONModule.js`), feature interaction events (`createFeatureInteractionModule.js`). Documented in `docs/5.data.md`. |
+
+## Internal orchestration boundaries
+
+- **Public boundary**: `createInstance({ map, document? })` in `src/entry.js` returns `WaymarkInstancePublicApi` only.
+- **Runtime boundary**: lifecycle phase, registry entries, and event-wiring handles stay internal.
+- **InstanceDocument boundary**: `toJSON()` is canonical serialisable output; it is separate from runtime lifecycle state.
+
+Map injection details are documented separately:
+
+- [Map boundaries](4.map.md)
+
+## core.modules boundary
+
+`core.modules` in `createInstanceCore(...)` groups teardown-capable internals:
+
+- `geoJSON` (source/layer lifecycle, type-based render planning, feature interaction via `createFeatureInteractionModule.js`)
+- `debug` (console event logging)
+
+This grouping is internal lifecycle wiring, not part of the consumer API.
+
+## Module state boundaries
+
+- Runtime mutable state lives in `core.runtimeState` (state module snapshot + dispatch) and covers `debug` and type visibility only.
+- `core.baseline` keeps stable authored/default intent (`debug`, `types`) for delta generation.
+- Serialisation emits a stable `config` baseline and a minimal `state` delta in `toJSON()` (unchanged branches omitted), using runtime-state snapshots as the current source. There is no map/camera/basemap slice.
+- Internal mutators (for example, `runtimeState.dispatch(...)`) are runtime wiring and not public API.
+- The `geoJSON` module owns a nested `featureInteraction` module that observes Waymark-owned layers and emits feature interaction events. It is not part of the public API surface: consumers receive `waymark:feature.*` events and `core.modules.geoJSON.destroy()` detaches its listeners.
+
+## Lifecycle order
+
+Create flow:
+
+1. Validate the injected map (`src/entry.js`) and normalise the incoming document.
+2. Check the `WeakMap` registry in `src/runtime/runtimeRegistry.js`; if the map already has a runtime, throw.
+3. Resolve config (debug) and install the event bus on `map.getContainer()`.
+4. Create the GeoJSON module: build render plans, register `load`/`style.load` mount handlers, and wire the feature interaction module (`click`/`mousemove`/`mouseout`).
+5. Create runtime state (`createInstanceState(...)`) with initial debug and type-visibility state.
+6. Build the InstanceDocument adapter and public API.
+7. Register the runtime against the map in the `WeakMap` and emit `waymark:instance.created` on the map container.
+
+Destroy flow:
+
+1. Mark lifecycle destroyed and emit `waymark:instance.destroyed`.
+2. Run `geoJSON.destroy()` (remove Waymark-owned layers/sources, detach `load`/`style.load`, destroy the feature interaction module and detach its `click`/`mousemove`/`mouseout` handlers) and `debug.destroy()`.
+3. Delete the runtime registry entry for the map.
+
+The consumer's map and container are never removed or modified by Waymark.
+
+## Extension notes
+
+When adding internals to `createInstanceCore(...)`:
+
+- Keep dependencies explicit.
+- Keep teardown deterministic.
+- Keep ID-scoped names collision-safe.
+- Keep the public API stable unless intentionally documented and tested.
+
+For module-level behaviour, update these docs alongside runtime changes:
+
+- `docs/4.map.md`
+
+---
+
+# Development
+
+> Contributor workflow and verification protocol for Waymark JS.
+
+## Contributor workflow
+
+1. Install dependencies: `npm install`
+2. Start dev server: `npm run dev`
+3. Run formatting: `npm run format`
+4. Verify formatting: `npm run format:check`
+5. Regenerate `docs/llms-full.txt` and run docs/API sync checks: `npm run docs:sync` (`test:ci` first runs `npm run check:llms`, which fails if the committed bundle is stale)
+6. Preview and build the docs site: `npm run docs:dev` (Nuxt dev server; defaults to `http://localhost:3000`) and `npm run docs:generate` (builds the deployable static site to `docs/.output/public`)
+7. Run unit tests: `npm test`
+8. Build and verify the dist output: `npm run build && npm run check:dist`
+9. Run browser tests: `npm run test:browser`
+10. Run the full CI gate locally: `npm run test:ci` (format check → llms bundle check → docs sync → build → dist check → docs generate → unit tests → browser tests).
+
+`npm run test:browser` boots a dedicated Playwright Vite server on `127.0.0.1:4173` with `--strictPort`, so browser tests are deterministic even when your normal dev port is occupied. Browser tests import `src/entry.js` directly — the built bundle is verified separately by `npm run check:dist` and the Vitest dist smoke test. `playwright.config.js` pins `workers: 1` and `retries: 1` because the suite includes WebGL/shader and remote-network-dependent map tests that flake under parallel workers; single-worker execution was verified fully green.
+
+`npm run docs:sync` chains `node scripts/llms-full.mjs`, `npm run docs:contract`, and `npm run docs:api-sync` (which runs `api:contract` first). The generator step rebuilds [`docs/llms-full.txt`](llms-full.txt) — the full content of every doc linked in [`docs/llms.txt`](llms.txt), concatenated into one file for single-fetch consumption. Both `docs/llms.txt` and `docs/llms-full.txt` are also published as tracked, byte-for-byte copies under `docs/public/` for repository indexing; `docs:sync` refreshes those copies and `npm run check:llms` verifies them. `test:ci` runs the generator in check mode first (`npm run check:llms`), so a stale committed bundle fails the gate before `docs:sync` regenerates it. No root `SKILL.md` is generated; consumer-facing agent docs follow the llms.txt convention and are distributed with the docs GitHub Pages deploy (see [Docs site](#docs-site)).
+
+Vite config is split by role: `vite.config.dev.js` for local dev server, `vite.config.lib.js` for library builds, and `vitest.config.js` for tests.
+
+`vite.config.lib.js` defines `process.env.NODE_ENV` as a build-time replacement for the dist bundle, preventing browser runtime errors like `process is not defined`. It also keeps `maplibre-gl` external (`rollupOptions.external`), so the build emits a single ESM bundle — `dist/waymark.js` (~31.5 kB, ~8.8 kB gzip) with a bare `maplibre-gl` import, no CSS and no inlined worker. `npm run check:dist` guards that output shape.
+
+## Conventions and definitions
+
+- **Instance**: public object returned by `createInstance({ map, document? })`.
+- **Map injection**: the consumer creates and owns the MapLibre map; Waymark duck-types and mounts its overlay onto it.
+- **Runtime core**: internal lifecycle object in `src/runtime/createInstanceCore.js`.
+- **Runtime registry**: internal `WeakMap` from map → core in `src/runtime/runtimeRegistry.js` (one runtime per map).
+- **InstanceDocument**: canonical serialisable payload from `instance.toJSON()` (the `document` option).
+- **GeoJSON**: map data format and symbol naming (`createGeoJSONModule`, `geoJSON`).
+- **Data layers**: canonical shape is `data.layers: Array<{ type?: "geojson", data: object }>`.
+- **Feature interaction**: click/hover/leave event resolution in `src/geojson/createFeatureInteractionModule.js`; popups and cursor styling are consumer-owned.
+- **Type icons**: `config.types[].icon` is a name hook for a consumer-registered map image (`map.addImage`); Waymark ships no icon assets and never registers images itself. The dev playground registers an inline `photo-marker` PNG this way and maps it to the `photo` type.
+
+Keep runtime internals internal. Consumer docs and tests should target public API behaviour.
+
+## Naming conventions
+
+Use camelCase identifiers, with acronyms kept uppercase.
+
+- `instanceDocument`
+- `InstanceDocument`
+- `geoJSON`
+
+Use `instanceDocument` as the canonical variable/parameter name for the document payload, and `map` for the injected MapLibre map.
+
+Prefer these canonical forms in source, tests, docs, and fixtures.
+
+For data-layer ordering, use these canonical rules in docs/tests/fixtures:
+
+- `data.layers` is the canonical data envelope.
+- layer input shape is `{ type?: "geojson", data }` and runtime `instance.data.addLayer(...)` uses the same contract.
+- data-layer stack order is top-first: `layers[0]` is visually on top.
+- insertion position is below the first `symbol` layer already present in the injected map style (appended when none exists).
+
+For full data/GeoJSON contract details, prefer [`docs/5.data.md`](5.data.md) rather than duplicating rules in multiple docs.
+
+## Cross-module sync pattern (runtime-state owned)
+
+Use this pattern when runtime modules must stay in sync.
+
+1. **Runtime state owns mutable state**
+   - Keep authoritative mutable state in `src/runtime/state/createInstanceState.js`.
+   - `createInstanceCore(...)` owns lifecycle orchestration and commands, not duplicate mutable state copies.
+   - Modules and adapters consume snapshots and never become a second source of truth.
+2. **Dispatch named commands**
+   - Route mutations through explicit dispatch paths (for example `types.visibility.set`, `types.visibility.reset`, `debug.set`).
+   - Runtime commands dispatch state changes, then adapters apply map-side effects.
+3. **Emit canonical state events**
+   - Every real state mutation emits `waymark:state.changed` plus a scoped state event (`waymark:state.debug.changed`, `waymark:state.types.visibility.changed`).
+   - No-op dispatches emit nothing.
+4. **Emit data-layer events only where useful**
+   - The GeoJSON module emits `waymark:data.layer.added`, `waymark:data.layer.mounted`, and `waymark:data.layer.error` for layer lifecycle observability.
+5. **Emit feature interaction events from layer observation**
+   - The feature interaction module emits `waymark:feature.click`, `waymark:feature.hover`, and `waymark:feature.leave` with `{ id, feature, layerId, lngLat, originalEvent }`.
+   - These are observability events only: they do not mutate runtime state, the map cursor, or the camera.
+
+Guidance for future sync features:
+
+- keep mutation logic in runtime core, not in map adapters
+- keep commands idempotent and no-op on invalid/unchanged input
+- emit events only after state mutation succeeds
+- prefer one aggregate event per mutation path over multiple partial events
+- ensure `instance.toJSON()` reflects the same post-mutation state as emitted events
+
+## Testing strategy
+
+- `tests/docs/*.test.js` (Vitest + jsdom): API contract tests without WebGL.
+- `tests/docs/runtime/createInstanceState.test.js`: runtime-state module contract (`getSnapshot`, command dispatch, scoped/global state events, no-op behaviour).
+- `tests/docs/dist.smoke.test.js`: imports the built `dist/waymark.js` with `maplibre-gl` mocked, asserting `createInstance` exists and constructs `LngLatBounds` through the mock. It skips cleanly when `dist/` is absent and runs for real in `test:ci`, which builds first.
+- `tests/browser/*.test.js` (Playwright): browser API and dev-page smoke. `1.api.test.js` covers feature interaction events (click/hover/leave detail, hover suppression, leave semantics, destroy cleanup) and the API screenshot specs; those specs fetch the shared fixtures (`/geojson/markers.json`, `/geojson/track-port-hardy-cape-scott.geojson`, `/geojson/shapes.json`, `/geojson/sample-point.geojson`) from the dev server. `2.development.test.js` covers the dev page: initial render, adding a layer, the consumer-side property-inspector popup (title, image, property rows), the marker/line/shape image fallbacks (thumbnail → medium → large), line and shape popup anchoring at the click location, and type visibility toggling.
+- `tests/browser/helpers/screenshot.js`: shared capture helper. `screenshot(page, name)` awaits `waitForSettled(page)` before capturing; `waitForSettled` runs bounded waits for network idle, every `window.waymarkMaps` map to be idle with tiles loaded, every `<img>` to be complete and decoded, `document.fonts.ready`, and two animation frames. This prevents blank or partially painted captures when tiles, images, or fonts arrive late. Screenshots are written to `screenshots/` at the repo root.
+
+`npm run check:dist` statically asserts the built output: `dist/` contains only `waymark.js`, the bundle imports `maplibre-gl` as a bare external, and there is no base64 worker blob, no CSS and no Vue markers. `test:ci` runs it after `npm run build`.
+
+Use jsdom tests to validate API contract behaviour, not as proof of non-browser runtime support. Browser tests are the runtime source of truth for instance behaviour.
+
+## Dev page setup
+
+The development playground lives under `dev/` as a vanilla ES module app (`dev/index.html`, `dev/dev.js`). Its data is the shared fixture set under `tests/fixtures/` — the single source of truth for the dev harness and the browser tests. `vite.config.dev.js` points `publicDir` at `tests/fixtures`, so the dev server serves the north Vancouver Island demo fixtures at `/`: `route.json` (config) and `geojson/` data. `dev/dev.js` imports `maplibre-gl/dist/maplibre-gl.css` (MapLibre requires its stylesheet for popup positioning), creates its own MapLibre map on `#map` (OpenFreeMap Bright style, initial centre on Holberg), and injects it via `createInstance({ map, document })`, booting one instance from `/route.json` plus four GeoJSON layers (`track-north-island.geojson`, `track-port-hardy-cape-scott.geojson`, `markers.json`, `shapes.json`) from `/geojson/`. It also fetches `/geojson/sample-point.geojson` for the add-layer control.
+
+![Development page with the four initial fixture layers](../screenshots/dev-page.png)
+
+Before `createInstance(...)`, the harness registers an inline PNG data URL as the `photo-marker` image (`map.loadImage` + `map.addImage`), so the `photo` type's symbol layers resolve the icon from first mount. It also demonstrates the consumer-owned feature interaction pattern: a `Popup` property inspector on `waymark:feature.click`, and cursor changes on `waymark:feature.hover` / `waymark:feature.leave`.
+
+The click inspector renders a title heading, a single `<img class="dev-popup__image">` when any image URL property is present, and the remaining properties as key/value rows. The image URL is picked in preference order `image_thumbnail_url` → `image_medium_url` → `image_large_url`, the image `alt` is the feature title (or `Feature image`), and all three `image_*_url` keys are omitted from the rows whenever an image is displayed. The popup anchors at `feature.geometry.coordinates` for Point geometry, and at the click `lngLat` for everything else. The harness emits no `[waymark:dev]` diagnostic logs during normal operation — interaction feedback lives in the inspector.
+
+Vite dependency pre-bundling breaks MapLibre's worker: MapLibre resolves its worker relative to its own module URL, and Vite's pre-bundled copy under `node_modules/.vite/deps/` has no worker file alongside it, so GeoJSON source processing silently stalls (`map.loaded()` never becomes `true`). `vite.config.dev.js` sets `optimizeDeps.exclude: ["maplibre-gl"]` so the package is served as-is. Vite consumers of Waymark should do the same in their own config.
+
+`dev/index.html` renders a restrained toolbar — the Waymark JS title plus a "click a feature to inspect its properties" cue — with four grouped controls:
+
+- `#dev-add-layer` calls `instance.data.addLayer({ data: samplePoint }, { fitBounds: true })`; `samplePoint` carries `waymarkType: "beer"`
+- `#dev-fit-bounds` calls `instance.data.fitBounds()`
+- `#dev-toggle-beer` toggles `instance.types.setVisibility("beer", ...)`
+- `#dev-debug` (checkbox) toggles `instance.debug.setEnabled(...)` console logging; it initialises checked from `config.debug` in `route.json` (`true`)
+
+![A layer added from the toolbar, with the view fitted to its bounds](../screenshots/dev-layer-added.png)
+
+Fixture notes:
+
+- `tests/fixtures/route.json` gives every type a `title`, maps the `photo` type to `icon: "photo-marker"` with `iconSize`, defines the `area` fill type (`fill-color: "#2f855a"`), and enables debug logging.
+- The GeoJSON fixtures under `tests/fixtures/geojson/` (`markers.json`, `track-north-island.geojson`, `track-port-hardy-cape-scott.geojson`, `shapes.json`, `sample-point.geojson`) carry `waymarkType` only — the legacy duplicated `type` property has been removed.
+- `shapes.json` holds a single `waymarkType: "area"` Polygon ("Cape Scott trail area") that carries only `image_medium_url`, exercising the medium fallback in the popup.
+- `sample-point.geojson` sits in-scene at `[-127.998, 50.661]`; the add-layer browser test asserts that centre after `fitBounds`.
+- Holberg (the pub "The Scarlet Ibis" at `[-128.009734, 50.653923]`) is the demo-closeup anchor, and the big route line is `track-port-hardy-cape-scott`.
+
+The page exposes `window.waymarkInstance`, `window.waymarkInstances` and `window.waymarkMaps` (both keyed by the dev map key `map`), and `window.createWaymarkInstance` for manual console testing.
+
+This gives a stable baseline for browser smoke coverage in `tests/browser/2.development.test.js`:
+
+- the toolbar controls, `#map`, and the map canvas render with zero console errors
+- adding a layer increases `data.layers` and fits bounds to the sample point
+- clicking a marker opens the property-inspector popup (title, image, property rows) and loads the `image_thumbnail_url`
+- clicking a track line opens the popup anchored at the click location and loads the `image_large_url`
+- clicking a shape opens the popup with its properties and loads the `image_medium_url`
+- image URL keys never render as raw URL text rows in any popup
+- toggling the "beer" type hides and restores typed visibility
+
+Run:
+
+```bash
+npm run format:check
+npm run docs:sync
+npm run docs:generate
+npm test
+npm run build && npm run check:dist
+npm run test:browser
+```
+
+## Docs ↔ tests sync protocol
+
+Treat docs and tests as one contract. Change both in the same slice.
+
+| Docs page             | Unit tests                                                   | Browser tests                                            |
+| --------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
+| `docs/1.api.md`       | `tests/docs/1.api.test.js`                                   | `tests/browser/1.api.test.js`                            |
+| `docs/3.instances.md` | Internal-boundary assertions in `tests/docs/1.api.test.js`   | Dev smoke in `tests/browser/2.development.test.js`       |
+| `docs/4.map.md`       | Map injection assertions in `tests/docs/1.api.test.js`       | Map API coverage in `tests/browser/1.api.test.js`        |
+| `docs/5.data.md`      | Data-layer contract assertions in `tests/docs/1.api.test.js` | Data-layer API coverage in `tests/browser/1.api.test.js` |
+
+Automation guards:
+
+- `npm run docs:contract` checks required docs headings and mapped test `describe(...)` blocks.
+- `npm run docs:api-sync` checks API sections in `docs/1.api.md` against generated source contract data.
+
+Keep [`docs/llms.txt`](llms.txt)'s links and descriptions in step when the docs set changes; [`docs/llms-full.txt`](llms-full.txt) regenerates from them via `npm run docs:sync` and is never hand-edited. After editing any doc linked from `docs/llms.txt`, run `npm run docs:sync` so the committed bundle stays fresh — otherwise `npm run check:llms` (and therefore `test:ci`) fails.
+
+## Hard sync workflow (docs ↔ source ↔ tests)
+
+`npm run docs:sync` is intentionally strict and should be treated as a hard gate before tests. CI runs `npm run check:llms` before regenerating, so a stale committed `docs/llms-full.txt` fails the gate instead of being silently overwritten.
+
+Execution order:
+
+1. `node scripts/llms-full.mjs`
+   - Reads the `.md` links from `docs/llms.txt` in order and regenerates `docs/llms-full.txt` (stripping frontmatter and api-contract markers).
+2. `npm run docs:contract`
+   - Reads `scripts/doc-test-contract.json`.
+   - Verifies required headings in tracked docs pages (`docs/1.api.md`, `docs/4.map.md`).
+   - Verifies mapped `describe(...)` block names in `tests/docs/1.api.test.js` and `tests/browser/1.api.test.js`.
+3. `npm run docs:api-sync`
+   - Runs `npm run api:contract` first, generating `docs/.generated/api-contract.json` from `src/runtime/createInstanceEvents.js` (event constants) and `src/config/defaults.js` (`defaultConfig`), together with the fixed `createInstance({ map, document? })` signature.
+   - Compares marker blocks in `docs/1.api.md` (`signature`, `defaults`, `lifecycle-events`, `data-layer-events`, `feature-events`) against generated contract values.
+
+If this gate fails, fix docs headings/marker blocks and corresponding test `describe(...)` names in the same change.
+
+## Adding or changing API sections safely
+
+Use this convention whenever you add, rename, or remove a section in `docs/1.api.md`.
+
+### API section naming
+
+- Use stable heading text in sentence case (for example, `## InstanceDocument shape`).
+- Treat each heading name as automation-backed contract text, not editorial copy.
+
+### One-to-one heading and `describe(...)` mapping
+
+- Each API section heading in `docs/1.api.md` must have matching `describe(...)` blocks in:
+  - `tests/docs/1.api.test.js`
+  - `tests/browser/1.api.test.js`
+- The `describe(...)` names must be identical to the heading text.
+
+### Manifest updates
+
+- When adding or renaming an API section, update `scripts/doc-test-contract.json` in the same change:
+  - `requiredHeadings`
+  - `describeMappings`
+
+### Marker blocks for source-derived facts
+
+- Source-derived API facts in `docs/1.api.md` must be wrapped in marker blocks:
+
+```html
+...
+```
+
+- Keep `<name>` stable once introduced.
+
+### Extending source-derived contract fields
+
+- If you add a new source-derived contract field, update all three in the same change:
+  1. `scripts/generate-api-contract.mjs`
+  2. `scripts/check-api-doc-sync.mjs`
+  3. The matching marker block in `docs/1.api.md`
+
+### Practical checklist
+
+1. Add or rename the API section heading in `docs/1.api.md` (stable sentence case).
+2. Add or rename matching `describe(...)` blocks in both API test files with identical names.
+3. Update `scripts/doc-test-contract.json` (`requiredHeadings` and `describeMappings`).
+4. If the section includes source-derived facts, add or update the `api-contract` marker block.
+5. If you introduced a new source-derived field, update both sync scripts and the marker block together.
+6. Run `npm run format:check` and `npm run docs:sync` before handing off.
+
+Sync checklist:
+
+1. Update the relevant docs headings and examples.
+2. Update matching `describe(...)` blocks and assertions.
+3. Run `npm run docs:sync`, `npm test`, and `npm run test:browser`.
+4. Ensure old filenames/headings are removed.
+
+## Screenshots
+
+Browser tests capture screenshots as visual evidence of key application states. They are written to `screenshots/` at the repo root (tracked in git) by `tests/browser/helpers/screenshot.js`.
+
+Every capture is settle-aware: `screenshot()` awaits the shared `waitForSettled(page)` helper before capturing. The helper runs bounded waits for network idle, every registered `window.waymarkMaps` map to be idle with tiles loaded, every `<img>` to be complete and decoded, `document.fonts.ready`, and two animation frames. This prevents blank or partially painted captures when tiles, images, or fonts arrive late.
+
+### API tests (`/browser-api.html`)
+
+The API screenshot specs load the shared fixtures over the dev server (`markers.json`, `track-port-hardy-cape-scott.geojson`, `shapes.json`) and frame them on a Holberg closeup (centre `[-128.0145, 50.6525]`, zoom 14) so the point, line, and polygon all sit in frame.
+
+| Screenshot             | What it shows                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| `api-quick-start`      | Injected map with a GeoJSON layer (demo markers) rendered on OpenFreeMap tiles |
+| `api-geojson-families` | Circle (point), line, and fill (polygon) geometry families rendered            |
+| `api-geojson-mixed`    | Point, line, and polygon sublayers from one mixed FeatureCollection            |
+
+### Development page (`/` — dev server)
+
+| Screenshot        | What it shows                                                               |
+| ----------------- | --------------------------------------------------------------------------- |
+| `dev-page`        | Default dev page state — toolbar, map, and the four initial fixture layers  |
+| `dev-layer-added` | GeoJSON layer added from the toolbar, bounds fitted to `[-127.998, 50.661]` |
+| `dev-popup`       | Feature inspector popup open after clicking the "The Scarlet Ibis" marker   |
+| `dev-popup-line`  | Line popup anchored at the click location, with the feature's image         |
+
+## Docs site
+
+The docs site is a Nuxt static-site app that lives entirely under `docs/`: [`docs/nuxt.config.js`](nuxt.config.js) configures it, source lives in `docs/app/`, the build module in [`docs/modules/docs-pages.js`](modules/docs-pages.js), and the internal `/api/docs/*` routes in `docs/server/`. `npm run docs:dev` (`nuxt dev docs`) serves it locally for previewing prose changes; `npm run docs:generate` (`nuxt generate docs`) prerenders every route and writes the deployable site to the generated `docs/.output/public`.
+
+At build time the module packages the site: it copies the tracked `screenshots/` directory, `llms.txt`, `llms-full.txt` and [`docs/assets/waymark-logo.svg`](assets/waymark-logo.svg) (as the site favicon) into the generated `docs/public/` (served verbatim), then renders each page once with [`docs/app/lib/docs-content.mjs`](app/lib/docs-content.mjs) into JSON assets under `docs/server/assets/docs-pages/`, which the `/api/docs/nav` and `/api/docs/[slug]` routes read. The `docs/public/llms.txt` and `docs/public/llms-full.txt` copies are tracked in version control for repository indexing; `npm run docs:sync` refreshes them and `npm run check:llms` verifies they match their `docs/` sources.
+
+Pages, routes and the prev/next pagers follow the markdown links in [`docs/llms.txt`](llms.txt): `README.md` is the home page, and the numbered docs keep their reading order.
+
+- Pages render with `marked` (GitHub-flavoured markdown) and `highlight.js` at build time; content headings get self-links and GitHub alerts become branded callouts.
+- Embedded screenshots render as semantic `<figure>` elements with descriptive captions — the markdown image title when present, otherwise the alt text.
+- Fenced code blocks are syntax-highlighted at build time and get a client-side copy button; wide tables scroll inside their own wrappers.
+- Relative `.md` links become site routes; other repo-relative links are rewritten to `https://github.com/OpenGIS/Waymark-JS/blob/master/...`; llms bundle links stay relative.
+- Layout and theming come from the hosted OpenGIS branding stylesheet plus the `background-map.js` header module; the favicon and header mark come from `docs/assets/waymark-logo.svg`.
+
+Site configuration is via environment variables, documented in [`docs/.env.example`](.env.example); copy it to `docs/.env` (gitignored) to override — values are read from the app root (`docs/`) when the dev server starts or the site is generated, so restart or regenerate after changing them. `NUXT_PUBLIC_PRODUCTION_URL` is the single deployment value: it sets both the absolute site URL used for `<link rel="canonical">` and the asset base path (derived from its pathname; default `https://www.ogis.org/waymark-js`, and the root path when unset). `NUXT_PUBLIC_BRANDING_URL` (default `https://www.ogis.org/branding`) sets the two branding asset links in the head — the theme stylesheet and the `background-map.js` module — and nothing else: the logo is a local asset and the Waymark v1 dependencies are resolved inside the hosted module.
+
+`docs/assets/` holds the hand-authored logo SVG. SVG assets are formatted via `@prettier/plugin-xml`, registered in `.prettierrc.json`, so the logo is covered by `npm run format:check`.
+
+The **Deploy docs** workflow (`.github/workflows/docs.yml`) publishes the site: pushes to `master` touching `docs/**`, `screenshots/**`, `scripts/llms-full.mjs`, `package.json`/`package-lock.json` or the workflow itself — plus manual `workflow_dispatch` — run `npm run check:llms`, configure Pages (whose `base_url` output supplies the deploy target), then `npm run docs:generate` on Node 24 (`.nvmrc`) with `NUXT_PUBLIC_PRODUCTION_URL` derived at deploy time from that output — it drives both the canonical URLs and the asset paths — and upload `docs/.output/public` via GitHub Pages. One-time setup: Settings → Pages → Source = "GitHub Actions". Published at <https://www.ogis.org/waymark-js/>.
+
+## CI/CD automation
+
+Three GitHub Actions workflows automate the release pipeline:
+
+- **CI** (`.github/workflows/ci.yml`) — runs `npm run test:ci` on PRs and pushes to `master`.
+- **Release** (`.github/workflows/release.yml`) — runs on every push to `master`; when the current `package.json` version has no existing git tag, it creates the tag and a GitHub Release with auto-generated release notes.
+- **Deploy docs** (`.github/workflows/docs.yml`) — builds the Nuxt docs site and deploys it to GitHub Pages on `master` pushes that touch docs inputs (see [Docs site](#docs-site)).
+
+---
+
+# Docs
+
+Developer documentation for Waymark JS.
+
+## Reading order
+
+1. [API](1.api.md) - Consumer API contract for `createInstance({ map, document? })`, including map injection and ownership boundaries, config defaults, events, canonical InstanceDocument serialisation, and `data.layers` GeoJSON documents.
+2. [Development](2.development.md) - Contributor workflow, dev-page baseline, testing strategy, and sync protocol.
+3. [Instances](3.instances.md) - Internal orchestration boundaries, lifecycle composition, and baseline-vs-delta serialisation semantics.
+4. [Map](4.map.md) - Map injection contract, ownership boundaries, overlay mounting, and cleanup guarantees.
+5. [Data](5.data.md) - Canonical data-layer contract, `instance.data.addLayer(...)`, and GeoJSON runtime behaviour.
+
+## Scope
+
+These docs split consumer API from internals:
+
+- `docs/1.api.md` is the public usage contract.
+- `docs/3.instances.md` defines runtime orchestration boundaries.
+- `docs/4.map.md` documents the map injection contract and overlay internals.
+- `docs/5.data.md` is the canonical data/GeoJSON reference used by API, map, and dev docs.
+
+## For LLMs
+
+- [llms.txt](llms.txt) - a concise machine-readable index of these docs.
+- [llms-full.txt](llms-full.txt) - the full documentation in a single file.

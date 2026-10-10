@@ -653,7 +653,6 @@ function createRenderPlan(
               ]),
               hasWaymarkPaint: false,
               _skipObserve: true,
-              priority: 3,
             });
             continue;
           }

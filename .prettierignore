@@ -4,3 +4,11 @@ coverage/
 test-results/
 playwright-report/
 .vite/
+.nuxt/
+.output/
+
+# Local scratch files
+tmp/
+
+# Prebuilt v1 docs site (served verbatim under /v1/)
+docs/public/v1/

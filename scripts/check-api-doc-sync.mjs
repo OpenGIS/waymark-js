@@ -32,8 +32,15 @@ function renderList(items) {
   return items.map((item) => `- \`${item}\``).join("\n");
 }
 
+function renderDefaults(defaults) {
+  return Object.entries(defaults)
+    .map(([key, value]) => `- \`${key}\`: \`${JSON.stringify(value)}\``)
+    .join("\n");
+}
+
 const expectedBlocks = {
   signature: `\`${contract.signature}\``,
+  defaults: renderDefaults(contract.defaults),
   "lifecycle-events": renderList(contract.lifecycleEvents),
   "data-layer-events": renderList(contract.dataLayerEvents),
   "feature-events": renderList(contract.featureEvents),

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import prettier from "prettier";
+import { defaultConfig } from "../src/config/defaults.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const OUTPUT = path.join(ROOT, "docs", ".generated", "api-contract.json");
@@ -26,6 +27,7 @@ const constants = parseEventConstants(instanceEventsSource);
 
 const contract = {
   signature: "createInstance({ map, document? })",
+  defaults: defaultConfig,
   lifecycleEvents: [
     constants.WAYMARK_INSTANCE_CREATED_EVENT,
     constants.WAYMARK_INSTANCE_DESTROYED_EVENT,

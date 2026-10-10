@@ -107,11 +107,15 @@ export async function waitForSettled(page) {
  *
  * @param {import("@playwright/test").Page} page
  * @param {string} name - kebab-case name for the screenshot (e.g. "api-view-mode")
+ * @param {string} [selector] - optional element selector; when given, capture
+ *   only that element instead of the full page
  */
-export async function screenshot(page, name) {
+export async function screenshot(page, name, selector) {
   await waitForSettled(page);
 
-  await page.screenshot({
+  const target = selector ? page.locator(selector) : page;
+
+  await target.screenshot({
     path: path.join(SCREENSHOT_DIR, `${name}.png`),
   });
 }

@@ -11,6 +11,12 @@ node_modules
 dist
 dist-ssr
 *.local
+.nuxt/
+.output/
+
+# Local environment (keep .env.example tracked)
+.env
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -28,8 +34,18 @@ test-results/
 playwright-report/
 coverage/
 
-# Joe Wordkflow
+# Local scratch files
 TASK.md
 NOTES.md
-.opencode
 docs/.generated
+
+# Documentation site build outputs (the published llms copies under
+# docs/public/ are tracked in version control)
+docs/public/screenshots/
+docs/public/waymark-logo.svg
+docs/server/assets/docs-pages/
+
+# The v1 docs archive serves its own library dist — re-include it (the bare
+# `dist` rule above would otherwise exclude it from version control)
+!docs/public/v1/dist/
+!docs/public/v1/dist/**

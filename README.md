@@ -1,9 +1,9 @@
 # Waymark JS
 
-> A headless GeoJSON runtime for MapLibre GL JS.
+> A GeoJSON editor for MapLibre GL JS.
 
 > [!WARNING]
-> **v2 (Alpha)** — APIs are unstable and subject to change.
+> **v2** — _Unstable._
 
 ## Overview
 
@@ -64,9 +64,9 @@ instance.on("waymark:feature.click", (event) => {
   console.log(feature.properties, lngLat);
 });
 
-// Call destroy() to remove Waymark-owned layers and listeners.
+// Call destroy() when finished to remove Waymark-owned layers and listeners.
 // The map itself stays yours to remove with map.remove().
-instance.destroy();
+// instance.destroy();
 ```
 
 ## Events
@@ -107,23 +107,26 @@ Runtime-enriched metadata (MapLibre source/layer IDs, lifecycle phase) is exclud
 ## Commands
 
 ```bash
-npm run dev           # Start the dev playground
-npm run build         # Build the library to dist/waymark.js
-npm run check:dist    # Assert the dist output shape (single bundle, bare maplibre-gl import, no CSS/worker/Vue)
-npm run format        # Format with Prettier
-npm run docs:sync     # Regenerate llms-full.txt; check docs contract and API doc sync
-npm run check:llms    # Fail if docs/llms-full.txt is stale
-npm test              # Unit tests (Vitest)
-npm run test:browser  # Browser tests (Playwright)
-npm run test:ci       # Full CI gate: format → llms check → docs sync → build → dist check → unit → browser tests
+npm run dev            # Start the dev playground
+npm run build          # Build the library to dist/waymark.js
+npm run check:dist     # Assert the dist output shape (single bundle, bare maplibre-gl import, no CSS/worker/Vue)
+npm run format         # Format with Prettier
+npm run docs:sync      # Regenerate llms-full.txt; check docs contract and API doc sync
+npm run check:llms     # Fail if docs/llms-full.txt or the docs/public copies are stale
+npm run docs:dev       # Serve the docs site locally (Nuxt dev server)
+npm run docs:generate  # Generate the static docs site to docs/.output/public
+npm test               # Unit tests (Vitest)
+npm run test:browser   # Browser tests (Playwright)
+npm run test:ci        # Full CI gate: format → llms check → docs sync → build → dist check → docs generate → unit → browser tests
 ```
 
 ## CI/CD
 
-Two GitHub Actions workflows automate the release pipeline:
+Three GitHub Actions workflows automate the release pipeline:
 
 - **CI** (`.github/workflows/ci.yml`) — validates every PR and push to `master` with the full `test:ci` gate.
-- **Release** (`.github/workflows/release.yml`) — when `package.json` version changes on `master`, creates a git tag and a GitHub Release with auto-generated release notes.
+- **Release** (`.github/workflows/release.yml`) — runs on every push to `master`; when the current `package.json` version has no existing tag, creates the tag and a GitHub Release with auto-generated release notes.
+- **Docs** (`.github/workflows/docs.yml`) — builds the Nuxt docs site on `master` and deploys it to GitHub Pages; published at <https://www.ogis.org/waymark-js/>.
 
 ![Waymark JS — development page](screenshots/dev-page.png)
 
@@ -133,5 +136,6 @@ Two GitHub Actions workflows automate the release pipeline:
 - [Development guide](docs/2.development.md) — Contributor workflow, conventions, and testing
 - [Instances](docs/3.instances.md) — Internal lifecycle and serialisation semantics
 - [Map injection](docs/4.map.md) — Ownership boundaries, mounting, and cleanup
-- [Data & GeoJSON](docs/6.data.md) — Layer contract, validation, and runtime behaviour
+- [Data & GeoJSON](docs/5.data.md) — Layer contract, validation, and runtime behaviour
+- [LLM-readable docs](docs/llms.txt) — Machine-readable index, with the [single-file bundle](docs/llms-full.txt), also published with the docs site
 - [Docs index](docs/README.md)
