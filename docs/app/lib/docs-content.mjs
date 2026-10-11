@@ -14,8 +14,8 @@
  *     heading so existing cross-page anchors keep resolving
  *   - GitHub alerts (NOTE/TIP/IMPORTANT/WARNING/CAUTION) become branded
  *     `.alert` callouts (see the OpenGIS branding stylesheet)
- *   - relative .md links become site routes; other relative hrefs that escape
- *     the site become GitHub blob URLs; llms.txt/llms-full.txt stay relative
+ *   - relative .md links become site routes; other relative hrefs become
+ *     GitHub blob URLs; llms.txt/llms-full.txt link to the site root
  *   - image embeds render as a semantic <figure> whose <figcaption> carries
  *     the markdown image title, or the alt text when no title is given
  *   - fenced code blocks with a known language are highlighted at build time
@@ -108,15 +108,12 @@ function withBase(baseURL, route) {
 }
 
 // Resolve a relative path from a docs page to a repository-relative path.
-// Resolution is anchored at docs/, then re-expressed from the repo root, so
-// both escapes (../src/x.js -> src/x.js) and repo-root refs (scripts/x.mjs ->
-// scripts/x.mjs) normalise to the path GitHub expects.
+// Resolution is anchored at docs/, so docs/-resident files keep their docs/
+// prefix (nuxt.config.js -> docs/nuxt.config.js) and escapes normalise to
+// repo-root paths (../src/x.js -> src/x.js), matching the path GitHub expects.
 function toRepoPath(href) {
   const resolved = path.posix.normalize(path.posix.join("docs", href));
-  const relative = resolved.startsWith("docs/")
-    ? resolved.slice("docs/".length)
-    : resolved;
-  return relative.replace(/^\.\//, "");
+  return resolved.replace(/^\.\//, "");
 }
 
 // Build a href rewriter bound to the route map and base URL.
@@ -134,7 +131,8 @@ function createHrefRewriter(routeMap, baseURL) {
     const mapped = routeMap.get(path.posix.normalize(target));
     if (mapped) return withBase(baseURL, mapped) + fragment;
 
-    if (LLMS_FILES.has(path.posix.basename(target))) return href;
+    if (LLMS_FILES.has(path.posix.basename(target)))
+      return withBase(baseURL, path.posix.basename(target)) + fragment;
 
     return `${REPO_BLOB}/${toRepoPath(target)}${fragment}`;
   };
