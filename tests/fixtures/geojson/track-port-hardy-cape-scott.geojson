@@ -5,7 +5,7 @@
       "type": "Feature",
       "properties": {
         "title": "Port Hardy to Cape Scott",
-        "image_large_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15b3.jpg",
+        "image_large_url": "/img/UNADJUSTEDNONRAW_thumb_15b3.jpg",
         "direction": "default",
         "waymarkType": "green"
       },

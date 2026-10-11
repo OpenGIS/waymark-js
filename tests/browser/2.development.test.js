@@ -148,14 +148,16 @@ test.describe("2. Development smoke", () => {
     await expect(image).toHaveCount(1);
     await expect(image).toHaveAttribute(
       "src",
-      "https://www.ogis.org/waymark-js/assets/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
+      "/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
     );
 
     // The image URL properties collapse into the image; they must never render
     // as raw URL text rows.
-    await expect(popup).not.toContainText("ogis.org");
+    await expect(popup).not.toContainText(
+      "/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
+    );
 
-    // The (remote) image must actually load, not just appear.
+    // The (local fixture) image must actually load, not just appear.
     await expect
       .poll(async () => image.evaluate((img) => img.naturalWidth), {
         timeout: 10_000,
@@ -226,9 +228,11 @@ test.describe("2. Development smoke", () => {
     await expect(image).toHaveCount(1);
     await expect(image).toHaveAttribute(
       "src",
-      "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15b3.jpg",
+      "/img/UNADJUSTEDNONRAW_thumb_15b3.jpg",
     );
-    await expect(popup).not.toContainText("ogis.org");
+    await expect(popup).not.toContainText(
+      "/img/UNADJUSTEDNONRAW_thumb_15b3.jpg",
+    );
 
     await expect
       .poll(async () => image.evaluate((img) => img.naturalWidth), {
@@ -328,9 +332,11 @@ test.describe("2. Development smoke", () => {
     await expect(image).toHaveCount(1);
     await expect(image).toHaveAttribute(
       "src",
-      "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
+      "/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
     );
-    await expect(popup).not.toContainText("ogis.org");
+    await expect(popup).not.toContainText(
+      "/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
+    );
 
     await expect
       .poll(async () => image.evaluate((img) => img.naturalWidth), {

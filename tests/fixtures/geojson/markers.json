@@ -9,9 +9,9 @@
       "type": "Feature",
       "properties": {
         "title": "The Scarlet Ibis",
-        "image_thumbnail_url": "https://www.ogis.org/waymark-js/assets/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
-        "image_medium_url": "https://www.ogis.org/waymark-js/assets/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
-        "image_large_url": "https://www.ogis.org/waymark-js/assets/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
+        "image_thumbnail_url": "/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
+        "image_medium_url": "/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
+        "image_large_url": "/img/49ECEB41-21DB-48D9-BCC0-FFA7FCD56448_1_105_c.jpeg",
         "description": "Good food and drink, especially after a long ride!",
         "waymarkType": "beer"
       }
@@ -46,9 +46,9 @@
       "type": "Feature",
       "properties": {
         "title": "Holberg Road",
-        "image_thumbnail_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15b9.jpg",
-        "image_medium_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15b9.jpg",
-        "image_large_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15b9.jpg",
+        "image_thumbnail_url": "/img/UNADJUSTEDNONRAW_thumb_15b9.jpg",
+        "image_medium_url": "/img/UNADJUSTEDNONRAW_thumb_15b9.jpg",
+        "image_large_url": "/img/UNADJUSTEDNONRAW_thumb_15b9.jpg",
         "description": "Holberg Road is an active *gravel* forestry road. Ride with extreme caution!",
         "waymarkType": "alert"
       }
@@ -61,9 +61,9 @@
       "type": "Feature",
       "properties": {
         "title": "Nahwitti Lake Recreation Site",
-        "image_thumbnail_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_14db.jpg",
-        "image_medium_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_14db.jpg",
-        "image_large_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_14db.jpg",
+        "image_thumbnail_url": "/img/UNADJUSTEDNONRAW_thumb_14db.jpg",
+        "image_medium_url": "/img/UNADJUSTEDNONRAW_thumb_14db.jpg",
+        "image_large_url": "/img/UNADJUSTEDNONRAW_thumb_14db.jpg",
         "waymarkType": "camp"
       }
     },
@@ -75,9 +75,9 @@
       "type": "Feature",
       "properties": {
         "title": "The Shoe Tree",
-        "image_thumbnail_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15a3.jpg",
-        "image_medium_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15a3.jpg",
-        "image_large_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15a3.jpg",
+        "image_thumbnail_url": "/img/UNADJUSTEDNONRAW_thumb_15a3.jpg",
+        "image_medium_url": "/img/UNADJUSTEDNONRAW_thumb_15a3.jpg",
+        "image_large_url": "/img/UNADJUSTEDNONRAW_thumb_15a3.jpg",
         "waymarkType": "photo"
       }
     },
@@ -113,9 +113,9 @@
       "type": "Feature",
       "properties": {
         "title": "San Josep Bay",
-        "image_thumbnail_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
-        "image_medium_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
-        "image_large_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
+        "image_thumbnail_url": "/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
+        "image_medium_url": "/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
+        "image_large_url": "/img/UNADJUSTEDNONRAW_thumb_15e1.jpg",
         "waymarkType": "photo"
       }
     },
@@ -137,9 +137,9 @@
       "type": "Feature",
       "properties": {
         "title": "Cape Scott Lighthouse",
-        "image_thumbnail_url": "https://www.ogis.org/waymark-js/assets/img/BF4ECCB4-10AD-4B31-80B2-FED86215FB85_1_105_c.jpeg",
-        "image_medium_url": "https://www.ogis.org/waymark-js/assets/img/BF4ECCB4-10AD-4B31-80B2-FED86215FB85_1_105_c.jpeg",
-        "image_large_url": "https://www.ogis.org/waymark-js/assets/img/BF4ECCB4-10AD-4B31-80B2-FED86215FB85_1_105_c.jpeg",
+        "image_thumbnail_url": "/img/BF4ECCB4-10AD-4B31-80B2-FED86215FB85_1_105_c.jpeg",
+        "image_medium_url": "/img/BF4ECCB4-10AD-4B31-80B2-FED86215FB85_1_105_c.jpeg",
+        "image_large_url": "/img/BF4ECCB4-10AD-4B31-80B2-FED86215FB85_1_105_c.jpeg",
         "waymarkType": "photo"
       }
     },
@@ -150,9 +150,9 @@
       },
       "type": "Feature",
       "properties": {
-        "image_thumbnail_url": "https://www.ogis.org/waymark-js/assets/img/A2301CA1-5C06-4FB3-A85D-304682727C30_1_105_c.jpeg",
-        "image_medium_url": "https://www.ogis.org/waymark-js/assets/img/A2301CA1-5C06-4FB3-A85D-304682727C30_1_105_c.jpeg",
-        "image_large_url": "https://www.ogis.org/waymark-js/assets/img/A2301CA1-5C06-4FB3-A85D-304682727C30_1_105_c.jpeg",
+        "image_thumbnail_url": "/img/A2301CA1-5C06-4FB3-A85D-304682727C30_1_105_c.jpeg",
+        "image_medium_url": "/img/A2301CA1-5C06-4FB3-A85D-304682727C30_1_105_c.jpeg",
+        "image_large_url": "/img/A2301CA1-5C06-4FB3-A85D-304682727C30_1_105_c.jpeg",
         "waymarkType": "photo"
       }
     },
@@ -164,9 +164,9 @@
       "type": "Feature",
       "properties": {
         "title": "Nahwitti Lake",
-        "image_thumbnail_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_16e9.jpg",
-        "image_medium_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_16e9.jpg",
-        "image_large_url": "https://www.ogis.org/waymark-js/assets/img/UNADJUSTEDNONRAW_thumb_16e9.jpg",
+        "image_thumbnail_url": "/img/UNADJUSTEDNONRAW_thumb_16e9.jpg",
+        "image_medium_url": "/img/UNADJUSTEDNONRAW_thumb_16e9.jpg",
+        "image_large_url": "/img/UNADJUSTEDNONRAW_thumb_16e9.jpg",
         "waymarkType": "photo"
       }
     }
