@@ -1077,7 +1077,7 @@ Implementation references:
 
 ## Dev example reference
 
-The dev playground (`dev/dev.js`) creates its own MapLibre map on the `#map` container (OpenFreeMap Bright style, initial centre on Holberg), registers an inline `photo-marker` PNG via `map.loadImage` + `map.addImage` before injecting the map, then calls `createInstance({ map, document })`. It loads one initial InstanceDocument from `/route.json` plus four GeoJSON layers (`track-north-island.geojson`, `track-port-hardy-cape-scott.geojson`, `markers.json`, `shapes.json`) from `/geojson/`. Those files live under `tests/fixtures/` — the single source of truth for the dev harness and the browser tests, served by pointing `vite.config.dev.js`'s `publicDir` at that directory. The route config gives every type a `title` (including the `area` fill type) and maps `photo` to the `photo-marker` icon; the GeoJSON fixtures carry `waymarkType` only (the legacy duplicated `type` property has been removed). `shapes.json` adds a single `area`-typed Polygon that carries only `image_medium_url`, exercising the popup fallback. The big route line is `track-port-hardy-cape-scott`, and Holberg (the pub "The Scarlet Ibis") is the demo-closeup anchor. Its toolbar controls call `instance.data.addLayer(...)`, `instance.data.fitBounds()`, `instance.types.setVisibility(...)`, and `instance.debug.setEnabled(...)`.
+The dev playground (`dev/dev.js`) creates its own MapLibre map on the `#map` container (the vendored OpenGIS basemap style served at `/basemap/style.json`, initial centre on Holberg, `fadeDuration: 0`), registers an inline `photo-marker` PNG via `map.loadImage` + `map.addImage` before injecting the map, then calls `createInstance({ map, document })`. It loads one initial InstanceDocument from `/route.json` plus four GeoJSON layers (`track-north-island.geojson`, `track-port-hardy-cape-scott.geojson`, `markers.json`, `shapes.json`) from `/geojson/`. Those files live under `tests/fixtures/` — the single source of truth for the dev harness and the browser tests, served by pointing `vite.config.dev.js`'s `publicDir` at that directory. The route config gives every type a `title` (including the `area` fill type) and maps `photo` to the `photo-marker` icon; the GeoJSON fixtures carry `waymarkType` only (the legacy duplicated `type` property has been removed). `shapes.json` adds a single `area`-typed Polygon that carries only `image_medium_url`, exercising the popup fallback. The big route line is `track-port-hardy-cape-scott`, and Holberg (the pub "The Scarlet Ibis") is the demo-closeup anchor. Its toolbar controls call `instance.data.addLayer(...)`, `instance.data.fitBounds()`, `instance.types.setVisibility(...)`, and `instance.debug.setEnabled(...)`.
 
 Adding a layer calls:
 
@@ -1278,10 +1278,11 @@ For module-level behaviour, update these docs alongside runtime changes:
 6. Preview and build the docs site: `npm run docs:dev` (Nuxt dev server; defaults to `http://localhost:3000`) and `npm run docs:generate` (builds the deployable static site to `docs/.output/public`)
 7. Run unit tests: `npm test`
 8. Build and verify the dist output: `npm run build && npm run check:dist`
-9. Run browser tests: `npm run test:browser`
-10. Run the full CI gate locally: `npm run test:ci` (format check → llms bundle check → docs sync → build → dist check → docs generate → unit tests → browser tests).
+9. Run functional browser tests: `npm run test:browser`
+10. Regenerate the committed screenshots after an intentional visual change: `npm run screenshots`; verify byte-identity without touching the committed set: `npm run screenshots:verify`. Refresh the vendored basemap fixture — a deliberate, network-touching act — with `npm run fixtures:refresh` (see [Screenshots](#screenshots)).
+11. Run the full CI gate locally: `npm run test:ci` (format check → llms bundle check → docs sync → build → dist check → docs generate → unit tests → browser tests).
 
-`npm run test:browser` boots a dedicated Playwright Vite server on `127.0.0.1:4173` with `--strictPort`, so browser tests are deterministic even when your normal dev port is occupied. Browser tests import `src/entry.js` directly — the built bundle is verified separately by `npm run check:dist` and the Vitest dist smoke test. `playwright.config.js` pins `workers: 1` and `retries: 1` because the suite includes WebGL/shader and remote-network-dependent map tests that flake under parallel workers; single-worker execution was verified fully green.
+`npm run test:browser` boots a dedicated Playwright Vite server on `127.0.0.1:4173` with `--strictPort`, so browser tests are deterministic even when your normal dev port is occupied. Browser tests import `src/entry.js` directly — the built bundle is verified separately by `npm run check:dist` and the Vitest dist smoke test. `playwright.config.js` pins `workers: 1` and `retries: 1` because the suite includes WebGL/shader map tests that flake under parallel workers; single-worker execution was verified fully green. `npm run test:browser` runs the `functional` project only — committed pixels are captured by the separate `screenshots` project (see [Screenshots](#screenshots)) — and both projects run fully offline against the vendored basemap fixture.
 
 `npm run docs:sync` chains `node scripts/llms-full.mjs`, `npm run docs:contract`, and `npm run docs:api-sync` (which runs `api:contract` first). The generator step rebuilds [`docs/llms-full.txt`](llms-full.txt) — the full content of every doc linked in [`docs/llms.txt`](llms.txt), concatenated into one file for single-fetch consumption. Both `docs/llms.txt` and `docs/llms-full.txt` are also published as tracked, byte-for-byte copies under `docs/public/` for repository indexing; `docs:sync` refreshes those copies and `npm run check:llms` verifies them. `test:ci` runs the generator in check mode first (`npm run check:llms`), so a stale committed bundle fails the gate before `docs:sync` regenerates it. No root `SKILL.md` is generated; consumer-facing agent docs follow the llms.txt convention and are distributed with the docs GitHub Pages deploy (see [Docs site](#docs-site)).
 
@@ -1357,8 +1358,12 @@ Guidance for future sync features:
 - `tests/docs/*.test.js` (Vitest + jsdom): API contract tests without WebGL.
 - `tests/docs/runtime/createInstanceState.test.js`: runtime-state module contract (`getSnapshot`, command dispatch, scoped/global state events, no-op behaviour).
 - `tests/docs/dist.smoke.test.js`: imports the built `dist/waymark.js` with `maplibre-gl` mocked, asserting `createInstance` exists and constructs `LngLatBounds` through the mock. It skips cleanly when `dist/` is absent and runs for real in `test:ci`, which builds first.
-- `tests/browser/*.test.js` (Playwright): browser API and dev-page smoke. `1.api.test.js` covers feature interaction events (click/hover/leave detail, hover suppression, leave semantics, destroy cleanup) and the API screenshot specs; those specs fetch the shared fixtures (`/geojson/markers.json`, `/geojson/track-port-hardy-cape-scott.geojson`, `/geojson/shapes.json`, `/geojson/sample-point.geojson`) from the dev server. `2.development.test.js` covers the dev page: initial render, adding a layer, the consumer-side property-inspector popup (title, image, property rows), the marker/line/shape image fallbacks (thumbnail → medium → large), line and shape popup anchoring at the click location, and type visibility toggling.
-- `tests/browser/helpers/screenshot.js`: shared capture helper. `screenshot(page, name)` awaits `waitForSettled(page)` before capturing; `waitForSettled` runs bounded waits for network idle, every `window.waymarkMaps` map to be idle with tiles loaded, every `<img>` to be complete and decoded, `document.fonts.ready`, and two animation frames. This prevents blank or partially painted captures when tiles, images, or fonts arrive late. Screenshots are written to `screenshots/` at the repo root.
+- `tests/browser/*.test.js` (Playwright, `functional` project): browser API and dev-page functional smoke. `1.api.test.js` covers feature interaction events (click/hover/leave detail, hover suppression, leave semantics, destroy cleanup) and the `Screenshot scenes` assertions, which mount the capture scenes and assert render evidence (feature counts, polygon framing, per-family filters) without writing pixels; its specs fetch the shared fixtures (`/geojson/markers.json`, `/geojson/track-port-hardy-cape-scott.geojson`, `/geojson/shapes.json`, `/geojson/sample-point.geojson`) from the dev server. `2.development.test.js` covers the dev page: initial render (including ODbL attribution visibility), adding a layer, the consumer-side property-inspector popup (title, image, property rows), the marker/line/shape image fallbacks (thumbnail → medium → large), line and shape popup anchoring at the click location, and type visibility toggling.
+- `tests/browser/screenshots.spec.js` (Playwright, `screenshots` project): the seven committed captures, rendered under the fixed-point capture protocol — see [Screenshots](#screenshots).
+- `tests/browser/helpers/scenes.js`: shared page-driven scene builders used by both the functional specs and the screenshots spec, so assertions and committed pixels exercise identical scenes.
+- `tests/browser/helpers/test.js`: Playwright `test`/`expect` extended with the external-request guard — every test context blocks non-localhost http(s) requests and fails the test naming the offending URL.
+- `tests/browser/helpers/screenshot.js`: fixed-point capture helper (`screenshot(page, name, selector?)`), the settle gate (`waitForSettled`), the safe-output guard and `SCREENSHOT_OUT_DIR` redirection — see [Screenshots](#screenshots).
+- `tests/docs/basemap/*.test.js`: unit tests pinning the vendored basemap fixture — tile enumeration, generator host policy, manifest integrity, and the serving middleware contract.
 
 `npm run check:dist` statically asserts the built output: `dist/` contains only `waymark.js`, the bundle imports `maplibre-gl` as a bare external, and there is no base64 worker blob, no CSS and no Vue markers. `test:ci` runs it after `npm run build`.
 
@@ -1366,7 +1371,7 @@ Use jsdom tests to validate API contract behaviour, not as proof of non-browser 
 
 ## Dev page setup
 
-The development playground lives under `dev/` as a vanilla ES module app (`dev/index.html`, `dev/dev.js`). Its data is the shared fixture set under `tests/fixtures/` — the single source of truth for the dev harness and the browser tests. `vite.config.dev.js` points `publicDir` at `tests/fixtures`, so the dev server serves the north Vancouver Island demo fixtures at `/`: `route.json` (config) and `geojson/` data. `dev/dev.js` imports `maplibre-gl/dist/maplibre-gl.css` (MapLibre requires its stylesheet for popup positioning), creates its own MapLibre map on `#map` (OpenFreeMap Bright style, initial centre on Holberg), and injects it via `createInstance({ map, document })`, booting one instance from `/route.json` plus four GeoJSON layers (`track-north-island.geojson`, `track-port-hardy-cape-scott.geojson`, `markers.json`, `shapes.json`) from `/geojson/`. It also fetches `/geojson/sample-point.geojson` for the add-layer control.
+The development playground lives under `dev/` as a vanilla ES module app (`dev/index.html`, `dev/dev.js`). Its data is the shared fixture set under `tests/fixtures/` — the single source of truth for the dev harness and the browser tests. `vite.config.dev.js` points `publicDir` at `tests/fixtures`, so the dev server serves the north Vancouver Island demo fixtures at `/`: `route.json` (config) and `geojson/` data. `dev/dev.js` imports `maplibre-gl/dist/maplibre-gl.css` (MapLibre requires its stylesheet for popup positioning), creates its own MapLibre map on `#map` (the vendored OpenGIS basemap style served at `/basemap/style.json`, initial centre on Holberg, `fadeDuration: 0`), and injects it via `createInstance({ map, document })`, booting one instance from `/route.json` plus four GeoJSON layers (`track-north-island.geojson`, `track-port-hardy-cape-scott.geojson`, `markers.json`, `shapes.json`) from `/geojson/`. It also fetches `/geojson/sample-point.geojson` for the add-layer control. The vendored style and the `/__basemap__/**` middleware make the dev harness fully offline — no live basemap requests (see [Screenshots](#screenshots)).
 
 ![Development page with the four initial fixture layers](../screenshots/dev-page.png)
 
@@ -1509,21 +1514,56 @@ Sync checklist:
 
 ## Screenshots
 
-Browser tests capture screenshots as visual evidence of key application states. They are written to `screenshots/` at the repo root (tracked in git) by `tests/browser/helpers/screenshot.js`.
+The browser suite commits seven PNG screenshots as visual evidence — three API-page captures and four dev-page captures — under `screenshots/` at the repo root (tracked in git and published with the docs site). Playwright splits them from the functional suite with two projects (`playwright.config.js`):
 
-Every capture is settle-aware: `screenshot()` awaits the shared `waitForSettled(page)` helper before capturing. The helper runs bounded waits for network idle, every registered `window.waymarkMaps` map to be idle with tiles loaded, every `<img>` to be complete and decoded, `document.fonts.ready`, and two animation frames. This prevents blank or partially painted captures when tiles, images, or fonts arrive late.
+| Project       | Scope                                                                                  |
+| ------------- | -------------------------------------------------------------------------------------- |
+| `functional`  | All assertions (`1.api.test.js`, `2.development.test.js`); renders no committed pixels |
+| `screenshots` | The seven committed captures (`screenshots.spec.js`) under the pinned capture protocol |
 
-### API tests (`/browser-api.html`)
+- `npm run test:browser` runs the `functional` project only.
+- `npm run screenshots` regenerates the committed set into `screenshots/`.
+- `npm run screenshots:verify` regenerates into the throwaway `test-results/screenshots-verify/`, SHA-256-compares every file against the committed set (writing `report.json`), and exits non-zero on any mismatch, keeping the captures for inspection. It is deliberately not part of `test:ci`.
 
-The API screenshot specs load the shared fixtures over the dev server (`markers.json`, `track-port-hardy-cape-scott.geojson`, `shapes.json`) and frame them on a Holberg closeup (centre `[-128.0145, 50.6525]`, zoom 14) so the point, line, and polygon all sit in frame.
+A safe-output guard in `tests/browser/helpers/screenshot.js` refuses to write into the tracked `screenshots/` directory from a headed run or the wrong project; setting `SCREENSHOT_OUT_DIR` redirects captures elsewhere (the verify script uses this).
 
-| Screenshot             | What it shows                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| `api-quick-start`      | Injected map with a GeoJSON layer (demo markers) rendered on OpenFreeMap tiles |
-| `api-geojson-families` | Circle (point), line, and fill (polygon) geometry families rendered            |
-| `api-geojson-mixed`    | Point, line, and polygon sublayers from one mixed FeatureCollection            |
+### Capture protocol
 
-### Development page (`/` — dev server)
+Capture is fixed-point, not timed. `screenshot(page, name, selector?)` first awaits the shared `waitForSettled(page)` gate — bounded waits for network idle, every registered `window.waymarkMaps` map to be idle with tiles loaded, every `<img>` complete and decoded, `document.fonts.ready`, and two animation frames. It then accepts a frame only when three consecutive lossless PNG frames are byte-identical. Each round forces a render (`map.redraw()` plus the `render` event, then two animation frames) and toggles a full-viewport magenta probe overlay: a frame that fails to reflect the probe proves the compositor served a stale surface, and the round is discarded. Rounds are bounded; on exhaustion the helper throws rather than writing an unstable image — no tolerance and no fallback.
+
+The scene builders in `tests/browser/helpers/scenes.js` gate capture readiness: the dev page waits until every mounted Waymark symbol layer's `icon-image` is registered, and the API scenes poll until their features have painted and the map is idle. Both the functional specs and the screenshots spec reuse the same builders, so committed pixels and functional assertions cannot drift apart.
+
+### Deterministic rendering
+
+The `screenshots` project pins the render path in `playwright.config.js`: bundled-Chromium SwiftShader launch flags, locale `en-CA`, timezone `America/Vancouver`, `colorScheme: "light"`, `reducedMotion: "no-preference"`, a 1280×720 viewport and `deviceScaleFactor: 1`. Captured maps pass `fadeDuration: 0` so symbol/icon fade cannot settle mid-transition. MapLibre popups are stabilised against a compositor promotion quirk — the stylesheet's `will-change: transform` promotes the popup to its own compositing layer at a fractional offset, which resamples non-deterministically — by overriding it to `auto` before capture. Re-verify this on any `maplibre-gl` upgrade.
+
+A single-thread `SwiftShader.ini` pin is written by the Playwright global setup and removed by the teardown for invocations that include the `screenshots` project; functional-only runs never receive it. Keep it as a precaution, but note it was empirically inert on the baseline machine: byte stability comes from the capture protocol and harness fixes above, not from the pin.
+
+### Offline test environment (vendored basemap)
+
+The dev harness and both browser suites run fully offline. `tests/fixtures/basemap/` holds a generated, origin-free slice of the OpenGIS basemap: a canonical `style.json`, a `site.manifest.json` recording per-file provenance (source, bytes, sha256, licence note), and the `site/**` asset tree. The style is served by the existing `publicDir` mapping at `/basemap/style.json`; tiles, glyphs and sprite are served from `/__basemap__/**` by a small Vite middleware — a missing tile or glyph returns an empty 200 so MapLibre stays quiet, while a missing sprite returns a loud 404.
+
+`npm run fixtures:refresh` regenerates the fixture as a deliberate act: it fetches the live style from the canonical host, allow-lists committable hosts (aborting loudly on anything else), rewrites asset URLs to root-relative local form, inlines the tile template and zoom range (no runtime descriptor fetch), vendors glyph range `0-255` for the declared fontstacks plus the 1× sprite, records provenance in the manifest, and prunes stale files. The full z0–14 pyramid is kept by explicit decision, bounded by the demo-area envelope (the seven capture viewports plus one tile of padding) and a `MAX_TILE_COUNT = 5000` generator guard; the tree is around 22 MB. Attribution is preserved verbatim and carried from the TileJSON onto the inlined source — it must remain visible in rendered captures.
+
+The suite enforces the guarantee: every test context installs a context-level route (`tests/browser/helpers/test.js`) that blocks every non-localhost http(s) request and fails the test naming the offending URL, so a live basemap dependency cannot creep back in.
+
+### Byte-identity scope and re-baselining
+
+Regeneration is byte-identical for the same macOS major version, CPU architecture and pinned configuration. Cross-platform (Linux) identity is explicitly not targeted; the macOS identity workflow is the environment-drift canary (see [CI/CD automation](#cicd-automation)).
+
+Re-baselining is a deliberate act: run `npm run screenshots`, review the image diff, then run `npm run screenshots:verify`. A macOS major upgrade, a `SwiftShader`-affecting browser change, or a move of the identity workflow to another architecture is a re-baseline event, not a bug.
+
+### Capture set
+
+API captures (`/browser-api.html`) load the shared fixtures over the dev server (`markers.json`, `track-port-hardy-cape-scott.geojson`, `shapes.json`) and frame a Holberg closeup (centre `[-128.0145, 50.6525]`, zoom 14) on the 640×360 `#map` element so the point, line, and polygon all sit in frame.
+
+| Screenshot             | What it shows                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `api-quick-start`      | Injected map with a GeoJSON layer (demo markers) rendered on the vendored basemap |
+| `api-geojson-families` | Circle (point), line, and fill (polygon) geometry families rendered               |
+| `api-geojson-mixed`    | Point, line, and polygon sublayers from one mixed FeatureCollection               |
+
+Dev-page captures (`/`) render the full 1280×720 viewport:
 
 | Screenshot        | What it shows                                                               |
 | ----------------- | --------------------------------------------------------------------------- |
@@ -1554,11 +1594,12 @@ The **Deploy docs** workflow (`.github/workflows/docs.yml`) publishes the site: 
 
 ## CI/CD automation
 
-Three GitHub Actions workflows automate the release pipeline:
+Four GitHub Actions workflows automate the release pipeline:
 
-- **CI** (`.github/workflows/ci.yml`) — runs `npm run test:ci` on PRs and pushes to `master`.
+- **CI** (`.github/workflows/ci.yml`) — runs `npm run test:ci` on PRs and pushes to `master`. The browser leg is the `functional` project only: it renders no committed pixels and the suite has no live basemap dependency.
 - **Release** (`.github/workflows/release.yml`) — runs on every push to `master`; when the current `package.json` version has no existing git tag, it creates the tag and a GitHub Release with auto-generated release notes.
 - **Deploy docs** (`.github/workflows/docs.yml`) — builds the Nuxt docs site and deploys it to GitHub Pages on `master` pushes that touch docs inputs (see [Docs site](#docs-site)).
+- **Screenshots identity** (`.github/workflows/screenshots.yml`) — runs `npm run screenshots:verify` on `macos-15-intel` (the baseline machine's architecture) for path-filtered pushes to `master` and manual dispatch, and uploads `test-results/screenshots-verify/` on failure. It is the environment-drift canary: if the report shows all files differing, suspect environment drift; a subset differing more likely indicates a genuine rendering change. `screenshots:verify` is deliberately not part of `test:ci`. Note the runner caveat: GitHub's x86_64 macOS images are deprecated upstream and retire in August 2027; moving the job to arm64 will be a deliberate re-baseline event (see [Byte-identity scope and re-baselining](#byte-identity-scope-and-re-baselining)).
 
 ---
 

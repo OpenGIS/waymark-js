@@ -107,26 +107,30 @@ Runtime-enriched metadata (MapLibre source/layer IDs, lifecycle phase) is exclud
 ## Commands
 
 ```bash
-npm run dev            # Start the dev playground
-npm run build          # Build the library to dist/waymark.js
-npm run check:dist     # Assert the dist output shape (single bundle, bare maplibre-gl import, no CSS/worker/Vue)
-npm run format         # Format with Prettier
-npm run docs:sync      # Regenerate llms-full.txt; check docs contract and API doc sync
-npm run check:llms     # Fail if docs/llms-full.txt or the docs/public copies are stale
-npm run docs:dev       # Serve the docs site locally (Nuxt dev server)
-npm run docs:generate  # Generate the static docs site to docs/.output/public
-npm test               # Unit tests (Vitest)
-npm run test:browser   # Browser tests (Playwright)
-npm run test:ci        # Full CI gate: format → llms check → docs sync → build → dist check → docs generate → unit → browser tests
+npm run dev                # Start the dev playground
+npm run build              # Build the library to dist/waymark.js
+npm run check:dist         # Assert the dist output shape (single bundle, bare maplibre-gl import, no CSS/worker/Vue)
+npm run format             # Format with Prettier
+npm run fixtures:refresh   # Regenerate the vendored basemap fixtures (fetches live assets; deliberate act)
+npm run docs:sync          # Regenerate llms-full.txt; check docs contract and API doc sync
+npm run check:llms         # Fail if docs/llms-full.txt or the docs/public copies are stale
+npm run docs:dev           # Serve the docs site locally (Nuxt dev server)
+npm run docs:generate      # Generate the static docs site to docs/.output/public
+npm test                   # Unit tests (Vitest)
+npm run test:browser       # Functional browser tests (Playwright)
+npm run screenshots        # Regenerate the committed browser screenshots
+npm run screenshots:verify # Regenerate into test-results/ and byte-compare against the committed set
+npm run test:ci            # Full CI gate: format → llms check → docs sync → build → dist check → docs generate → unit → browser tests
 ```
 
 ## CI/CD
 
-Three GitHub Actions workflows automate the release pipeline:
+Four GitHub Actions workflows automate the release pipeline:
 
-- **CI** (`.github/workflows/ci.yml`) — validates every PR and push to `master` with the full `test:ci` gate.
+- **CI** (`.github/workflows/ci.yml`) — validates every PR and push to `master` with the full `test:ci` gate (functional browser tests only; no committed pixels).
 - **Release** (`.github/workflows/release.yml`) — runs on every push to `master`; when the current `package.json` version has no existing tag, creates the tag and a GitHub Release with auto-generated release notes.
 - **Docs** (`.github/workflows/docs.yml`) — builds the Nuxt docs site on `master` and deploys it to GitHub Pages; published at <https://www.ogis.org/waymark-js/>.
+- **Screenshots identity** (`.github/workflows/screenshots.yml`) — regenerates the committed screenshots on `macos-15-intel` and byte-compares them against the committed set as an environment-drift canary; uploads the verify report on failure.
 
 ![Waymark JS — development page](screenshots/dev-page.png)
 

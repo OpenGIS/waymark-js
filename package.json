@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "vite --config vite.config.dev.js --host 0.0.0.0",
     "dev:browser-tests": "vite --config vite.config.dev.js --host 127.0.0.1 --port 4173 --strictPort",
+    "fixtures:refresh": "node tests/fixtures/basemap/refresh.mjs",
     "build": "vite build --config vite.config.lib.js",
     "check:dist": "node scripts/check-dist.mjs",
     "check:llms": "node scripts/llms-full.mjs --check",
@@ -27,7 +28,9 @@
     "docs:generate": "nuxt generate docs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:browser": "playwright test",
+    "test:browser": "playwright test --project=functional",
+    "screenshots": "playwright test --project=screenshots",
+    "screenshots:verify": "node scripts/verify-screenshots.mjs",
     "test:coverage": "vitest run --coverage",
     "test:ci": "npm run format:check && npm run check:llms && npm run docs:sync && npm run build && npm run check:dist && npm run docs:generate && npm test && npm run test:browser"
   },

@@ -1,5 +1,10 @@
-import { expect, test } from "@playwright/test";
-import { screenshot } from "./helpers/screenshot.js";
+import { expect, test } from "./helpers/test.js";
+import {
+  HOLBERG_CLOSEUP,
+  mountFamilies,
+  mountMixed,
+  mountQuickStart,
+} from "./helpers/scenes.js";
 
 const INLINE_STYLE = {
   version: 8,
@@ -1002,156 +1007,18 @@ test.describe("1. API", () => {
     });
   });
 
-  test.describe("Screenshots", () => {
-    const apiDefaultVector = {
-      title: "OpenFreeMap Bright",
-      styleURL: "https://tiles.openfreemap.org/styles/bright",
-    };
-
-    // Explicit closeup over the Holberg / San Josef demo area so the point,
-    // the track line and the ~494 m "Cape Scott trail area" polygon all sit
-    // comfortably in frame on the 640×360 API canvas. The centre is pulled
-    // west and south of the raw demo centroid so the polygon clears the bottom
-    // edge; at z14 it projects to ~163 px wide (494 m / (78271.5 · cos 50.65° / 2^14)).
-    const HOLBERG_CLOSEUP = { center: [-128.0145, 50.6525], zoom: 14 };
-
-    test("api-quick-start — injected map with a GeoJSON layer", async ({
+  test.describe("Screenshot scenes", () => {
+    test("quick start — injected map with a GeoJSON layer", async ({
       page,
     }) => {
-      const mounted = await page.evaluate(async (styleURL) => {
-        const markers = await fetch("/geojson/markers.json").then((response) =>
-          response.json(),
-        );
-
-        const map = window.waymarkFixture.makeMap({
-          id: "map",
-          style: styleURL,
-          center: [-127.85, 50.7],
-          zoom: 9,
-        });
-
-        const instance = window.waymarkFixture.createInstance({
-          map,
-          document: {
-            config: { id: "map" },
-            data: { layers: [{ data: markers }] },
-          },
-        });
-
-        if (!map.loaded()) {
-          await new Promise((resolve) => map.once("load", resolve));
-        }
-
-        instance.data.fitBounds();
-
-        // Bounded poll until the point family has painted at least one feature,
-        // so the capture cannot catch an unmounted layer.
-        return await new Promise((resolve) => {
-          const startedAt = Date.now();
-
-          const check = () => {
-            const rendered = map.queryRenderedFeatures({
-              layers: ["waymark-map-geojson-layer-0-circle"],
-            }).length;
-
-            if (rendered > 0 || Date.now() - startedAt > 5_000) {
-              resolve({ rendered, markerCount: markers.features.length });
-              return;
-            }
-
-            setTimeout(check, 50);
-          };
-
-          check();
-        });
-      }, apiDefaultVector.styleURL);
+      const mounted = await mountQuickStart(page);
 
       expect(mounted.rendered).toBeGreaterThanOrEqual(1);
       await expect(page.locator("#map canvas")).toBeVisible();
-      await screenshot(page, "api-quick-start", "#map");
     });
 
-    test("api-geojson-families — circle, line, fill layers", async ({
-      page,
-    }) => {
-      const evidence = await page.evaluate(
-        async ({ styleURL, closeup }) => {
-          const [markers, track, shapes] = await Promise.all([
-            fetch("/geojson/markers.json").then((response) => response.json()),
-            fetch("/geojson/track-port-hardy-cape-scott.geojson").then(
-              (response) => response.json(),
-            ),
-            fetch("/geojson/shapes.json").then((response) => response.json()),
-          ]);
-
-          const map = window.waymarkFixture.makeMap({
-            id: "map",
-            style: styleURL,
-            center: closeup.center,
-            zoom: closeup.zoom,
-          });
-
-          window.waymarkFixture.createInstance({
-            map,
-            document: {
-              config: { id: "map" },
-              data: {
-                layers: [{ data: markers }, { data: track }, { data: shapes }],
-              },
-            },
-          });
-
-          await new Promise((resolve) => {
-            let settled = false;
-            const settle = () => {
-              if (settled) {
-                return;
-              }
-              settled = true;
-              resolve();
-            };
-
-            if (map.loaded() && map.areTilesLoaded() && !map.isMoving()) {
-              settle();
-              return;
-            }
-
-            map.once("idle", settle);
-            setTimeout(settle, 10_000);
-          });
-
-          const ring = shapes.features[0].geometry.coordinates[0];
-          const lngs = ring.map((position) => position[0]);
-          const lats = ring.map((position) => position[1]);
-          const midLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-          const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-          const west = map.project([Math.min(...lngs), midLat]);
-          const east = map.project([Math.max(...lngs), midLat]);
-          const north = map.project([midLng, Math.max(...lats)]);
-          const south = map.project([midLng, Math.min(...lats)]);
-          const container = map.getContainer();
-
-          return {
-            polygonWidth: Math.abs(east.x - west.x),
-            polygonHeight: Math.abs(south.y - north.y),
-            polygonBox: {
-              left: west.x,
-              right: east.x,
-              top: north.y,
-              bottom: south.y,
-            },
-            canvas: {
-              width: container.clientWidth,
-              height: container.clientHeight,
-            },
-            renderedFill: map.queryRenderedFeatures({
-              layers: ["waymark-map-geojson-layer-2-fill"],
-            }).length,
-            zoom: map.getZoom(),
-          };
-        },
-        { styleURL: apiDefaultVector.styleURL, closeup: HOLBERG_CLOSEUP },
-      );
+    test("geojson families — circle, line, fill layers", async ({ page }) => {
+      const evidence = await mountFamilies(page);
 
       // Guard against a region-wide fit: the 494 m polygon must read as a
       // visible shape, not a few pixels, and sit fully inside the canvas.
@@ -1169,116 +1036,10 @@ test.describe("1. API", () => {
       expect(evidence.zoom).toBeCloseTo(HOLBERG_CLOSEUP.zoom, 1);
 
       await expect(page.locator("#map canvas")).toBeVisible();
-      await screenshot(page, "api-geojson-families", "#map");
     });
 
-    test("api-geojson-mixed — mixed FeatureCollection", async ({ page }) => {
-      const result = await page.evaluate(
-        async ({ styleURL, closeup }) => {
-          const [markers, track, shapes] = await Promise.all([
-            fetch("/geojson/markers.json").then((response) => response.json()),
-            fetch("/geojson/track-port-hardy-cape-scott.geojson").then(
-              (response) => response.json(),
-            ),
-            fetch("/geojson/shapes.json").then((response) => response.json()),
-          ]);
-
-          const mixed = {
-            type: "FeatureCollection",
-            features: [
-              markers.features[0],
-              track.features[0],
-              shapes.features[0],
-            ],
-          };
-
-          const map = window.waymarkFixture.makeMap({
-            id: "map",
-            style: styleURL,
-            center: closeup.center,
-            zoom: closeup.zoom,
-          });
-
-          const instance = window.waymarkFixture.createInstance({
-            map,
-            document: {
-              config: { id: "map" },
-              data: { layers: [{ data: mixed }] },
-            },
-          });
-
-          await new Promise((resolve) => {
-            let settled = false;
-            const settle = () => {
-              if (settled) {
-                return;
-              }
-              settled = true;
-              resolve();
-            };
-
-            if (map.loaded() && map.areTilesLoaded() && !map.isMoving()) {
-              settle();
-              return;
-            }
-
-            map.once("idle", settle);
-            setTimeout(settle, 10_000);
-          });
-
-          const authored = instance.toJSON().data.layers[0].data;
-
-          const geometryTypesRenderedFor = (layerId) => [
-            ...new Set(
-              map
-                .queryRenderedFeatures({ layers: [layerId] })
-                .map((feature) => feature.geometry?.type)
-                .filter(Boolean),
-            ),
-          ];
-
-          return {
-            geometryTypes: mixed.features.map(
-              (feature) => feature.geometry.type,
-            ),
-            authoredCount: authored.features.length,
-            filters: {
-              circle:
-                map.getLayer("waymark-map-geojson-layer-0-circle")?.filter ??
-                null,
-              line:
-                map.getLayer("waymark-map-geojson-layer-0-line")?.filter ??
-                null,
-              fill:
-                map.getLayer("waymark-map-geojson-layer-0-fill")?.filter ??
-                null,
-            },
-            rendered: {
-              circle: map.queryRenderedFeatures({
-                layers: ["waymark-map-geojson-layer-0-circle"],
-              }).length,
-              line: map.queryRenderedFeatures({
-                layers: ["waymark-map-geojson-layer-0-line"],
-              }).length,
-              fill: map.queryRenderedFeatures({
-                layers: ["waymark-map-geojson-layer-0-fill"],
-              }).length,
-            },
-            renderedGeometryTypes: {
-              circle: geometryTypesRenderedFor(
-                "waymark-map-geojson-layer-0-circle",
-              ),
-              line: geometryTypesRenderedFor(
-                "waymark-map-geojson-layer-0-line",
-              ),
-              fill: geometryTypesRenderedFor(
-                "waymark-map-geojson-layer-0-fill",
-              ),
-            },
-          };
-        },
-        { styleURL: apiDefaultVector.styleURL, closeup: HOLBERG_CLOSEUP },
-      );
+    test("geojson mixed — mixed FeatureCollection", async ({ page }) => {
+      const result = await mountMixed(page);
 
       // The assembled FeatureCollection must be exactly one point, one line
       // and one polygon, and every family layer must have rendered at least
@@ -1316,7 +1077,6 @@ test.describe("1. API", () => {
       ).toBe(true);
 
       await expect(page.locator("#map canvas")).toBeVisible();
-      await screenshot(page, "api-geojson-mixed", "#map");
     });
   });
 

@@ -25,6 +25,7 @@
       import "maplibre-gl/dist/maplibre-gl.css";
       import { createInstance } from "../src/entry.js";
       import { getCoreByMap } from "../src/runtime/runtimeRegistry.js";
+      import { absolutizeSpriteURLs } from "../tests/fixtures/basemap/style.mjs";
 
       window.waymarkFixture = {
         createInstance,
@@ -40,11 +41,17 @@
             document.getElementById(id) ??
             window.waymarkFixture.createContainer(id);
 
-          return new Map({
-            container,
-            style: style ?? { version: 8, sources: {}, layers: [] },
-            ...options,
+          // Pin fade off so symbol/icon paint does not settle mid-transition
+          // (callers can still override via `options`).
+          const map = new Map({ fadeDuration: 0, container, ...options });
+
+          // MapLibre requires an absolute sprite URL; resolve the vendored
+          // style's root-relative sprite against the current origin.
+          map.setStyle(style ?? { version: 8, sources: {}, layers: [] }, {
+            transformStyle: absolutizeSpriteURLs,
           });
+
+          return map;
         },
         getRuntimeCore(map) {
           return getCoreByMap(map) ?? null;

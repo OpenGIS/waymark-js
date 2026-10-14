@@ -12,8 +12,11 @@
 import { Map, Popup } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createInstance } from "../src/entry.js";
+import {
+  absolutizeSpriteURLs,
+  BASEMAP_STYLE_URL,
+} from "../tests/fixtures/basemap/style.mjs";
 
-const STYLE_URL = "https://tiles.openfreemap.org/styles/bright";
 const INITIAL_CENTER = [-128.0094, 50.6539];
 const INITIAL_ZOOM = 15;
 
@@ -65,12 +68,18 @@ function registerPhotoMarker(map, image) {
     }
   };
 
+  // The inline image decodes faster than the style's sources finish loading, so
+  // `style.load` can already have fired while `isStyleLoaded()` is still false
+  // (it only turns true once every source has loaded). A one-shot `style.load`
+  // wait would then never run and the icon would never register. `load` fires
+  // after the style and its sources are ready, so add there — or immediately if
+  // the style is already fully loaded.
   if (map.isStyleLoaded()) {
     addImage();
     return;
   }
 
-  map.once("style.load", addImage);
+  map.once("load", addImage);
 }
 
 /**
@@ -186,10 +195,16 @@ async function main() {
   // then hand it to Waymark for the GeoJSON overlay.
   const map = new Map({
     container: "map",
-    style: STYLE_URL,
     center: INITIAL_CENTER,
     zoom: INITIAL_ZOOM,
+    // No symbol/icon fade-in: a fade leaves the marker partially painted for a
+    // few hundred milliseconds, which is impossible to capture deterministically.
+    fadeDuration: 0,
   });
+
+  // MapLibre requires an absolute sprite URL, while the vendored style authors
+  // it root-relative to stay origin-independent. Resolve it at load time.
+  map.setStyle(BASEMAP_STYLE_URL, { transformStyle: absolutizeSpriteURLs });
 
   // Register the icon image before Waymark mounts its symbol layers so the
   // `photo` type resolves without an "image not found" error.

@@ -12,3 +12,8 @@ tmp/
 
 # Prebuilt v1 docs site (served verbatim under /v1/)
 docs/public/v1/
+
+# Generated basemap fixtures (deterministic; not hand-formatted)
+tests/fixtures/basemap/site/
+tests/fixtures/basemap/style.json
+tests/fixtures/basemap/site.manifest.json

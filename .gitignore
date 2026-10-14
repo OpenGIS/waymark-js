@@ -34,6 +34,10 @@ test-results/
 playwright-report/
 coverage/
 
+# Transient SwiftShader pin, written for screenshots runs and removed on
+# teardown (see tests/browser/global-setup.js)
+SwiftShader.ini
+
 # Local scratch files
 TASK.md
 NOTES.md

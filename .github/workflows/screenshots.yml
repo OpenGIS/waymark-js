@@ -1,0 +1,50 @@
+name: Screenshots identity
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "screenshots/**"
+      - "tests/fixtures/basemap/**"
+      - "tests/browser/**"
+      - "dev/**"
+      - "playwright.config.js"
+      - "vite.config.dev.js"
+      - "scripts/verify-screenshots.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/screenshots.yml"
+
+jobs:
+  identity:
+    # Pinned to the baseline machine's architecture (x86_64); byte identity is
+    # only meaningful when the renderer and CPU architecture match the baseline.
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    concurrency:
+      group: screenshots-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+
+      - run: npm run screenshots:verify
+
+      - name: Upload verify output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-verify
+          path: test-results/screenshots-verify/
+          if-no-files-found: ignore
